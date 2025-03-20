@@ -1,0 +1,11 @@
+{
+  "name": "html-to-doc-converter",
+  "version": "0.1.0",
+  "description": "A modular, open source library for converting HTML content into professional document formats. Initially focused on HTML-to-DOCX conversion, with planned support for PDF and XLSX. Built with TypeScript, it features a core HTML parsing engine and separate format-specific modules, offering a unified API for seamless integration.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Chipili Kafwilo",
+  "license": "ISC"
+}
