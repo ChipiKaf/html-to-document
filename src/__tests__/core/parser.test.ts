@@ -8,8 +8,10 @@ describe('Parser', () => {
     parser = new Parser();
   });
 
-  it('returns empty array when no handlers registered', () => {
-    expect(parser.parse('<p>Hello</p>')).toEqual([]);
+  it('returns default parsing for built-in tags when no handlers registered', () => {
+    expect(parser.parse('<p>Hello</p>')).toEqual([
+      { type: 'paragraph', text: 'Hello', attributes: {} },
+    ]);
   });
 
   it('parses a single element when handler registered', () => {
@@ -61,18 +63,12 @@ describe('Parser', () => {
     expect(result[1].text).toBe('second');
   });
 
-  it('ignores nested elements without handler for parent', () => {
-    const handler = jest.fn().mockReturnValue({
-      type: 'custom',
-      text: 'inside',
-      attributes: {},
-    } as DocumentElement);
-    parser.registerTagHandler('span', handler);
-
+  it('parses parent as custom element when no handler registered for nested', () => {
     const html = '<div><span>inside</span></div>';
     const result = parser.parse(html);
-    expect(result).toEqual([]);
-    expect(handler).not.toHaveBeenCalled();
+    expect(result).toEqual([
+      { type: 'custom', text: 'inside', attributes: {} },
+    ]);
   });
 
   it('handles malformed HTML gracefully', () => {
