@@ -1,3 +1,4 @@
+import { IDocumentConverter } from './converters/IDocumentConverter';
 import { Middleware, Parser } from './core';
 import { MiddlewareManager } from './middleware/middleware.manager';
 import { ConverterRegistry } from './registry/converter.registry';
@@ -17,6 +18,10 @@ export class Converter {
 
   public useMiddleware(mw: Middleware) {
     this._middlewareManager.use(mw);
+  }
+
+  public registerConverter(name: string, converter: IDocumentConverter) {
+    this._registry.register(name, converter);
   }
 
   async covnert(html: string, format: string): Promise<Buffer> {
