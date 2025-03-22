@@ -1,10 +1,4 @@
-import {
-  DocumentElement,
-  Middleware,
-  Parser,
-  TagHandler,
-  parseHTML,
-} from './core';
+import { Middleware, Parser } from './core';
 import { MiddlewareManager } from './middleware/middleware.manager';
 import { ConverterRegistry } from './registry/converter.registry';
 

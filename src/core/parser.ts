@@ -1,12 +1,9 @@
 import { DocumentElement, TagHandler } from './types';
 import { JSDOM } from 'jsdom';
-export function parseElement(
-  element: HTMLElement | ChildNode,
-  handler: TagHandler
-) {
+function parseElement(element: HTMLElement | ChildNode, handler: TagHandler) {
   return handler(element);
 }
-export function parseHTML(
+function parseHTML(
   html: string,
   handlers: Map<string, TagHandler>
 ): DocumentElement[] {
