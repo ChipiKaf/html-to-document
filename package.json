@@ -4,8 +4,15 @@
   "description": "A modular, open source library for converting HTML content into professional document formats. Initially focused on HTML-to-DOCX conversion, with planned support for PDF and XLSX. Built with TypeScript, it features a core HTML parsing engine and separate format-specific modules, offering a unified API for seamless integration.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "author": "Chipili Kafwilo",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.27.0",
+    "@typescript-eslint/parser": "^8.27.0",
+    "eslint": "^9.22.0"
+  }
 }
