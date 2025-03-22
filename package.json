@@ -11,8 +11,12 @@
   "author": "Chipili Kafwilo",
   "license": "ISC",
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
     "eslint": "^9.22.0"
+  },
+  "dependencies": {
+    "jsdom": "^26.0.0"
   }
 }
