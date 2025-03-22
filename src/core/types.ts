@@ -17,7 +17,7 @@ export interface DocumentElement {
   src?: string; // For images
   rows?: any[]; // For tables
   styles?: Record<string, string>;
-  attributes: { [key: string]: any };
+  attributes?: { [key: string]: any };
   // other fields...
 }
 

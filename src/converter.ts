@@ -24,7 +24,7 @@ export class Converter {
     this._registry.register(name, converter);
   }
 
-  async covnert(html: string, format: string): Promise<Buffer> {
+  async convert(html: string, format: string): Promise<Buffer> {
     const adapter = this._registry.get(format);
     if (!adapter) throw new Error('Format not available');
     const modifiedHtml = await this._middlewareManager.execute(html);

@@ -1,5 +1,45 @@
 import { DocumentElement, TagHandler } from './types';
 import { JSDOM } from 'jsdom';
+
+function defaultHandler(element: HTMLElement | ChildNode): DocumentElement {
+  const tag =
+    (element as HTMLElement).tagName?.toLowerCase() ||
+    (element as ChildNode).nodeName?.toLowerCase();
+
+  switch (tag) {
+    case 'p':
+      return {
+        type: 'paragraph',
+        text: element.textContent || '',
+        attributes: {},
+      };
+    case 'h1':
+    case 'h2':
+    case 'h3':
+      return {
+        type: 'heading',
+        level: Number(tag.slice(1)),
+        text: element.textContent || '',
+        attributes: {},
+      };
+    case 'ul':
+    case 'ol':
+      return { type: 'list', content: [], attributes: {} };
+    case 'img':
+      return {
+        type: 'image',
+        src: (element as HTMLImageElement).src,
+        attributes: {},
+      };
+    default:
+      return {
+        type: 'custom',
+        text: element.textContent || '',
+        attributes: {},
+      };
+  }
+}
+
 function parseElement(element: HTMLElement | ChildNode, handler: TagHandler) {
   return handler(element);
 }
@@ -12,8 +52,8 @@ function parseHTML(
   const content: DocumentElement[] = [];
 
   doc.body.childNodes.forEach((child) => {
-    if (handlers.has(child.nodeName))
-      content.push(parseElement(child, handlers.get(child.nodeName)!));
+    const key = child.nodeName.toLowerCase();
+    content.push(parseElement(child, handlers.get(key) ?? defaultHandler));
   });
   return content;
 }
