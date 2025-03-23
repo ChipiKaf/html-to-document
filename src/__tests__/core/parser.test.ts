@@ -80,7 +80,15 @@ describe('Parser', () => {
     expect(result).toEqual([
       {
         type: 'custom',
-        text: 'inside',
+        // text: 'inside',
+        content: [
+          {
+            type: 'custom',
+            text: 'inside',
+            attributes: {},
+            styles: {},
+          },
+        ],
         attributes: { id: 'wrapper' },
         styles: { margin: '10px' },
       },
