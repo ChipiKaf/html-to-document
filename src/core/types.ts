@@ -22,4 +22,7 @@ export interface DocumentElement {
 }
 
 export type Middleware = (html: string) => Promise<string>;
-export type TagHandler = (element: HTMLElement | ChildNode) => DocumentElement;
+export type TagHandler = (
+  element: HTMLElement | ChildNode,
+  options?: { [key: string]: any }
+) => DocumentElement;

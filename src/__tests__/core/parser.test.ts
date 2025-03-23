@@ -8,27 +8,38 @@ describe('Parser', () => {
     parser = new Parser();
   });
 
-  it('returns default parsing for built-in tags when no handlers registered', () => {
-    expect(parser.parse('<p>Hello</p>')).toEqual([
-      { type: 'paragraph', text: 'Hello', attributes: {} },
-    ]);
+  it('returns default parsing including styles and attributes for built-in tags', () => {
+    const result = parser.parse('<p style="color: red;" id="test">Hello</p>');
+    const parsed = result[0];
+    console.log(parsed.attributes);
+    expect(parsed.type).toBe('paragraph');
+    expect(parsed.text).toBe('Hello');
+    expect(parsed.styles?.color).toBe('red');
+    expect(parsed.attributes!['id']).toBe('test');
   });
 
   it('parses a single element when handler registered', () => {
     const handler = jest.fn().mockImplementation(
-      (el: HTMLElement) =>
+      (el: HTMLElement, options) =>
         ({
           type: 'paragraph',
           text: el.textContent,
-          attributes: {},
+          ...options,
         } as DocumentElement)
     );
     parser.registerTagHandler('p', handler);
 
-    const result = parser.parse('<p>Hello World</p>');
+    const result = parser.parse(
+      '<p style="font-weight:bold" data-custom="x">Hello World</p>'
+    );
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(result).toEqual([
-      { type: 'paragraph', text: 'Hello World', attributes: {} },
+    expect(result).toStrictEqual([
+      {
+        type: 'paragraph',
+        text: 'Hello World',
+        styles: { 'font-weight': 'bold' },
+        attributes: { 'data-custom': 'x' },
+      },
     ]);
   });
 
@@ -64,11 +75,18 @@ describe('Parser', () => {
   });
 
   it('parses parent as custom element when no handler registered for nested', () => {
-    const html = '<div><span>inside</span></div>';
+    const html =
+      '<div style="margin: 10px" id="wrapper"><span>inside</span></div>';
     const result = parser.parse(html);
     expect(result).toEqual([
-      { type: 'custom', text: 'inside', attributes: {} },
+      {
+        type: 'custom',
+        text: 'inside',
+        attributes: { id: 'wrapper' },
+        styles: { margin: '10px' },
+      },
     ]);
+    expect(result[0].styles?.margin).toBe('10px');
   });
 
   it('handles malformed HTML gracefully', () => {
