@@ -11,7 +11,6 @@ describe('Parser', () => {
   it('returns default parsing including styles and attributes for built-in tags', () => {
     const result = parser.parse('<p style="color: red;" id="test">Hello</p>');
     const parsed = result[0];
-    console.log(parsed.attributes);
     expect(parsed.type).toBe('paragraph');
     expect(parsed.text).toBe('Hello');
     expect(parsed.styles?.color).toBe('red');
