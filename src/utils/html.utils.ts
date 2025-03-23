@@ -26,6 +26,8 @@ export function parseAttributes(element: any): Record<string, string> {
   const attributes: Record<string, string> = {};
   for (const attr of Array.from((element as HTMLElement).attributes)) {
     if (attr.name === 'style') continue;
+    if (attr.name === 'colspan') continue;
+    if (attr.name === 'rowspan') continue;
     attributes[attr.name] = attr.value;
   }
   return attributes;

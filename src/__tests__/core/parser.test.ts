@@ -120,6 +120,98 @@ describe('Parser', () => {
     ]);
   });
 
+  it('parses table and correctly formats its structure', () => {
+    const html = `<table style="border-style: dashed" data-table="x">
+      <tr style="border-width: 3px">
+      <td style="color: red" colspan="3" rowspan="3">Row 1 Cell 1</td>
+      <td colspan="1" rowspan="1"><div style="font-family: times-new-roman">Row 1 Cell 2</div></td>
+      </tr>
+      <tr data-row="x">
+      <td colspan="3" rowspan="3">Row 2 Cell 1</td>
+      <td colspan="3" rowspan="3">Row 2 Cell 2</td>
+      </tr>
+      <tr>
+      <td>Row 3</td>
+      </tr>
+      </table>`;
+    const result = parser.parse(html);
+    console.log(JSON.stringify(result));
+    expect(result).toEqual([
+      {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Row 1 Cell 1' }],
+                styles: { color: 'red' },
+                attributes: {},
+                colspan: 3,
+                rowspan: 3,
+              },
+              {
+                type: 'table-cell',
+                content: [
+                  {
+                    type: 'custom',
+                    text: 'Row 1 Cell 2',
+                    styles: { 'font-family': 'times-new-roman' },
+                    attributes: {},
+                  },
+                ],
+                styles: {},
+                attributes: {},
+                colspan: 1,
+                rowspan: 1,
+              },
+            ],
+            styles: { 'border-width': '3px' },
+            attributes: {},
+          },
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Row 2 Cell 1' }],
+                styles: {},
+                attributes: {},
+                colspan: 3,
+                rowspan: 3,
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Row 2 Cell 2' }],
+                styles: {},
+                attributes: {},
+                colspan: 3,
+                rowspan: 3,
+              },
+            ],
+            styles: {},
+            attributes: { 'data-row': 'x' },
+          },
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Row 3' }],
+                styles: {},
+                attributes: {},
+                colspan: 1,
+                rowspan: 1,
+              },
+            ],
+            styles: {},
+            attributes: {},
+          },
+        ],
+        styles: { 'border-style': 'dashed' },
+        attributes: { 'data-table': 'x' },
+      },
+    ]);
+  });
+
   it('handles malformed HTML gracefully', () => {
     const handler = jest.fn().mockReturnValue({
       type: 'paragraph',

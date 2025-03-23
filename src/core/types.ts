@@ -4,6 +4,7 @@ export type DocumentElementTypes =
   | 'heading'
   | 'list'
   | 'table'
+  | 'table-cell'
   | 'image'
   | 'link'
   | 'code'
@@ -16,10 +17,24 @@ export interface DocumentElement {
   text?: string;
   level?: number; // For headings
   src?: string; // For images
-  rows?: any[]; // For tables
+  rows?: TableRowElement[];
   styles?: Record<string, string>;
   attributes?: { [key: string]: any };
-  // other fields...
+}
+
+export interface TableElement extends DocumentElement {
+  rows: TableRowElement[];
+}
+
+export interface TableRowElement {
+  cells: TableCellElement[];
+  styles?: Record<string, string>;
+  attributes?: Record<string, string>;
+}
+
+export interface TableCellElement extends DocumentElement {
+  colspan?: number;
+  rowspan?: number;
 }
 
 export type Middleware = (html: string) => Promise<string>;

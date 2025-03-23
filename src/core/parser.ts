@@ -1,5 +1,10 @@
 import { parseAttributes, parseStyles } from '../utils/html.utils';
-import { DocumentElement, TagHandler } from './types';
+import {
+  DocumentElement,
+  TableCellElement,
+  TableRowElement,
+  TagHandler,
+} from './types';
 import { JSDOM } from 'jsdom';
 
 // @ToDo: Handle passing of options for tag handlers and maybe Middleware
@@ -18,7 +23,7 @@ export class Parser {
   }
 
   parse(html: string) {
-    return this._parseHTML(html, this._tagHandlers);
+    return this._parseHTML(html);
   }
 
   private _parseElement(element: HTMLElement | ChildNode, handler: TagHandler) {
@@ -27,10 +32,46 @@ export class Parser {
     return handler(element, { styles, attributes });
   }
 
-  private _parseHTML(
-    html: string,
-    handlers: Map<string, TagHandler>
-  ): DocumentElement[] {
+  private _parseTable(
+    element: HTMLElement | ChildNode,
+    options = {}
+  ): DocumentElement {
+    const rows: TableRowElement[] = [];
+    // Query all trs (Perhaps we lose the styles of thead, tbody and tfooter so we need to fix this)
+    const trElements = (element as Element).querySelectorAll('tr');
+    trElements.forEach((tr) => {
+      const cells: TableCellElement[] = [];
+      const styles = parseStyles(tr);
+      const attributes = parseAttributes(tr);
+      tr.querySelectorAll('td, th').forEach((cell) => {
+        const styles = parseStyles(cell);
+        const attributes = parseAttributes(cell);
+        const content = this._parseHTML(cell.innerHTML);
+        const cellElement: TableCellElement = {
+          type: 'table-cell',
+          content,
+          styles,
+          attributes,
+          colspan: cell.getAttribute('colspan')
+            ? Number(cell.getAttribute('colspan'))
+            : 1,
+          rowspan: cell.getAttribute('rowspan')
+            ? Number(cell.getAttribute('rowspan'))
+            : 1,
+        };
+        cells.push(cellElement);
+      });
+      rows.push({ cells, styles, attributes });
+    });
+
+    return {
+      type: 'table',
+      rows,
+      ...options,
+    };
+  }
+
+  private _parseHTML(html: string): DocumentElement[] {
     const dom = new JSDOM(html);
     const doc = dom.window.document;
     const content: DocumentElement[] = [];
@@ -38,7 +79,10 @@ export class Parser {
     doc.body.childNodes.forEach((child) => {
       const key = child.nodeName.toLowerCase();
       content.push(
-        this._parseElement(child, handlers.get(key) ?? this._defaultHandler)
+        this._parseElement(
+          child,
+          this._tagHandlers.get(key) ?? this._defaultHandler
+        )
       );
     });
     return content;
@@ -57,7 +101,9 @@ export class Parser {
     const tag =
       (element as HTMLElement).tagName?.toLowerCase() ||
       (element as ChildNode).nodeName?.toLowerCase();
-
+    if (tag === 'table') {
+      return this._parseTable(element, options);
+    }
     let children: DocumentElement[] | undefined;
     // If we only have text inside, then
     if (
