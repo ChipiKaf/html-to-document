@@ -1,5 +1,6 @@
 export type DocumentElementTypes =
   | 'paragraph'
+  | 'text'
   | 'heading'
   | 'list'
   | 'table'

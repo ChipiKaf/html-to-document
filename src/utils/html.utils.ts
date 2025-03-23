@@ -5,7 +5,10 @@ const { window } = new JSDOM();
 const DOMElement = window.Element;
 
 export function parseStyles(element: any): Record<string, string> {
-  const styleString = element.getAttribute('style');
+  const styleString =
+    typeof element.getAttribute === 'function'
+      ? element.getAttribute('style')
+      : '';
   const styles: Record<string, string> = {};
   if (styleString) {
     styleString.split(';').forEach((rule: any) => {
@@ -19,6 +22,7 @@ export function parseStyles(element: any): Record<string, string> {
 }
 
 export function parseAttributes(element: any): Record<string, string> {
+  if (!(typeof element.attributes === 'object')) return {};
   const attributes: Record<string, string> = {};
   for (const attr of Array.from((element as HTMLElement).attributes)) {
     if (attr.name === 'style') continue;

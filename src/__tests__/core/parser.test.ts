@@ -75,18 +75,17 @@ describe('Parser', () => {
 
   it('parses parent as custom element when no handler registered for nested', () => {
     const html =
-      '<div style="margin: 10px" id="wrapper"><span>inside</span></div>';
+      '<div style="margin: 10px" id="wrapper"><span data-custom="x" style="border: 1px solid #fff">inside</span></div>';
     const result = parser.parse(html);
     expect(result).toEqual([
       {
         type: 'custom',
-        // text: 'inside',
         content: [
           {
             type: 'custom',
             text: 'inside',
-            attributes: {},
-            styles: {},
+            attributes: { 'data-custom': 'x' },
+            styles: { border: '1px solid #fff' },
           },
         ],
         attributes: { id: 'wrapper' },
@@ -94,6 +93,31 @@ describe('Parser', () => {
       },
     ]);
     expect(result[0].styles?.margin).toBe('10px');
+  });
+
+  it('parses parent as custom element when no handler registered for nested', () => {
+    const html =
+      '<div style="margin: 10px" id="wrapper">No parent content<span data-custom="x" style="border: 1px solid #fff">inside</span></div>';
+    const result = parser.parse(html);
+    expect(result).toEqual([
+      {
+        type: 'custom',
+        content: [
+          {
+            type: 'text',
+            text: 'No parent content',
+          },
+          {
+            type: 'custom',
+            text: 'inside',
+            attributes: { 'data-custom': 'x' },
+            styles: { border: '1px solid #fff' },
+          },
+        ],
+        attributes: { id: 'wrapper' },
+        styles: { margin: '10px' },
+      },
+    ]);
   });
 
   it('handles malformed HTML gracefully', () => {

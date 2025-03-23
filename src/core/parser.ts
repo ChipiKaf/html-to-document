@@ -48,6 +48,12 @@ export class Parser {
     element: HTMLElement | ChildNode,
     options: any
   ): DocumentElement {
+    if (element.nodeType === 3) {
+      return {
+        type: 'text',
+        text: element.textContent || '',
+      };
+    }
     const tag =
       (element as HTMLElement).tagName?.toLowerCase() ||
       (element as ChildNode).nodeName?.toLowerCase();
