@@ -4,9 +4,9 @@ import { MiddlewareManager } from './middleware/middleware.manager';
 import { ConverterRegistry } from './registry/converter.registry';
 
 export class Converter {
-  private _registry: ConverterRegistry;
   private _middlewareManager: MiddlewareManager;
   private _parser: Parser;
+  private _registry: ConverterRegistry;
 
   constructor() {
     this._registry = new ConverterRegistry();
