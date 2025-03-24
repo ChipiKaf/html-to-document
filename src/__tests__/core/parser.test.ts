@@ -135,7 +135,6 @@ describe('Parser', () => {
       </tr>
       </table>`;
     const result = parser.parse(html);
-    console.log(JSON.stringify(result));
     expect(result).toEqual([
       {
         type: 'table',
