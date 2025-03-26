@@ -9,7 +9,14 @@ import {
   TableRow,
   TableCell,
 } from 'docx';
-import { DocumentElement } from '../../core/types';
+import {
+  DocumentElement,
+  HeadingElement,
+  ImageElement,
+  ListElement,
+  ParagraphElement,
+  TextElement,
+} from '../../core/types';
 import { IDocumentConverter } from '../IDocumentConverter';
 
 export class DocxAdapter implements IDocumentConverter {
@@ -30,22 +37,35 @@ export class DocxAdapter implements IDocumentConverter {
     return await Packer.toBuffer(doc);
   }
 
+  private handlers: Record<
+    string,
+    (el: DocumentElement) => Paragraph | Table | TextRun
+  > = {
+    paragraph: this.convertParagraph.bind(this),
+    heading: this.convertHeading.bind(this),
+    list: this.convertList.bind(this),
+    image: this.convertImage.bind(this),
+    table: this.convertTable.bind(this),
+    text: this.convertText.bind(this),
+    custom: this.convertParagraph.bind(this), // fallback
+  };
+
   /**
    * Converts a DocumentElement (or an array of them) into an array of docx elements.
    */
   private convertElement(el: DocumentElement): (Paragraph | Table)[] {
     switch (el.type) {
       case 'paragraph':
-        return [this.convertParagraph(el)];
+        return [this.convertParagraph(el as ParagraphElement)];
 
       case 'heading':
-        return [this.convertHeading(el)];
+        return [this.convertHeading(el as HeadingElement)];
 
       case 'list':
-        return [this.convertList(el)];
+        return [this.convertList(el as ListElement)];
 
       case 'image':
-        return [this.convertImage(el)];
+        return [this.convertImage(el as ImageElement)];
 
       case 'table':
         return [this.convertTable(el)];
@@ -54,25 +74,23 @@ export class DocxAdapter implements IDocumentConverter {
       case 'custom':
       default:
         // For any unrecognized type, treat it as a paragraph.
-        return [this.convertParagraph(el)];
+        return [this.convertParagraph(el as DocumentElement)];
     }
   }
 
-  private convertParagraph(el: DocumentElement): Paragraph {
+  private convertParagraph(
+    _el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ): Paragraph {
+    const el = _el as ParagraphElement;
     // If there are nested inline children, create multiple text runs.
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
       const textRuns = el.content.map((child) => {
         const mergedStyles = { ...el.styles, ...child.styles };
+        const handler = this.handlers[child.type] || this.handlers.custom;
         // Create a new TextRun with the merged styles and child's text.
-        return new TextRun({
-          text: child.text || '',
-          // @Todo: Figure out the best way to map styles
-          bold: mergedStyles['font-weight'] === 'bold',
-          color: mergedStyles['color']
-            ? mergedStyles['color'].replace('#', '')
-            : undefined,
-        });
+        return handler(child);
       });
       return new Paragraph({
         children: textRuns,
@@ -90,7 +108,11 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private convertHeading(el: DocumentElement): Paragraph {
+  private convertHeading(
+    _el: DocumentElement,
+    style: { [key: string]: any } = {}
+  ): Paragraph {
+    const el = _el as HeadingElement;
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
 
     if (el.content && el.content.length > 0) {
@@ -116,17 +138,38 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private convertList(el: DocumentElement): Paragraph {
+  private convertText(
+    _el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ) {
+    const el = _el as TextElement;
+    const mergedStyles = { ...styles, ...el.styles };
+    return new TextRun({
+      text: el.text || '',
+      // @Todo: Figure out the best way to map styles
+      bold: mergedStyles['font-weight'] === 'bold',
+      color: mergedStyles['color']
+        ? mergedStyles['color'].replace('#', '')
+        : undefined,
+    });
+  }
+
+  private convertList(_el: DocumentElement, styles = {}): Paragraph {
+    const el = _el as ListElement;
     return new Paragraph({
       text: el.text || '',
       bullet: { level: 0 },
     });
   }
 
-  private convertImage(el: DocumentElement): Paragraph {
+  private convertImage(
+    _el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ): Paragraph {
     // For a real implementation, you might need to load the image from a URL or file.
     // Here we assume that el.src is a base64 encoded string for simplicity.
     // You also might want to use el.attributes to read width/height.
+    const el = _el as ImageElement;
     return new Paragraph({
       children: [
         new ImageRun({
@@ -139,7 +182,10 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private convertTable(el: DocumentElement): Table {
+  private convertTable(
+    el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ): Table {
     // This is a very simplified version.
     // Assume that el.rows is an array of arrays, where each inner array represents a row of cells (each cell being a string).
     const rows: TableRow[] = [];
