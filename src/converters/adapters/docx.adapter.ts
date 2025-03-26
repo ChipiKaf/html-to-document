@@ -61,11 +61,37 @@ export class DocxAdapter implements IDocumentConverter {
   }
 
   private convertParagraph(el: DocumentElement): Paragraph {
+    // If there are nested inline children, create multiple text runs.
+    if (el.content && el.content.length > 0) {
+      // Merge parent's styles into each child (child style overrides parent's if provided)
+      const textRuns = el.content.map((child) => {
+        const mergedStyles = { ...el.styles, ...child.styles };
+        // Create a new TextRun with the merged styles and child's text.
+        return new TextRun({
+          text: child.text || '',
+          // @Todo: Figure out the best way to map styles
+          bold: mergedStyles['font-weight'] === 'bold',
+          color: mergedStyles['color']
+            ? mergedStyles['color'].replace('#', '')
+            : undefined,
+        });
+      });
+      return new Paragraph({
+        children: textRuns,
+        // You might also apply the parent's alignment or spacing here.
+      });
+    }
+    // Otherwise, if no nested children, simply create one TextRun.
     return new Paragraph({
-      children: [new TextRun(el.text || '')],
+      children: [
+        new TextRun({
+          text: el.text || '',
+          // @Todo: Figure out the best way to map styles
+          bold: el.styles?.['font-weight'] === 'bold',
+        }),
+      ],
     });
   }
-
   private convertHeading(el: DocumentElement): Paragraph {
     // Ensure level is between 1 and 6
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;

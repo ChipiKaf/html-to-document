@@ -42,6 +42,38 @@ describe('Parser', () => {
     ]);
   });
 
+  it('parses a single paragraph element with children content when handler registered', () => {
+    const result = parser.parse(
+      `<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>`
+    );
+    console.log(JSON.stringify(result));
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'custom',
+            text: 'Hello',
+            styles: {
+              color: 'red',
+            },
+            attributes: {},
+          },
+          {
+            type: 'text',
+            text: 'World',
+          },
+        ],
+        styles: {
+          'font-weight': 'bold',
+        },
+        attributes: {
+          'data-custom': 'x',
+        },
+      },
+    ]);
+  });
+
   it('is case-insensitive for tag names', () => {
     const handler = jest.fn().mockReturnValue({
       type: 'heading',
@@ -74,8 +106,7 @@ describe('Parser', () => {
   });
 
   it('parses parent as custom element when no handler registered for nested', () => {
-    const html =
-      '<div style="margin: 10px" id="wrapper"><span data-custom="x" style="border: 1px solid #fff">inside</span></div>';
+    const html = `<div style="margin: 10px" id="wrapper"><span data-custom="x" style="border: 1px solid #fff">inside</span></div>`;
     const result = parser.parse(html);
     expect(result).toEqual([
       {
@@ -96,8 +127,7 @@ describe('Parser', () => {
   });
 
   it('parses parent as custom element when no handler registered for nested', () => {
-    const html =
-      '<div style="margin: 10px" id="wrapper">No parent content<span data-custom="x" style="border: 1px solid #fff">inside</span></div>';
+    const html = `<div style="margin: 10px" id="wrapper">No parent content<span data-custom="x" style="border: 1px solid #fff">inside</span></div>`;
     const result = parser.parse(html);
     expect(result).toEqual([
       {
