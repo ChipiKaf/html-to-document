@@ -39,7 +39,10 @@ export class DocxAdapter implements IDocumentConverter {
 
   private handlers: Record<
     string,
-    (el: DocumentElement) => Paragraph | Table | TextRun
+    (
+      el: DocumentElement,
+      styles: { [key: string]: string }
+    ) => Paragraph | Table | TextRun
   > = {
     paragraph: this.convertParagraph.bind(this),
     heading: this.convertHeading.bind(this),
@@ -62,7 +65,7 @@ export class DocxAdapter implements IDocumentConverter {
         return [this.convertHeading(el as HeadingElement)];
 
       case 'list':
-        return [this.convertList(el as ListElement)];
+        return this.convertList(el as ListElement);
 
       case 'image':
         return [this.convertImage(el as ImageElement)];
@@ -86,14 +89,13 @@ export class DocxAdapter implements IDocumentConverter {
     // If there are nested inline children, create multiple text runs.
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
-      const textRuns = el.content.map((child) => {
-        const mergedStyles = { ...el.styles, ...child.styles };
+      const children = el.content.map((child) => {
         const handler = this.handlers[child.type] || this.handlers.custom;
         // Create a new TextRun with the merged styles and child's text.
-        return handler(child);
+        return handler(child, { ...el.styles });
       });
       return new Paragraph({
-        children: textRuns,
+        children,
       });
     }
     // Otherwise, if no nested children, simply create one TextRun.
@@ -116,18 +118,15 @@ export class DocxAdapter implements IDocumentConverter {
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
 
     if (el.content && el.content.length > 0) {
-      const textRuns = el.content.map((child) => {
-        const mergedStyles = { ...el.styles, ...child.styles };
-        return new TextRun({
-          text: child.text || '',
-          bold: mergedStyles['font-weight'] === 'bold',
-          color: mergedStyles['color']?.replace('#', ''),
-        });
+      const children = el.content.map((child) => {
+        const handler = this.handlers[child.type] || this.handlers.custom;
+        // Create a new TextRun with the merged styles and child's text.
+        return handler(child, { ...el.styles });
       });
 
       return new Paragraph({
         heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
-        children: textRuns,
+        children,
       });
     }
 
@@ -154,11 +153,32 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private convertList(_el: DocumentElement, styles = {}): Paragraph {
+  private convertList(
+    _el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ): Paragraph[] {
     const el = _el as ListElement;
-    return new Paragraph({
-      text: el.text || '',
-      bullet: { level: 0 },
+
+    const mergedStyles = { ...styles, ...el.styles };
+
+    return (el.content || []).map((item) => {
+      const handler = this.handlers[item.type] || this.handlers.custom;
+
+      const children =
+        item.content && item.content.length > 0
+          ? item.content.map((child) => handler(child, { ...mergedStyles }))
+          : [
+              new TextRun({
+                text: item.text || '',
+                bold: mergedStyles['font-weight'] === 'bold',
+                color: mergedStyles['color']?.replace('#', ''),
+              }),
+            ];
+
+      return new Paragraph({
+        bullet: { level: 0 },
+        children,
+      });
     });
   }
 
