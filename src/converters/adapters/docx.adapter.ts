@@ -42,8 +42,6 @@ export class DocxAdapter implements IDocumentConverter {
         return [this.convertHeading(el)];
 
       case 'list':
-        // For simplicity, assume the text field contains the list item.
-        // In a more advanced version, you would recursively convert the content.
         return [this.convertList(el)];
 
       case 'image':
@@ -91,18 +89,34 @@ export class DocxAdapter implements IDocumentConverter {
       ],
     });
   }
+
   private convertHeading(el: DocumentElement): Paragraph {
-    // Ensure level is between 1 and 6
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
+
+    if (el.content && el.content.length > 0) {
+      const textRuns = el.content.map((child) => {
+        const mergedStyles = { ...el.styles, ...child.styles };
+        return new TextRun({
+          text: child.text || '',
+          bold: mergedStyles['font-weight'] === 'bold',
+          color: mergedStyles['color']?.replace('#', ''),
+        });
+      });
+
+      return new Paragraph({
+        heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
+        children: textRuns,
+      });
+    }
+
     return new Paragraph({
       text: el.text || '',
       heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
+      // bold: el.styles?.['font-weight'] === 'bold',
     });
   }
 
   private convertList(el: DocumentElement): Paragraph {
-    // In a full implementation, you might iterate over el.content if it contains list items.
-    // Here we simply create a bullet paragraph.
     return new Paragraph({
       text: el.text || '',
       bullet: { level: 0 },
@@ -128,17 +142,18 @@ export class DocxAdapter implements IDocumentConverter {
   private convertTable(el: DocumentElement): Table {
     // This is a very simplified version.
     // Assume that el.rows is an array of arrays, where each inner array represents a row of cells (each cell being a string).
-    const rows = (el.rows || []).map(
-      (row: any[]) =>
-        new TableRow({
-          children: row.map(
-            (cell) =>
-              new TableCell({
-                children: [new Paragraph(String(cell))],
-              })
-          ),
-        })
-    );
+    const rows: TableRow[] = [];
+    // const rows = (el.rows || []).map(
+    //   (row: any[]) =>
+    //     new TableRow({
+    //       children: row.map(
+    //         (cell) =>
+    //           new TableCell({
+    //             children: [new Paragraph(String(cell))],
+    //           })
+    //       ),
+    //     })
+    // );
 
     return new Table({ rows });
   }

@@ -1,5 +1,6 @@
 import { Parser } from '../../core/parser';
 import { DocumentElement } from '../../core/types';
+import { minifyMiddleware } from '../../middleware/minify.middleware';
 
 describe('Parser', () => {
   let parser: Parser;
@@ -42,7 +43,7 @@ describe('Parser', () => {
     ]);
   });
 
-  it('parses a single paragraph element with children content when handler registered', () => {
+  it('parses a single paragraph element with children content when no handler is registered', () => {
     const result = parser.parse(
       `<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>`
     );
@@ -61,6 +62,78 @@ describe('Parser', () => {
           {
             type: 'text',
             text: 'World',
+          },
+        ],
+        styles: {
+          'font-weight': 'bold',
+        },
+        attributes: {
+          'data-custom': 'x',
+        },
+      },
+    ]);
+  });
+
+  it('parses a single heading element with children content when no handler is registered', () => {
+    const result = parser.parse(
+      `<h1 style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</h1>`
+    );
+    expect(result).toEqual([
+      {
+        type: 'heading',
+        level: 1,
+        content: [
+          {
+            type: 'custom',
+            text: 'Hello',
+            styles: {
+              color: 'red',
+            },
+            attributes: {},
+          },
+          {
+            type: 'text',
+            text: 'World',
+          },
+        ],
+        styles: {
+          'font-weight': 'bold',
+        },
+        attributes: {
+          'data-custom': 'x',
+        },
+      },
+    ]);
+  });
+
+  it('parses a single unordered list element with list items as children when no handler is registered', async () => {
+    let htmlString = `<ul style="font-weight:bold" data-custom="x">
+        <li style="color: red;">
+        Hello
+        </li>
+        <li>
+        World
+        </li>
+      </ul>`;
+    htmlString = await minifyMiddleware(htmlString);
+    const result = parser.parse(htmlString);
+    expect(result).toEqual([
+      {
+        type: 'list',
+        content: [
+          {
+            type: 'list-item',
+            text: 'Hello',
+            styles: {
+              color: 'red',
+            },
+            attributes: {},
+          },
+          {
+            type: 'list-item',
+            text: 'World',
+            styles: {},
+            attributes: {},
           },
         ],
         styles: {

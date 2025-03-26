@@ -3,6 +3,7 @@ export type DocumentElementTypes =
   | 'text'
   | 'heading'
   | 'list'
+  | 'list-item'
   | 'table'
   | 'table-cell'
   | 'image'

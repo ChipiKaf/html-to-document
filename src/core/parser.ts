@@ -140,6 +140,8 @@ export class Parser {
       case 'ul':
       case 'ol':
         return { type: 'list', text, content: children, ...options };
+      case 'li':
+        return { type: 'list-item', text, content: children, ...options };
       case 'img':
         return {
           type: 'image',
