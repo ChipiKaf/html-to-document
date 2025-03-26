@@ -46,7 +46,6 @@ describe('Parser', () => {
     const result = parser.parse(
       `<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>`
     );
-    console.log(JSON.stringify(result));
     expect(result).toEqual([
       {
         type: 'paragraph',

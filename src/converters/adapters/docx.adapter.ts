@@ -78,7 +78,6 @@ export class DocxAdapter implements IDocumentConverter {
       });
       return new Paragraph({
         children: textRuns,
-        // You might also apply the parent's alignment or spacing here.
       });
     }
     // Otherwise, if no nested children, simply create one TextRun.
