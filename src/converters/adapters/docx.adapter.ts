@@ -158,26 +158,27 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Paragraph[] {
     const el = _el as ListElement;
+    // Determine the numbering reference based on the list type and optionally markerStyle.
+    let reference: string;
+    if (el.listType === 'ordered') {
+      reference = el.markerStyle
+        ? `ordered-${el.markerStyle}`
+        : 'numbered-list';
+    } else {
+      reference = el.markerStyle
+        ? `unordered-${el.markerStyle}`
+        : 'bullet-list';
+    }
 
-    const mergedStyles = { ...styles, ...el.styles };
-
-    return (el.content || []).map((item) => {
-      const handler = this.handlers[item.type] || this.handlers.custom;
-
-      const children =
-        item.content && item.content.length > 0
-          ? item.content.map((child) => handler(child, { ...mergedStyles }))
-          : [
-              new TextRun({
-                text: item.text || '',
-                bold: mergedStyles['font-weight'] === 'bold',
-                color: mergedStyles['color']?.replace('#', ''),
-              }),
-            ];
-
+    // For each list-item, create a paragraph with the numbering info.
+    return el.content.map((item) => {
       return new Paragraph({
-        bullet: { level: 0 },
-        children,
+        text: item.text,
+        numbering: {
+          reference,
+          level: 0, // Default to level 0; you could extend your interface to allow nesting.
+        },
+        // Optionally, you can merge in any styles if needed.
       });
     });
   }

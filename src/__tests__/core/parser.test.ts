@@ -1,5 +1,5 @@
 import { Parser } from '../../core/parser';
-import { DocumentElement } from '../../core/types';
+import { DocumentElement, ParagraphElement } from '../../core/types';
 import { minifyMiddleware } from '../../middleware/minify.middleware';
 
 describe('Parser', () => {
@@ -11,7 +11,7 @@ describe('Parser', () => {
 
   it('returns default parsing including styles and attributes for built-in tags', () => {
     const result = parser.parse('<p style="color: red;" id="test">Hello</p>');
-    const parsed = result[0];
+    const parsed = result[0] as ParagraphElement;
     expect(parsed.type).toBe('paragraph');
     expect(parsed.text).toBe('Hello');
     expect(parsed.styles?.color).toBe('red');
@@ -109,10 +109,19 @@ describe('Parser', () => {
   it('parses a single unordered list element with list items as children when no handler is registered', async () => {
     let htmlString = `<ul style="font-weight:bold" data-custom="x">
         <li style="color: red;">
-        Hello
+        Indent level 1 a
+        <ul>
+          <li>Indent level 2</li>
+          <li>
+            <ol>
+              <li>Indent level 3 a</li>
+              <li>Indent level 3 b</li>
+            </ol>
+          </li>
+        </ul>
         </li>
         <li>
-        World
+        Indent level 1 b
         </li>
       </ul>`;
     htmlString = await minifyMiddleware(htmlString);
@@ -120,10 +129,85 @@ describe('Parser', () => {
     expect(result).toEqual([
       {
         type: 'list',
+        listType: 'unordered',
         content: [
           {
             type: 'list-item',
-            text: 'Hello',
+            level: 1,
+            content: [
+              {
+                type: 'text',
+                text: 'Indent level 1 a',
+              },
+              {
+                type: 'list',
+                listType: 'unordered',
+                content: [
+                  {
+                    type: 'list-item',
+                    text: 'Indent level 2',
+                    level: 2,
+                    metadata: {
+                      level: '2',
+                    },
+                    styles: {},
+                    attributes: {},
+                  },
+                  {
+                    type: 'list-item',
+                    level: 2,
+                    content: [
+                      {
+                        type: 'list',
+                        listType: 'ordered',
+                        content: [
+                          {
+                            type: 'list-item',
+                            text: 'Indent level 3 a',
+                            level: 3,
+                            metadata: {
+                              level: '3',
+                            },
+                            styles: {},
+                            attributes: {},
+                          },
+                          {
+                            type: 'list-item',
+                            text: 'Indent level 3 b',
+                            level: 3,
+                            metadata: {
+                              level: '3',
+                            },
+                            styles: {},
+                            attributes: {},
+                          },
+                        ],
+                        level: 3,
+                        metadata: {
+                          level: '3',
+                        },
+                        styles: {},
+                        attributes: {},
+                      },
+                    ],
+                    metadata: {
+                      level: '2',
+                    },
+                    styles: {},
+                    attributes: {},
+                  },
+                ],
+                level: 2,
+                metadata: {
+                  level: '2',
+                },
+                styles: {},
+                attributes: {},
+              },
+            ],
+            metadata: {
+              level: '1',
+            },
             styles: {
               color: 'red',
             },
@@ -131,16 +215,24 @@ describe('Parser', () => {
           },
           {
             type: 'list-item',
-            text: 'World',
+            text: 'Indent level 1 b',
+            level: 1,
+            metadata: {
+              level: '1',
+            },
             styles: {},
             attributes: {},
           },
         ],
+        level: 1,
         styles: {
           'font-weight': 'bold',
         },
         attributes: {
           'data-custom': 'x',
+        },
+        metadata: {
+          level: '1',
         },
       },
     ]);
@@ -171,7 +263,7 @@ describe('Parser', () => {
     parser.registerTagHandler('p', handler);
 
     const html = '<p>first</p><p>second</p>';
-    const result = parser.parse(html);
+    const result = parser.parse(html) as ParagraphElement[];
     expect(result.length).toBe(2);
     expect(result[0].text).toBe('first');
     expect(result[1].text).toBe('second');

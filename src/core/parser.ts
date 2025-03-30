@@ -26,10 +26,20 @@ export class Parser {
     return this._parseHTML(html);
   }
 
-  private _parseElement(element: HTMLElement | ChildNode, handler: TagHandler) {
-    const styles = parseStyles(element);
-    const attributes = parseAttributes(element);
-    return handler(element, { styles, attributes });
+  private _parseElement(
+    element: HTMLElement | ChildNode,
+    handler: TagHandler,
+    options: { [key: string]: any } = {}
+  ) {
+    let styles = parseStyles(element);
+    let attributes = parseAttributes(element);
+    if (options.attributes) {
+      attributes = { ...options.attributes, ...attributes };
+    }
+    if (options.styles) {
+      styles = { ...options.styles, ...styles };
+    }
+    return handler(element, { ...options, ...{ styles, attributes } });
   }
 
   private _parseTable(
@@ -108,15 +118,32 @@ export class Parser {
     // If we only have text inside, then
     if (
       !(element.childNodes.length === 1 && element.childNodes[0].nodeType === 3)
-    )
+    ) {
+      const tag = element.nodeName.toLowerCase();
+      const isList = tag === 'ul' || tag === 'ol' || tag === 'li';
+      const newLevel =
+        options && options.metadata && options.metadata.level
+          ? tag === 'li'
+            ? (parseInt(options.metadata.level) + 1).toString()
+            : options.metadata.level
+          : '1';
+
       children = Array.from(element.childNodes).map((child) => {
         // Change this to have even the custom tag handlers
         const key = child.nodeName.toLowerCase();
         return this._parseElement(
           child,
-          this._tagHandlers.get(key) ?? this._defaultHandler
+          this._tagHandlers.get(key) ?? this._defaultHandler,
+          isList
+            ? {
+                metadata: {
+                  level: newLevel,
+                },
+              }
+            : {}
         );
       });
+    }
     const text = children === undefined ? element.textContent : undefined;
 
     switch (tag) {
@@ -139,9 +166,34 @@ export class Parser {
         };
       case 'ul':
       case 'ol':
-        return { type: 'list', text, content: children, ...options };
+        return {
+          type: 'list',
+          text,
+          listType: tag === 'ol' ? 'ordered' : 'unordered',
+          content: children,
+          level: options?.metadata?.level
+            ? typeof options.metadata.level === 'string'
+              ? parseInt(options.metadata.level)
+              : options.metadata.level
+            : 1,
+          ...options,
+          metadata: {
+            ...options.metadata,
+            level: options?.metadata?.level || '1',
+          },
+        };
       case 'li':
-        return { type: 'list-item', text, content: children, ...options };
+        return {
+          type: 'list-item',
+          text,
+          level: options?.metadata?.level
+            ? typeof options.metadata.level === 'string'
+              ? parseInt(options.metadata.level)
+              : options.metadata.level
+            : 1,
+          content: children,
+          ...options,
+        };
       case 'img':
         return {
           type: 'image',

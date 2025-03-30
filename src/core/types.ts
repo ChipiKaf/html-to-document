@@ -16,6 +16,7 @@ export interface BaseElement {
   type: string; // not strictly limited to a union
   styles?: Record<string, string>;
   attributes?: { [key: string]: any };
+  metadata?: {};
   content?: DocumentElement[];
 }
 
@@ -44,12 +45,14 @@ export interface ListElement extends BaseElement {
   type: 'list';
   listType: 'ordered' | 'unordered';
   markerStyle?: string;
+  level: number;
   content: ListItemElement[];
 }
 
 export interface ListItemElement extends BaseElement {
   type: 'list-item';
-  text: string;
+  level: number;
+  text: DocumentElement[];
 }
 
 export type DocumentElement =
@@ -58,6 +61,7 @@ export type DocumentElement =
   | ImageElement
   | ListElement
   | ListItemElement
+  | TableElement
   | TextElement
   | (BaseElement & {
       type: Exclude<
@@ -65,17 +69,6 @@ export type DocumentElement =
         'paragraph' | 'heading' | 'image' | 'text' | 'list' | 'list-item'
       >;
     });
-
-// export interface DocumentElement {
-//   type: DocumentElementTypes;
-//   content?: DocumentElement[]; // nested elements
-//   text?: string;
-//   level?: number; // For headings
-//   src?: string; // For images
-//   rows?: TableRowElement[];
-//   styles?: Record<string, string>;
-//   attributes?: { [key: string]: any };
-// }
 
 export interface TableElement extends BaseElement {
   rows: TableRowElement[];
