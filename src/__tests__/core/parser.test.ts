@@ -238,6 +238,232 @@ describe('Parser', () => {
     ]);
   });
 
+  it('parses a complex list with both ordered and unordered lists nested', async () => {
+    let htmlString = `<ul>
+      <li style="list-style-type: none;">
+      <ol>
+      <li>Level 2 a</li>
+      <li>Level 2 b<br>
+      </li>
+      <li>Level 2 c<br>
+      <ol>
+      <li>Level 3 a<br>
+      </li>
+      <li>Level 3 b<br>
+      <ul>
+      <li>Level 4 a</li>
+      <li>Level 4 b</li>
+      </ul>
+      </li>
+      </ol>
+      </li>
+      </ol>
+      </li>
+      <li>Level 1 a</li>
+      </ul>`;
+    htmlString = await minifyMiddleware(htmlString);
+    const result = parser.parse(htmlString);
+    expect(result).toEqual([
+      {
+        type: 'list',
+        listType: 'unordered',
+        content: [
+          {
+            type: 'list-item',
+            level: 1,
+            content: [
+              {
+                type: 'list',
+                listType: 'ordered',
+                content: [
+                  {
+                    type: 'list-item',
+                    text: 'Level 2 a',
+                    level: 2,
+                    metadata: {
+                      level: '2',
+                    },
+                    styles: {},
+                    attributes: {},
+                  },
+                  {
+                    type: 'list-item',
+                    level: 2,
+                    content: [
+                      {
+                        type: 'text',
+                        text: 'Level 2 b',
+                      },
+                      {
+                        type: 'custom',
+                        content: [],
+                        metadata: {
+                          level: '3',
+                        },
+                        styles: {},
+                        attributes: {},
+                      },
+                    ],
+                    metadata: {
+                      level: '2',
+                    },
+                    styles: {},
+                    attributes: {},
+                  },
+                  {
+                    type: 'list-item',
+                    level: 2,
+                    content: [
+                      {
+                        type: 'text',
+                        text: 'Level 2 c',
+                      },
+                      {
+                        type: 'custom',
+                        content: [],
+                        metadata: {
+                          level: '3',
+                        },
+                        styles: {},
+                        attributes: {},
+                      },
+                      {
+                        type: 'list',
+                        listType: 'ordered',
+                        content: [
+                          {
+                            type: 'list-item',
+                            level: 3,
+                            content: [
+                              {
+                                type: 'text',
+                                text: 'Level 3 a',
+                              },
+                              {
+                                type: 'custom',
+                                content: [],
+                                metadata: {
+                                  level: '4',
+                                },
+                                styles: {},
+                                attributes: {},
+                              },
+                            ],
+                            metadata: {
+                              level: '3',
+                            },
+                            styles: {},
+                            attributes: {},
+                          },
+                          {
+                            type: 'list-item',
+                            level: 3,
+                            content: [
+                              {
+                                type: 'text',
+                                text: 'Level 3 b',
+                              },
+                              {
+                                type: 'custom',
+                                content: [],
+                                metadata: {
+                                  level: '4',
+                                },
+                                styles: {},
+                                attributes: {},
+                              },
+                              {
+                                type: 'list',
+                                listType: 'unordered',
+                                content: [
+                                  {
+                                    type: 'list-item',
+                                    text: 'Level 4 a',
+                                    level: 4,
+                                    metadata: {
+                                      level: '4',
+                                    },
+                                    styles: {},
+                                    attributes: {},
+                                  },
+                                  {
+                                    type: 'list-item',
+                                    text: 'Level 4 b',
+                                    level: 4,
+                                    metadata: {
+                                      level: '4',
+                                    },
+                                    styles: {},
+                                    attributes: {},
+                                  },
+                                ],
+                                level: 4,
+                                metadata: {
+                                  level: '4',
+                                },
+                                styles: {},
+                                attributes: {},
+                              },
+                            ],
+                            metadata: {
+                              level: '3',
+                            },
+                            styles: {},
+                            attributes: {},
+                          },
+                        ],
+                        level: 3,
+                        metadata: {
+                          level: '3',
+                        },
+                        styles: {},
+                        attributes: {},
+                      },
+                    ],
+                    metadata: {
+                      level: '2',
+                    },
+                    styles: {},
+                    attributes: {},
+                  },
+                ],
+                level: 2,
+                metadata: {
+                  level: '2',
+                },
+                styles: {},
+                attributes: {},
+              },
+            ],
+            metadata: {
+              level: '1',
+            },
+            styles: {
+              'list-style-type': 'none',
+            },
+            attributes: {},
+          },
+          {
+            type: 'list-item',
+            text: 'Level 1 a',
+            level: 1,
+            metadata: {
+              level: '1',
+            },
+            styles: {},
+            attributes: {},
+          },
+        ],
+        level: 1,
+        styles: {},
+        attributes: {},
+        metadata: {
+          level: '1',
+        },
+      },
+    ]);
+  });
+
   it('is case-insensitive for tag names', () => {
     const handler = jest.fn().mockReturnValue({
       type: 'heading',
