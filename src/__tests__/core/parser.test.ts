@@ -243,13 +243,13 @@ describe('Parser', () => {
       <li style="list-style-type: none;">
       <ol>
       <li>Level 2 a</li>
-      <li>Level 2 b<br>
+      <li>Level 2 b
       </li>
-      <li>Level 2 c<br>
+      <li>Level 2 c
       <ol>
-      <li>Level 3 a<br>
+      <li>Level 3 a
       </li>
-      <li>Level 3 b<br>
+      <li>Level 3 b
       <ul>
       <li>Level 4 a</li>
       <li>Level 4 b</li>
@@ -288,22 +288,8 @@ describe('Parser', () => {
                   },
                   {
                     type: 'list-item',
+                    text: 'Level 2 b',
                     level: 2,
-                    content: [
-                      {
-                        type: 'text',
-                        text: 'Level 2 b',
-                      },
-                      {
-                        type: 'custom',
-                        content: [],
-                        metadata: {
-                          level: '3',
-                        },
-                        styles: {},
-                        attributes: {},
-                      },
-                    ],
                     metadata: {
                       level: '2',
                     },
@@ -319,36 +305,13 @@ describe('Parser', () => {
                         text: 'Level 2 c',
                       },
                       {
-                        type: 'custom',
-                        content: [],
-                        metadata: {
-                          level: '3',
-                        },
-                        styles: {},
-                        attributes: {},
-                      },
-                      {
                         type: 'list',
                         listType: 'ordered',
                         content: [
                           {
                             type: 'list-item',
+                            text: 'Level 3 a',
                             level: 3,
-                            content: [
-                              {
-                                type: 'text',
-                                text: 'Level 3 a',
-                              },
-                              {
-                                type: 'custom',
-                                content: [],
-                                metadata: {
-                                  level: '4',
-                                },
-                                styles: {},
-                                attributes: {},
-                              },
-                            ],
                             metadata: {
                               level: '3',
                             },
@@ -362,15 +325,6 @@ describe('Parser', () => {
                               {
                                 type: 'text',
                                 text: 'Level 3 b',
-                              },
-                              {
-                                type: 'custom',
-                                content: [],
-                                metadata: {
-                                  level: '4',
-                                },
-                                styles: {},
-                                attributes: {},
                               },
                               {
                                 type: 'list',
