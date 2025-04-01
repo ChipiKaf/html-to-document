@@ -14,6 +14,7 @@ import {
   HeadingElement,
   ImageElement,
   ListElement,
+  ListItemElement,
   ParagraphElement,
   TextElement,
 } from '../../core/types';
@@ -42,7 +43,7 @@ export class DocxAdapter implements IDocumentConverter {
     (
       el: DocumentElement,
       styles: { [key: string]: string }
-    ) => Paragraph | Table | TextRun
+    ) => Paragraph | Table | TextRun | (Paragraph | Table | TextRun)[]
   > = {
     paragraph: this.convertParagraph.bind(this),
     heading: this.convertHeading.bind(this),
@@ -89,11 +90,13 @@ export class DocxAdapter implements IDocumentConverter {
     // If there are nested inline children, create multiple text runs.
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
-      const children = el.content.map((child) => {
-        const handler = this.handlers[child.type] || this.handlers.custom;
-        // Create a new TextRun with the merged styles and child's text.
-        return handler(child, { ...el.styles });
-      });
+      const children = el.content
+        .map((child) => {
+          const handler = this.handlers[child.type] || this.handlers.custom;
+          // Create a new TextRun with the merged styles and child's text.
+          return handler(child, { ...styles, ...el.styles });
+        })
+        .flat();
       return new Paragraph({
         children,
       });
@@ -112,17 +115,19 @@ export class DocxAdapter implements IDocumentConverter {
 
   private convertHeading(
     _el: DocumentElement,
-    style: { [key: string]: any } = {}
+    styles: { [key: string]: any } = {}
   ): Paragraph {
     const el = _el as HeadingElement;
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
 
     if (el.content && el.content.length > 0) {
-      const children = el.content.map((child) => {
-        const handler = this.handlers[child.type] || this.handlers.custom;
-        // Create a new TextRun with the merged styles and child's text.
-        return handler(child, { ...el.styles });
-      });
+      const children = el.content
+        .map((child) => {
+          const handler = this.handlers[child.type] || this.handlers.custom;
+          // Create a new TextRun with the merged styles and child's text.
+          return handler(child, { ...styles, ...el.styles });
+        })
+        .flat();
 
       return new Paragraph({
         heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
@@ -133,7 +138,6 @@ export class DocxAdapter implements IDocumentConverter {
     return new Paragraph({
       text: el.text || '',
       heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
-      // bold: el.styles?.['font-weight'] === 'bold',
     });
   }
 
@@ -158,29 +162,42 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Paragraph[] {
     const el = _el as ListElement;
-    // Determine the numbering reference based on the list type and optionally markerStyle.
-    let reference: string;
-    if (el.listType === 'ordered') {
-      reference = el.markerStyle
-        ? `ordered-${el.markerStyle}`
-        : 'numbered-list';
-    } else {
-      reference = el.markerStyle
-        ? `unordered-${el.markerStyle}`
-        : 'bullet-list';
-    }
-
-    // For each list-item, create a paragraph with the numbering info.
-    return el.content.map((item) => {
-      return new Paragraph({
-        text: item.text,
-        numbering: {
-          reference,
-          level: 0, // Default to level 0; you could extend your interface to allow nesting.
-        },
-        // Optionally, you can merge in any styles if needed.
-      });
+    return el.content.map((child) => {
+      child['metadata'] = {
+        ...child['metadata'],
+        reference: `${el.listType}${
+          el.markerStyle && el.markerStyle !== '' ? `-${el.markerStyle}` : ''
+        }`,
+      };
+      return this._convertListItem(child, { ...styles, ...el.styles });
     });
+  }
+
+  private _convertListItem(
+    _el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ): Paragraph {
+    const el = _el as ListItemElement;
+    // If there are nested inline children, create multiple text runs.
+    let children: (Paragraph | TextRun | Table)[] = [];
+    if (el.content && el.content.length > 0) {
+      // Merge parent's styles into each child (child style overrides parent's if provided)
+      children = el.content
+        .map((child) => {
+          const handler = this.handlers[child.type] || this.handlers.custom;
+          // Create a new TextRun with the merged styles and child's text.
+          return handler(child, { ...styles, ...el.styles });
+        })
+        .flat();
+      return new Paragraph({
+        numbering: {
+          reference: el.metadata?.reference || '',
+          level: el.level,
+        },
+        children,
+      });
+    }
+    return new Paragraph({});
   }
 
   private convertImage(

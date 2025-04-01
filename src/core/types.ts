@@ -16,7 +16,7 @@ export interface BaseElement {
   type: string; // not strictly limited to a union
   styles?: Record<string, string>;
   attributes?: { [key: string]: any };
-  metadata?: {};
+  metadata?: { [key: string]: any };
   content?: DocumentElement[];
 }
 
@@ -46,13 +46,13 @@ export interface ListElement extends BaseElement {
   listType: 'ordered' | 'unordered';
   markerStyle?: string;
   level: number;
-  content: DocumentElement[];
+  content: ListItemElement[];
 }
 
 export interface ListItemElement extends BaseElement {
   type: 'list-item';
   level: number;
-  text: DocumentElement[];
+  content: DocumentElement[];
 }
 
 export type DocumentElement =
