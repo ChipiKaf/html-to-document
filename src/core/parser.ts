@@ -122,11 +122,13 @@ export class Parser {
       const tag = element.nodeName.toLowerCase();
       const isList = tag === 'ul' || tag === 'ol' || tag === 'li';
       const newLevel =
-        options && options.metadata && options.metadata.level
+        options &&
+        options.metadata &&
+        typeof options.metadata.level !== 'undefined'
           ? tag === 'li'
             ? (parseInt(options.metadata.level) + 1).toString()
             : options.metadata.level
-          : '1';
+          : '0';
 
       children = Array.from(element.childNodes).map((child) => {
         // Change this to have even the custom tag handlers
@@ -171,26 +173,28 @@ export class Parser {
           text,
           listType: tag === 'ol' ? 'ordered' : 'unordered',
           content: children,
-          level: options?.metadata?.level
-            ? typeof options.metadata.level === 'string'
-              ? parseInt(options.metadata.level)
-              : options.metadata.level
-            : 1,
+          level:
+            typeof options?.metadata?.level !== 'undefined'
+              ? typeof options.metadata.level === 'string'
+                ? parseInt(options.metadata.level)
+                : options.metadata.level
+              : 0,
           ...options,
           metadata: {
             ...options.metadata,
-            level: options?.metadata?.level || '1',
+            level: options?.metadata?.level || '0',
           },
         };
       case 'li':
         return {
           type: 'list-item',
           text,
-          level: options?.metadata?.level
-            ? typeof options.metadata.level === 'string'
-              ? parseInt(options.metadata.level)
-              : options.metadata.level
-            : 1,
+          level:
+            typeof options?.metadata?.level !== 'undefined'
+              ? typeof options.metadata.level === 'string'
+                ? parseInt(options.metadata.level)
+                : options.metadata.level
+              : 0,
           content: children,
           ...options,
         };

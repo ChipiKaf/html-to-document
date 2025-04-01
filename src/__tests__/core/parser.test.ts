@@ -109,19 +109,19 @@ describe('Parser', () => {
   it('parses a single unordered list element with list items as children when no handler is registered', async () => {
     let htmlString = `<ul style="font-weight:bold" data-custom="x">
         <li style="color: red;">
-        Indent level 1 a
+        Indent level 0 a
         <ul>
-          <li>Indent level 2</li>
+          <li>Indent level 1</li>
           <li>
             <ol>
-              <li>Indent level 3 a</li>
-              <li>Indent level 3 b</li>
+              <li>Indent level 2 a</li>
+              <li>Indent level 2 b</li>
             </ol>
           </li>
         </ul>
         </li>
         <li>
-        Indent level 1 b
+        Indent level 0 b
         </li>
       </ul>`;
     htmlString = await minifyMiddleware(htmlString);
@@ -133,11 +133,11 @@ describe('Parser', () => {
         content: [
           {
             type: 'list-item',
-            level: 1,
+            level: 0,
             content: [
               {
                 type: 'text',
-                text: 'Indent level 1 a',
+                text: 'Indent level 0 a',
               },
               {
                 type: 'list',
@@ -145,17 +145,17 @@ describe('Parser', () => {
                 content: [
                   {
                     type: 'list-item',
-                    text: 'Indent level 2',
-                    level: 2,
+                    text: 'Indent level 1',
+                    level: 1,
                     metadata: {
-                      level: '2',
+                      level: '1',
                     },
                     styles: {},
                     attributes: {},
                   },
                   {
                     type: 'list-item',
-                    level: 2,
+                    level: 1,
                     content: [
                       {
                         type: 'list',
@@ -163,50 +163,50 @@ describe('Parser', () => {
                         content: [
                           {
                             type: 'list-item',
-                            text: 'Indent level 3 a',
-                            level: 3,
+                            text: 'Indent level 2 a',
+                            level: 2,
                             metadata: {
-                              level: '3',
+                              level: '2',
                             },
                             styles: {},
                             attributes: {},
                           },
                           {
                             type: 'list-item',
-                            text: 'Indent level 3 b',
-                            level: 3,
+                            text: 'Indent level 2 b',
+                            level: 2,
                             metadata: {
-                              level: '3',
+                              level: '2',
                             },
                             styles: {},
                             attributes: {},
                           },
                         ],
-                        level: 3,
+                        level: 2,
                         metadata: {
-                          level: '3',
+                          level: '2',
                         },
                         styles: {},
                         attributes: {},
                       },
                     ],
                     metadata: {
-                      level: '2',
+                      level: '1',
                     },
                     styles: {},
                     attributes: {},
                   },
                 ],
-                level: 2,
+                level: 1,
                 metadata: {
-                  level: '2',
+                  level: '1',
                 },
                 styles: {},
                 attributes: {},
               },
             ],
             metadata: {
-              level: '1',
+              level: '0',
             },
             styles: {
               color: 'red',
@@ -215,16 +215,16 @@ describe('Parser', () => {
           },
           {
             type: 'list-item',
-            text: 'Indent level 1 b',
-            level: 1,
+            text: 'Indent level 0 b',
+            level: 0,
             metadata: {
-              level: '1',
+              level: '0',
             },
             styles: {},
             attributes: {},
           },
         ],
-        level: 1,
+        level: 0,
         styles: {
           'font-weight': 'bold',
         },
@@ -232,7 +232,7 @@ describe('Parser', () => {
           'data-custom': 'x',
         },
         metadata: {
-          level: '1',
+          level: '0',
         },
       },
     ]);
@@ -242,24 +242,24 @@ describe('Parser', () => {
     let htmlString = `<ul>
       <li style="list-style-type: none;">
       <ol>
-      <li>Level 2 a</li>
-      <li>Level 2 b
+      <li>Level 1 a</li>
+      <li>Level 1 b
       </li>
-      <li>Level 2 c
+      <li>Level 1 c
       <ol>
-      <li>Level 3 a
+      <li>Level 2 a
       </li>
-      <li>Level 3 b
+      <li>Level 2 b
       <ul>
-      <li>Level 4 a</li>
-      <li>Level 4 b</li>
+      <li>Level 3 a</li>
+      <li>Level 3 b</li>
       </ul>
       </li>
       </ol>
       </li>
       </ol>
       </li>
-      <li>Level 1 a</li>
+      <li>Level 0 a</li>
       </ul>`;
     htmlString = await minifyMiddleware(htmlString);
     const result = parser.parse(htmlString);
@@ -270,7 +270,7 @@ describe('Parser', () => {
         content: [
           {
             type: 'list-item',
-            level: 1,
+            level: 0,
             content: [
               {
                 type: 'list',
@@ -278,31 +278,31 @@ describe('Parser', () => {
                 content: [
                   {
                     type: 'list-item',
-                    text: 'Level 2 a',
-                    level: 2,
+                    text: 'Level 1 a',
+                    level: 1,
                     metadata: {
-                      level: '2',
+                      level: '1',
                     },
                     styles: {},
                     attributes: {},
                   },
                   {
                     type: 'list-item',
-                    text: 'Level 2 b',
-                    level: 2,
+                    text: 'Level 1 b',
+                    level: 1,
                     metadata: {
-                      level: '2',
+                      level: '1',
                     },
                     styles: {},
                     attributes: {},
                   },
                   {
                     type: 'list-item',
-                    level: 2,
+                    level: 1,
                     content: [
                       {
                         type: 'text',
-                        text: 'Level 2 c',
+                        text: 'Level 1 c',
                       },
                       {
                         type: 'list',
@@ -310,21 +310,21 @@ describe('Parser', () => {
                         content: [
                           {
                             type: 'list-item',
-                            text: 'Level 3 a',
-                            level: 3,
+                            text: 'Level 2 a',
+                            level: 2,
                             metadata: {
-                              level: '3',
+                              level: '2',
                             },
                             styles: {},
                             attributes: {},
                           },
                           {
                             type: 'list-item',
-                            level: 3,
+                            level: 2,
                             content: [
                               {
                                 type: 'text',
-                                text: 'Level 3 b',
+                                text: 'Level 2 b',
                               },
                               {
                                 type: 'list',
@@ -332,65 +332,65 @@ describe('Parser', () => {
                                 content: [
                                   {
                                     type: 'list-item',
-                                    text: 'Level 4 a',
-                                    level: 4,
+                                    text: 'Level 3 a',
+                                    level: 3,
                                     metadata: {
-                                      level: '4',
+                                      level: '3',
                                     },
                                     styles: {},
                                     attributes: {},
                                   },
                                   {
                                     type: 'list-item',
-                                    text: 'Level 4 b',
-                                    level: 4,
+                                    text: 'Level 3 b',
+                                    level: 3,
                                     metadata: {
-                                      level: '4',
+                                      level: '3',
                                     },
                                     styles: {},
                                     attributes: {},
                                   },
                                 ],
-                                level: 4,
+                                level: 3,
                                 metadata: {
-                                  level: '4',
+                                  level: '3',
                                 },
                                 styles: {},
                                 attributes: {},
                               },
                             ],
                             metadata: {
-                              level: '3',
+                              level: '2',
                             },
                             styles: {},
                             attributes: {},
                           },
                         ],
-                        level: 3,
+                        level: 2,
                         metadata: {
-                          level: '3',
+                          level: '2',
                         },
                         styles: {},
                         attributes: {},
                       },
                     ],
                     metadata: {
-                      level: '2',
+                      level: '1',
                     },
                     styles: {},
                     attributes: {},
                   },
                 ],
-                level: 2,
+                level: 1,
                 metadata: {
-                  level: '2',
+                  level: '1',
                 },
                 styles: {},
                 attributes: {},
               },
             ],
             metadata: {
-              level: '1',
+              level: '0',
             },
             styles: {
               'list-style-type': 'none',
@@ -399,20 +399,20 @@ describe('Parser', () => {
           },
           {
             type: 'list-item',
-            text: 'Level 1 a',
-            level: 1,
+            text: 'Level 0 a',
+            level: 0,
             metadata: {
-              level: '1',
+              level: '0',
             },
             styles: {},
             attributes: {},
           },
         ],
-        level: 1,
+        level: 0,
         styles: {},
         attributes: {},
         metadata: {
-          level: '1',
+          level: '0',
         },
       },
     ]);

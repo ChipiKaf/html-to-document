@@ -46,7 +46,7 @@ export interface ListElement extends BaseElement {
   listType: 'ordered' | 'unordered';
   markerStyle?: string;
   level: number;
-  content: ListItemElement[];
+  content: DocumentElement[];
 }
 
 export interface ListItemElement extends BaseElement {
