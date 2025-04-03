@@ -19,8 +19,15 @@ import {
   TextElement,
 } from '../../core/types';
 import { IDocumentConverter } from '../IDocumentConverter';
+import { StyleMapper } from '../../core/style.mapper';
 
 export class DocxAdapter implements IDocumentConverter {
+  private _mapper: StyleMapper;
+
+  constructor() {
+    this._mapper = new StyleMapper();
+  }
+
   async convert(elements: DocumentElement[]): Promise<Buffer> {
     // Convert our intermediate representation into an array of docx children.
     const children = elements.flatMap((el) => this.convertElement(el));
@@ -88,6 +95,7 @@ export class DocxAdapter implements IDocumentConverter {
   ): Paragraph {
     const el = _el as ParagraphElement;
     // If there are nested inline children, create multiple text runs.
+    const mergedStyles = { ...styles, ...el.styles };
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
       const children = el.content
@@ -99,6 +107,7 @@ export class DocxAdapter implements IDocumentConverter {
         .flat();
       return new Paragraph({
         children,
+        ...this._mapper.mapStyles(mergedStyles),
       });
     }
     // Otherwise, if no nested children, simply create one TextRun.
@@ -106,8 +115,7 @@ export class DocxAdapter implements IDocumentConverter {
       children: [
         new TextRun({
           text: el.text || '',
-          // @Todo: Figure out the best way to map styles
-          bold: el.styles?.['font-weight'] === 'bold',
+          ...this._mapper.mapStyles(mergedStyles),
         }),
       ],
     });
@@ -119,6 +127,7 @@ export class DocxAdapter implements IDocumentConverter {
   ): Paragraph {
     const el = _el as HeadingElement;
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
+    const mergedStyles = { ...styles, ...el.styles };
 
     if (el.content && el.content.length > 0) {
       const children = el.content
@@ -132,12 +141,14 @@ export class DocxAdapter implements IDocumentConverter {
       return new Paragraph({
         heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
         children,
+        ...this._mapper.mapStyles(mergedStyles),
       });
     }
 
     return new Paragraph({
       text: el.text || '',
       heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
+      ...this._mapper.mapStyles(mergedStyles),
     });
   }
 
@@ -149,11 +160,7 @@ export class DocxAdapter implements IDocumentConverter {
     const mergedStyles = { ...styles, ...el.styles };
     return new TextRun({
       text: el.text || '',
-      // @Todo: Figure out the best way to map styles
-      bold: mergedStyles['font-weight'] === 'bold',
-      color: mergedStyles['color']
-        ? mergedStyles['color'].replace('#', '')
-        : undefined,
+      ...this._mapper.mapStyles(mergedStyles),
     });
   }
 
@@ -178,6 +185,7 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Paragraph {
     const el = _el as ListItemElement;
+    const mergedStyles = { ...styles, ...el.styles };
     // If there are nested inline children, create multiple text runs.
     let children: (Paragraph | TextRun | Table)[] = [];
     if (el.content && el.content.length > 0) {
@@ -195,6 +203,7 @@ export class DocxAdapter implements IDocumentConverter {
           level: el.level,
         },
         children,
+        ...this._mapper.mapStyles(mergedStyles),
       });
     }
     return new Paragraph({});
@@ -208,13 +217,14 @@ export class DocxAdapter implements IDocumentConverter {
     // Here we assume that el.src is a base64 encoded string for simplicity.
     // You also might want to use el.attributes to read width/height.
     const el = _el as ImageElement;
+    const mergedStyles = { ...styles, ...el.styles };
     return new Paragraph({
       children: [
         new ImageRun({
           data: Buffer.from(el.src || '', 'base64'),
           transformation: { width: 100, height: 100 },
           type: 'png', // specify the image type (e.g. 'png', 'jpeg')
-          // fallback: 'Image could not be displayed', // a fallback message if needed
+          ...this._mapper.mapStyles(mergedStyles),
         }),
       ],
     });

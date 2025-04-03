@@ -1,17 +1,3 @@
-// export type DocumentElementTypes =
-//   | 'paragraph'
-//   | 'text'
-//   | 'heading'
-//   | 'list'
-//   | 'list-item'
-//   | 'table'
-//   | 'table-cell'
-//   | 'image'
-//   | 'link'
-//   | 'code'
-//   | 'blockquote'
-//   | 'custom';
-
 export interface BaseElement {
   type: string; // not strictly limited to a union
   styles?: Record<string, string>;

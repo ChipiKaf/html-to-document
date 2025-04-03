@@ -10,11 +10,16 @@ export function parseStyles(element: any): Record<string, string> {
       ? element.getAttribute('style')
       : '';
   const styles: Record<string, string> = {};
+
   if (styleString) {
-    styleString.split(';').forEach((rule: any) => {
+    styleString.split(';').forEach((rule: string) => {
       const [prop, value] = rule.split(':');
       if (prop && value) {
-        styles[prop.trim()] = value.trim();
+        // Convert kebab-case to camelCase
+        const camelCaseProp = prop
+          .trim()
+          .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+        styles[camelCaseProp] = value.trim();
       }
     });
   }

@@ -37,7 +37,7 @@ describe('Parser', () => {
       {
         type: 'paragraph',
         text: 'Hello World',
-        styles: { 'font-weight': 'bold' },
+        styles: { fontWeight: 'bold' },
         attributes: { 'data-custom': 'x' },
       },
     ]);
@@ -65,7 +65,7 @@ describe('Parser', () => {
           },
         ],
         styles: {
-          'font-weight': 'bold',
+          fontWeight: 'bold',
         },
         attributes: {
           'data-custom': 'x',
@@ -97,7 +97,7 @@ describe('Parser', () => {
           },
         ],
         styles: {
-          'font-weight': 'bold',
+          fontWeight: 'bold',
         },
         attributes: {
           'data-custom': 'x',
@@ -226,7 +226,7 @@ describe('Parser', () => {
         ],
         level: 0,
         styles: {
-          'font-weight': 'bold',
+          fontWeight: 'bold',
         },
         attributes: {
           'data-custom': 'x',
@@ -393,7 +393,7 @@ describe('Parser', () => {
               level: '0',
             },
             styles: {
-              'list-style-type': 'none',
+              listStyleType: 'none',
             },
             attributes: {},
           },
@@ -529,7 +529,7 @@ describe('Parser', () => {
                   {
                     type: 'custom',
                     text: 'Row 1 Cell 2',
-                    styles: { 'font-family': 'times-new-roman' },
+                    styles: { fontFamily: 'times-new-roman' },
                     attributes: {},
                   },
                 ],
@@ -539,7 +539,7 @@ describe('Parser', () => {
                 rowspan: 1,
               },
             ],
-            styles: { 'border-width': '3px' },
+            styles: { borderWidth: '3px' },
             attributes: {},
           },
           {
@@ -579,7 +579,7 @@ describe('Parser', () => {
             attributes: {},
           },
         ],
-        styles: { 'border-style': 'dashed' },
+        styles: { borderStyle: 'dashed' },
         attributes: { 'data-table': 'x' },
       },
     ]);
