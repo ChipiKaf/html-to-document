@@ -42,81 +42,77 @@ describe('Docx.adapter.convert', () => {
     expect(buffer).toBeInstanceOf(Buffer);
   });
 
-  it('should create a DOCX buffer with different headings and their heading levels', async () => {
-    const elements: DocumentElement[] = [
-      {
-        type: 'heading',
-        text: 'Heading 1',
-        level: 1,
-        styles: {},
-        attributes: {},
-      },
-      {
-        type: 'heading',
-        text: 'Heading 2',
-        level: 2,
-        styles: {},
-        attributes: {},
-      },
-      {
-        type: 'heading',
-        text: 'Heading 3',
-        level: 3,
-        styles: {},
-        attributes: {},
-      },
-    ];
-    const buffer = await adapter.convert(elements);
-    const jsonDocument = await parseDocxDocument(buffer);
-    expect(buffer).toBeInstanceOf(Buffer);
+  describe('heading', () => {
+    it('should create a DOCX buffer with different headings and their heading levels', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'heading',
+          text: 'Heading 1',
+          level: 1,
+          styles: {},
+          attributes: {},
+        },
+        {
+          type: 'heading',
+          text: 'Heading 2',
+          level: 2,
+          styles: {},
+          attributes: {},
+        },
+        {
+          type: 'heading',
+          text: 'Heading 3',
+          level: 3,
+          styles: {},
+          attributes: {},
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      expect(buffer).toBeInstanceOf(Buffer);
 
-    const headingParagraphs = jsonDocument['w:document']['w:body']['w:p'];
+      const headingParagraphs = jsonDocument['w:document']['w:body']['w:p'];
 
-    expect(headingParagraphs[0]['w:pPr']['w:pStyle']['@_w:val']).toBe(
-      'Heading1'
-    );
-    expect(headingParagraphs[0]['w:r']['w:t']['#text']).toBe('Heading 1');
+      expect(headingParagraphs[0]['w:pPr']['w:pStyle']['@_w:val']).toBe(
+        'Heading1'
+      );
+      expect(headingParagraphs[0]['w:r']['w:t']['#text']).toBe('Heading 1');
 
-    expect(headingParagraphs[1]['w:pPr']['w:pStyle']['@_w:val']).toBe(
-      'Heading2'
-    );
-    expect(headingParagraphs[1]['w:r']['w:t']['#text']).toBe('Heading 2');
+      expect(headingParagraphs[1]['w:pPr']['w:pStyle']['@_w:val']).toBe(
+        'Heading2'
+      );
+      expect(headingParagraphs[1]['w:r']['w:t']['#text']).toBe('Heading 2');
 
-    expect(headingParagraphs[2]['w:pPr']['w:pStyle']['@_w:val']).toBe(
-      'Heading3'
-    );
-    expect(headingParagraphs[2]['w:r']['w:t']['#text']).toBe('Heading 3');
-  });
+      expect(headingParagraphs[2]['w:pPr']['w:pStyle']['@_w:val']).toBe(
+        'Heading3'
+      );
+      expect(headingParagraphs[2]['w:r']['w:t']['#text']).toBe('Heading 3');
+    });
 
-  it('should create a DOCX buffer with a bold paragraph', async () => {
-    const elements: DocumentElement[] = [
-      {
-        type: 'paragraph',
-        text: 'Test paragraph',
-        styles: { fontWeight: 'bold' },
-        attributes: {},
-      },
-    ];
-    const buffer = await adapter.convert(elements);
-    const jsonDocument = await parseDocxDocument(buffer);
-    expect(buffer).toBeInstanceOf(Buffer);
+    it('should create a DOCX buffer with a bold paragraph', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Test paragraph',
+          styles: { fontWeight: 'bold' },
+          attributes: {},
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      expect(buffer).toBeInstanceOf(Buffer);
 
-    const boldParagraph = jsonDocument['w:document']['w:body']['w:p'];
+      const boldParagraph = jsonDocument['w:document']['w:body']['w:p'];
 
-    expect(boldParagraph['w:r']['w:t']['#text']).toBe('Test paragraph');
+      expect(boldParagraph['w:r']['w:t']['#text']).toBe('Test paragraph');
 
-    const runProps = boldParagraph['w:r']['w:rPr'];
-    expect(runProps).toHaveProperty('w:b');
-    expect(runProps).toHaveProperty('w:bCs');
+      const runProps = boldParagraph['w:r']['w:rPr'];
+      expect(runProps).toHaveProperty('w:b');
+      expect(runProps).toHaveProperty('w:bCs');
+    });
   });
 
   describe('Paragraph styles', () => {
-    let adapter: DocxAdapter;
-
-    beforeEach(() => {
-      adapter = new DocxAdapter();
-    });
-
     it('should render italic paragraph', async () => {
       const elements: DocumentElement[] = [
         {
