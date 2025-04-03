@@ -138,9 +138,13 @@ export class DocxAdapter implements IDocumentConverter {
         })
         .flat();
 
+      // @To-do: This may not work well in case of overlap... Check how to separate inline from block styles
       return new Paragraph({
         heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
         children,
+        run: {
+          ...this._mapper.mapStyles(mergedStyles),
+        },
         ...this._mapper.mapStyles(mergedStyles),
       });
     }
@@ -148,6 +152,9 @@ export class DocxAdapter implements IDocumentConverter {
     return new Paragraph({
       text: el.text || '',
       heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
+      run: {
+        ...this._mapper.mapStyles(mergedStyles),
+      },
       ...this._mapper.mapStyles(mergedStyles),
     });
   }

@@ -89,27 +89,62 @@ describe('Docx.adapter.convert', () => {
       );
       expect(headingParagraphs[2]['w:r']['w:t']['#text']).toBe('Heading 3');
     });
-
-    it('should create a DOCX buffer with a bold paragraph', async () => {
+    it('should render a heading with extra bold and italic styling', async () => {
       const elements: DocumentElement[] = [
         {
-          type: 'paragraph',
-          text: 'Test paragraph',
-          styles: { fontWeight: 'bold' },
+          type: 'heading',
+          text: 'Styled Heading',
+          level: 1,
+          styles: { fontWeight: 'bold', fontStyle: 'italic' },
           attributes: {},
         },
       ];
       const buffer = await adapter.convert(elements);
       const jsonDocument = await parseDocxDocument(buffer);
-      expect(buffer).toBeInstanceOf(Buffer);
+      const heading = jsonDocument['w:document']['w:body']['w:p'];
+      const runProps = heading['w:pPr']['w:rPr'];
 
-      const boldParagraph = jsonDocument['w:document']['w:body']['w:p'];
+      // Check heading style for Heading1
+      expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading1');
+      // Check that the run text is correct
+      expect(heading['w:r']['w:t']['#text']).toBe('Styled Heading');
 
-      expect(boldParagraph['w:r']['w:t']['#text']).toBe('Test paragraph');
-
-      const runProps = boldParagraph['w:r']['w:rPr'];
+      // Check for extra bold and italic properties in run formatting
       expect(runProps).toHaveProperty('w:b');
       expect(runProps).toHaveProperty('w:bCs');
+      expect(runProps).toHaveProperty('w:i');
+      expect(runProps).toHaveProperty('w:iCs');
+    });
+
+    it('should render a heading with underline, custom font size, and text color', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'heading',
+          text: 'Custom Styled Heading',
+          level: 2,
+          styles: {
+            textDecoration: 'underline',
+            fontSize: '20px',
+            color: '#00ff00',
+          },
+          attributes: {},
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const heading = jsonDocument['w:document']['w:body']['w:p'];
+      const runProps = heading['w:pPr']['w:rPr'];
+
+      // Check heading style for Heading2
+      expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading2');
+      // Check run text
+      expect(heading['w:r']['w:t']['#text']).toBe('Custom Styled Heading');
+
+      // Underline: our mapping should add w:u with a value of "single"
+
+      expect(runProps['w:u']['@_w:val']).toBe('single');
+      expect(runProps['w:sz']['@_w:val']).toBe('30');
+      expect(runProps['w:color']['@_w:val']).toBe('00ff00');
     });
   });
 
@@ -130,6 +165,27 @@ describe('Docx.adapter.convert', () => {
       expect(para['w:r']['w:rPr']).toHaveProperty('w:i');
       expect(para['w:r']['w:rPr']).toHaveProperty('w:iCs');
       expect(para['w:r']['w:t']['#text']).toBe('Italic text');
+    });
+    it('should create a DOCX buffer with a bold paragraph', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Test paragraph',
+          styles: { fontWeight: 'bold' },
+          attributes: {},
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      expect(buffer).toBeInstanceOf(Buffer);
+
+      const boldParagraph = jsonDocument['w:document']['w:body']['w:p'];
+
+      expect(boldParagraph['w:r']['w:t']['#text']).toBe('Test paragraph');
+
+      const runProps = boldParagraph['w:r']['w:rPr'];
+      expect(runProps).toHaveProperty('w:b');
+      expect(runProps).toHaveProperty('w:bCs');
     });
 
     it('should render underlined paragraph', async () => {

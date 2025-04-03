@@ -1,5 +1,5 @@
 import * as CSS from 'csstype';
-
+// @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
   // Use Partial to only require a subset of the CSS properties
   protected mappings: Partial<
