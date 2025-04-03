@@ -36,12 +36,13 @@ describe('Docx.adapter.convert', () => {
     adapter = new DocxAdapter();
   });
 
-  it('should create a DOCX buffer from an empty DocumentElement array', async () => {
-    const elements: DocumentElement[] = [];
-    const buffer = await adapter.convert(elements);
-    expect(buffer).toBeInstanceOf(Buffer);
+  describe('general', () => {
+    it('should create a DOCX buffer from an empty DocumentElement array', async () => {
+      const elements: DocumentElement[] = [];
+      const buffer = await adapter.convert(elements);
+      expect(buffer).toBeInstanceOf(Buffer);
+    });
   });
-
   describe('heading', () => {
     it('should create a DOCX buffer with different headings and their heading levels', async () => {
       const elements: DocumentElement[] = [
