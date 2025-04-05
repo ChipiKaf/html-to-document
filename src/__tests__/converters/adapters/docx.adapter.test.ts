@@ -1,10 +1,11 @@
 // import { DocxAdapter } from '../src/DocxAdapter';
 import { Packer } from 'docx';
 import { DocxAdapter } from '../../../converters';
-import { DocumentElement } from '../../../core';
+import { DocumentElement, Parser } from '../../../core';
 
 import JSZip from 'jszip';
 import { XMLParser } from 'fast-xml-parser';
+import { minifyMiddleware } from '../../../middleware/minify.middleware';
 
 /**
  * Parses the document.xml from a DOCX buffer and returns a JSON representation.
@@ -31,9 +32,10 @@ async function parseDocxDocument(docxBuffer: Buffer): Promise<any> {
 
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
-
+  let parser: Parser;
   beforeEach(() => {
     adapter = new DocxAdapter();
+    parser = new Parser();
   });
 
   describe('general', () => {
@@ -287,6 +289,40 @@ describe('Docx.adapter.convert', () => {
       // 16px -> 12pt -> 24 half-points
       expect(para['w:r']['w:rPr']['w:sz']['@_w:val']).toBe('24');
       expect(para['w:r']['w:t']['#text']).toBe('Sized text');
+    });
+    it('should flatten nested inline spans into separate text runs with correct styles', async () => {
+      let html = `<p style="font-weight:bold" data-custom="x">
+      <span style="color: red;">Hello
+        <span style="color: green;">Green World</span>
+      </span>World</p>`;
+
+      html = await minifyMiddleware(html);
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+
+      const runs = jsonDocument['w:document']['w:body']['w:p']['w:r'];
+
+      // Ensure we have 3 runs: "Hello", "Green World", "World"
+      expect(runs).toHaveLength(3);
+
+      // Run 1: "Hello" with red
+      expect(runs[0]['w:t']['#text']).toBe('Hello');
+      expect(runs[0]['w:rPr']['w:color']['@_w:val']).toBe('FF0000');
+
+      // Run 2: "Green World" with green
+      expect(runs[1]['w:t']['#text']).toBe('Green World');
+      expect(runs[1]['w:rPr']['w:color']['@_w:val']).toBe('008000');
+
+      // Run 3: "World" with no color
+      expect(runs[2]['w:t']['#text']).toBe('World');
+      expect(runs[2]['w:rPr']['w:color']).toBeUndefined();
+
+      // All runs should preserve bold styling from paragraph
+      runs.forEach((run: any) => {
+        expect(run['w:rPr']['w:b']).toBe('');
+        expect(run['w:rPr']['w:bCs']).toBe('');
+      });
     });
   });
   describe('Lists', () => {

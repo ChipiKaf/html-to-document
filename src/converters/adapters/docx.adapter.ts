@@ -123,6 +123,17 @@ export class DocxAdapter implements IDocumentConverter {
     custom: this.convertParagraph.bind(this), // fallback
   };
 
+  private inlineHandlers: Record<
+    string,
+    (
+      el: DocumentElement,
+      styles: { [key: string]: string }
+    ) => TextRun | ImageRun | (TextRun | ImageRun)[]
+  > = {
+    text: this.convertText.bind(this),
+    image: this.convertImage.bind(this),
+  };
+
   /**
    * Converts a DocumentElement (or an array of them) into an array of docx elements.
    */
@@ -136,9 +147,6 @@ export class DocxAdapter implements IDocumentConverter {
 
       case 'list':
         return this.convertList(el as ListElement);
-
-      case 'image':
-        return [this.convertImage(el as ImageElement)];
 
       case 'table':
         return [this.convertTable(el)];
@@ -172,14 +180,20 @@ export class DocxAdapter implements IDocumentConverter {
             currentIndex > 0 && prevChild && isInline(prevChild);
 
           if (isPreviousInline && isInline(child)) {
-            acc[acc.length - 1].addChildElement(child);
+            if (Array.isArray(child)) {
+              child.forEach((c) => {
+                acc[acc.length - 1].addChildElement(c);
+              });
+            } else {
+              acc[acc.length - 1].addChildElement(child);
+            }
           } else if (isInline(child)) {
             acc.push(
               new Paragraph({
                 run: {
                   ...this._mapper.mapStyles(mergedStyles),
                 },
-                children: [child],
+                children: Array.isArray(child) ? [...child] : [child],
                 ...this._mapper.mapStyles(mergedStyles),
               })
             );
@@ -247,13 +261,25 @@ export class DocxAdapter implements IDocumentConverter {
   private convertText(
     _el: DocumentElement,
     styles: { [key: string]: any } = {}
-  ) {
+  ): (TextRun | ImageRun)[] {
     const el = _el as TextElement;
     const mergedStyles = { ...styles, ...el.styles };
-    return new TextRun({
-      text: el.text || '',
-      ...this._mapper.mapStyles(mergedStyles),
-    });
+    if (el.content && el.content.length > 0) {
+      return el.content
+        .map((child) => {
+          const handler =
+            this.inlineHandlers[child.type] || this.inlineHandlers.text;
+          // Create a new TextRun with the merged styles and child's text.
+          return handler(child, { ...styles, ...el.styles });
+        })
+        .flat();
+    }
+    return [
+      new TextRun({
+        text: el.text || '',
+        ...this._mapper.mapStyles(mergedStyles),
+      }),
+    ];
   }
 
   private convertList(
@@ -337,21 +363,17 @@ export class DocxAdapter implements IDocumentConverter {
   private convertImage(
     _el: DocumentElement,
     styles: { [key: string]: any } = {}
-  ): Paragraph {
+  ): ImageRun {
     // For a real implementation, you might need to load the image from a URL or file.
     // Here we assume that el.src is a base64 encoded string for simplicity.
     // You also might want to use el.attributes to read width/height.
     const el = _el as ImageElement;
     const mergedStyles = { ...styles, ...el.styles };
-    return new Paragraph({
-      children: [
-        new ImageRun({
-          data: Buffer.from(el.src || '', 'base64'),
-          transformation: { width: 100, height: 100 },
-          type: 'png', // specify the image type (e.g. 'png', 'jpeg')
-          ...this._mapper.mapStyles(mergedStyles),
-        }),
-      ],
+    return new ImageRun({
+      data: Buffer.from(el.src || '', 'base64'),
+      transformation: { width: 100, height: 100 },
+      type: 'png', // specify the image type (e.g. 'png', 'jpeg')
+      ...this._mapper.mapStyles(mergedStyles),
     });
   }
 

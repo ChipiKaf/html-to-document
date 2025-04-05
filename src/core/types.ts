@@ -8,7 +8,8 @@ export interface BaseElement {
 
 export interface ParagraphElement extends BaseElement {
   type: 'paragraph';
-  text: string;
+  text?: string;
+  content?: DocumentElement[];
 }
 
 export interface HeadingElement extends BaseElement {

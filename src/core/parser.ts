@@ -146,7 +146,12 @@ export class Parser {
         );
       });
     }
-    const text = children === undefined ? element.textContent : undefined;
+    const text =
+      children === undefined
+        ? element.textContent
+          ? element.textContent
+          : undefined
+        : undefined;
 
     switch (tag) {
       case 'p':
@@ -195,6 +200,15 @@ export class Parser {
                 ? parseInt(options.metadata.level)
                 : options.metadata.level
               : 0,
+          content: children,
+          ...options,
+        };
+      // @Todo: THink about even more nesting (Generally think about how to handle inline vs block)
+      // Perhaps do the recursive thing with text as well, such that it returns multiple text runs
+      case 'span':
+        return {
+          type: 'text',
+          text: text,
           content: children,
           ...options,
         };

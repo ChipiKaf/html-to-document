@@ -43,6 +43,54 @@ describe('Parser', () => {
     ]);
   });
 
+  it('parses a paragraph with nested styled spans into nested text elements', async () => {
+    let html = `<p style="font-weight:bold" data-custom="x">
+      <span style="color: red;">Hello
+        <span style="color: green;">Green World</span>
+      </span>World</p>`;
+    html = await minifyMiddleware(html);
+    const result = parser.parse(html);
+
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            content: [
+              {
+                type: 'text',
+                text: 'Hello',
+              },
+              {
+                type: 'text',
+                text: 'Green World',
+                styles: {
+                  color: 'green',
+                },
+                attributes: {},
+              },
+            ],
+            styles: {
+              color: 'red',
+            },
+            attributes: {},
+          },
+          {
+            type: 'text',
+            text: 'World',
+          },
+        ],
+        styles: {
+          fontWeight: 'bold',
+        },
+        attributes: {
+          'data-custom': 'x',
+        },
+      },
+    ]);
+  });
+
   it('parses a single paragraph element with children content when no handler is registered', () => {
     const result = parser.parse(
       `<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>`
@@ -52,7 +100,7 @@ describe('Parser', () => {
         type: 'paragraph',
         content: [
           {
-            type: 'custom',
+            type: 'text',
             text: 'Hello',
             styles: {
               color: 'red',
@@ -84,7 +132,7 @@ describe('Parser', () => {
         level: 1,
         content: [
           {
-            type: 'custom',
+            type: 'text',
             text: 'Hello',
             styles: {
               color: 'red',
@@ -457,7 +505,7 @@ describe('Parser', () => {
         type: 'custom',
         content: [
           {
-            type: 'custom',
+            type: 'text',
             text: 'inside',
             attributes: { 'data-custom': 'x' },
             styles: { border: '1px solid #fff' },
@@ -482,7 +530,7 @@ describe('Parser', () => {
             text: 'No parent content',
           },
           {
-            type: 'custom',
+            type: 'text',
             text: 'inside',
             attributes: { 'data-custom': 'x' },
             styles: { border: '1px solid #fff' },
