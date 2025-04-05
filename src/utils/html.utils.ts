@@ -1,4 +1,5 @@
 import { DocumentElement, TagHandler } from '../core';
+import * as colornames from 'colornames';
 import { JSDOM } from 'jsdom';
 
 const { window } = new JSDOM();
@@ -37,3 +38,11 @@ export function parseAttributes(element: any): Record<string, string> {
   }
   return attributes;
 }
+
+export const colorConversion = (color: string) => {
+  if (color.includes('#')) {
+    return color.replace('#', '');
+  }
+
+  return colornames.get(color)?.value?.replace('#', '') || '000';
+};

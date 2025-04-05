@@ -1,4 +1,5 @@
 import * as CSS from 'csstype';
+import { colorConversion } from '../utils/html.utils';
 // @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
   // Use Partial to only require a subset of the CSS properties
@@ -18,9 +19,9 @@ export class StyleMapper {
         value === 'italic' ? { italics: true } : {},
       textDecoration: (value: string) =>
         value === 'underline' ? { underline: true } : {},
-      color: (value: string) => ({ color: value.replace('#', '') }),
+      color: (value: string) => ({ color: colorConversion(value) }),
       backgroundColor: (value: string) => ({
-        highlight: value.replace('#', ''),
+        highlight: colorConversion(value),
       }),
       fontSize: (value: string) => {
         // Handle pixel values (e.g., "16px")

@@ -8,6 +8,7 @@ import {
   Table,
   TableRow,
   TableCell,
+  MathRun,
 } from 'docx';
 import {
   DocumentElement,
@@ -21,6 +22,13 @@ import {
 import { IDocumentConverter } from '../IDocumentConverter';
 import { StyleMapper } from '../../core/style.mapper';
 
+import { Numbering, NumberFormat, AlignmentType } from 'docx';
+
+const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
+  if (el instanceof TextRun || el instanceof ImageRun || el instanceof MathRun)
+    return true;
+  return false;
+};
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
 
@@ -34,6 +42,55 @@ export class DocxAdapter implements IDocumentConverter {
 
     // Create a docx Document with a single section.
     const doc = new Document({
+      numbering: {
+        config: [
+          {
+            reference: 'unordered',
+            levels: [
+              {
+                level: 0,
+                format: NumberFormat.BULLET,
+                text: '•', // disc
+                alignment: AlignmentType.LEFT,
+                style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+              },
+              {
+                level: 1,
+                format: NumberFormat.BULLET,
+                text: '◦', // circle
+                alignment: AlignmentType.LEFT,
+                style: { paragraph: { indent: { left: 1440, hanging: 360 } } },
+              },
+              {
+                level: 2,
+                format: NumberFormat.BULLET,
+                text: '▪', // square
+                alignment: AlignmentType.LEFT,
+                style: { paragraph: { indent: { left: 2160, hanging: 360 } } },
+              },
+            ],
+          },
+          {
+            reference: 'ordered',
+            levels: [
+              {
+                level: 0,
+                format: NumberFormat.DECIMAL,
+                text: '%1.',
+                alignment: AlignmentType.LEFT,
+                style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+              },
+              {
+                level: 1,
+                format: NumberFormat.DECIMAL,
+                text: '%2.',
+                alignment: AlignmentType.LEFT,
+                style: { paragraph: { indent: { left: 1440, hanging: 360 } } },
+              },
+            ],
+          },
+        ],
+      },
       sections: [
         {
           children: children,
@@ -50,7 +107,12 @@ export class DocxAdapter implements IDocumentConverter {
     (
       el: DocumentElement,
       styles: { [key: string]: string }
-    ) => Paragraph | Table | TextRun | (Paragraph | Table | TextRun)[]
+    ) =>
+      | Paragraph
+      | Table
+      | TextRun
+      | ImageRun
+      | (Paragraph | Table | TextRun | ImageRun)[]
   > = {
     paragraph: this.convertParagraph.bind(this),
     heading: this.convertHeading.bind(this),
@@ -67,7 +129,7 @@ export class DocxAdapter implements IDocumentConverter {
   private convertElement(el: DocumentElement): (Paragraph | Table)[] {
     switch (el.type) {
       case 'paragraph':
-        return [this.convertParagraph(el as ParagraphElement)];
+        return [...this.convertParagraph(el as ParagraphElement)];
 
       case 'heading':
         return [this.convertHeading(el as HeadingElement)];
@@ -80,45 +142,68 @@ export class DocxAdapter implements IDocumentConverter {
 
       case 'table':
         return [this.convertTable(el)];
-
       // You can add more cases for 'link', 'code', 'blockquote', etc.
       case 'custom':
       default:
         // For any unrecognized type, treat it as a paragraph.
-        return [this.convertParagraph(el as DocumentElement)];
+        return [...this.convertParagraph(el as DocumentElement)];
     }
   }
 
   private convertParagraph(
     _el: DocumentElement,
     styles: { [key: string]: any } = {}
-  ): Paragraph {
+  ): (Paragraph | Table)[] {
     const el = _el as ParagraphElement;
     // If there are nested inline children, create multiple text runs.
     const mergedStyles = { ...styles, ...el.styles };
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
-      const children = el.content
+      let prevChild: Paragraph | Table | TextRun | ImageRun;
+      return el.content
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
           // Create a new TextRun with the merged styles and child's text.
           return handler(child, { ...styles, ...el.styles });
         })
-        .flat();
-      return new Paragraph({
-        children,
-        ...this._mapper.mapStyles(mergedStyles),
-      });
+        .flat()
+        .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
+          const isPreviousInline =
+            currentIndex > 0 && prevChild && isInline(prevChild);
+
+          if (isPreviousInline && isInline(child)) {
+            acc[acc.length - 1].addChildElement(child);
+          } else if (isInline(child)) {
+            acc.push(
+              new Paragraph({
+                run: {
+                  ...this._mapper.mapStyles(mergedStyles),
+                },
+                children: [child],
+                ...this._mapper.mapStyles(mergedStyles),
+              })
+            );
+          } else {
+            acc.push(child as Paragraph | Table);
+          }
+
+          prevChild = child;
+
+          return acc;
+        }, []);
     }
     // Otherwise, if no nested children, simply create one TextRun.
-    return new Paragraph({
-      children: [
-        new TextRun({
-          text: el.text || '',
-          ...this._mapper.mapStyles(mergedStyles),
-        }),
-      ],
-    });
+    return [
+      new Paragraph({
+        ...this._mapper.mapStyles(mergedStyles || {}),
+        children: [
+          new TextRun({
+            text: el.text || '',
+            ...this._mapper.mapStyles(mergedStyles || {}),
+          }),
+        ],
+      }),
+    ];
   }
 
   private convertHeading(
@@ -176,44 +261,77 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Paragraph[] {
     const el = _el as ListElement;
-    return el.content.map((child) => {
-      child['metadata'] = {
-        ...child['metadata'],
-        reference: `${el.listType}${
-          el.markerStyle && el.markerStyle !== '' ? `-${el.markerStyle}` : ''
-        }`,
-      };
-      return this._convertListItem(child, { ...styles, ...el.styles });
-    });
+    return el.content
+      .map((child) => {
+        child['metadata'] = {
+          ...child['metadata'],
+          reference: `${el.listType}${
+            el.markerStyle && el.markerStyle !== '' ? `-${el.markerStyle}` : ''
+          }`,
+        };
+        return this._convertListItem(child, { ...styles, ...el.styles }).flat();
+      })
+      .flat();
   }
 
   private _convertListItem(
     _el: DocumentElement,
     styles: { [key: string]: any } = {}
-  ): Paragraph {
+  ): Paragraph[] {
     const el = _el as ListItemElement;
     const mergedStyles = { ...styles, ...el.styles };
     // If there are nested inline children, create multiple text runs.
-    let children: (Paragraph | TextRun | Table)[] = [];
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
-      children = el.content
+      let prevChild: Paragraph | Table | TextRun | ImageRun;
+      return el.content
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
           // Create a new TextRun with the merged styles and child's text.
           return handler(child, { ...styles, ...el.styles });
         })
-        .flat();
-      return new Paragraph({
+        .flat()
+        .reduce<Paragraph[]>((acc, child, currentIndex) => {
+          const isPreviousInline =
+            currentIndex > 0 && prevChild && isInline(prevChild);
+
+          if (isPreviousInline && isInline(child)) {
+            acc[acc.length - 1].addChildElement(child);
+          } else if (isInline(child)) {
+            acc.push(
+              new Paragraph({
+                numbering: {
+                  reference: el.metadata?.reference || '',
+                  level: el.level,
+                },
+                run: {
+                  ...this._mapper.mapStyles(mergedStyles),
+                },
+                children: [child],
+                ...this._mapper.mapStyles(mergedStyles),
+              })
+            );
+          } else {
+            acc.push(child as Paragraph);
+          }
+
+          prevChild = child;
+
+          return acc;
+        }, []);
+    }
+    return [
+      new Paragraph({
         numbering: {
           reference: el.metadata?.reference || '',
           level: el.level,
         },
-        children,
-        ...this._mapper.mapStyles(mergedStyles),
-      });
-    }
-    return new Paragraph({});
+        text: el.text,
+        run: {
+          ...this._mapper.mapStyles(mergedStyles),
+        },
+      }),
+    ];
   }
 
   private convertImage(

@@ -37,6 +37,7 @@ export interface ListElement extends BaseElement {
 
 export interface ListItemElement extends BaseElement {
   type: 'list-item';
+  text?: string;
   level: number;
   content: DocumentElement[];
 }
