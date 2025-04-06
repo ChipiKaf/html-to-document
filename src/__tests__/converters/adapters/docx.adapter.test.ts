@@ -690,4 +690,309 @@ describe('Docx.adapter.convert', () => {
       expect(paragraphs[4]['w:pPr']['w:numPr']['w:numId']['@_w:val']).toBe('2');
     });
   });
+  describe('Table conversion', () => {
+    let adapter: DocxAdapter;
+    let parser: Parser;
+
+    beforeEach(() => {
+      adapter = new DocxAdapter();
+      parser = new Parser();
+    });
+
+    // Helper to extract the table from the parsed DOCX document.
+    const getTableFromDocx = (jsonDocument: any): any => {
+      const body = jsonDocument['w:document']['w:body'];
+      // If multiple elements are present, tables are under the 'w:tbl' key.
+      if (Array.isArray(body['w:tbl'])) {
+        return body['w:tbl'][0];
+      }
+      return body['w:tbl'];
+    };
+
+    it('should convert a simple table with one row and one cell', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell A' }],
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      // Check that a table exists and has one row.
+      expect(tbl).toBeDefined();
+      const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+      expect(rows.length).toBe(1);
+
+      // Check that the row contains one cell with the expected text.
+      const row = rows[0];
+      const cells = Array.isArray(row['w:tc']) ? row['w:tc'] : [row['w:tc']];
+      expect(cells.length).toBe(1);
+      const cell = cells[0];
+      const para = Array.isArray(cell['w:p']) ? cell['w:p'][0] : cell['w:p'];
+      const cellText = Array.isArray(para['w:r'])
+        ? para['w:r'][0]['w:t']['#text']
+        : para['w:r']['w:t']['#text'];
+      expect(cellText).toBe('Cell A');
+    });
+
+    it('should convert a table with multiple rows and columns', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell 1' }],
+                styles: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell 2' }],
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell 3' }],
+                styles: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell 4' }],
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+      expect(rows.length).toBe(2);
+
+      // Verify first row cell texts.
+      const row1 = Array.isArray(rows[0]['w:tc'])
+        ? rows[0]['w:tc']
+        : [rows[0]['w:tc']];
+      const cell1Text = Array.isArray(row1[0]['w:p'])
+        ? row1[0]['w:p'][0]['w:r']['w:t']['#text']
+        : row1[0]['w:p']['w:r']['w:t']['#text'];
+      const cell2Text = Array.isArray(row1[1]['w:p'])
+        ? row1[1]['w:p'][0]['w:r']['w:t']['#text']
+        : row1[1]['w:p']['w:r']['w:t']['#text'];
+      expect(cell1Text).toBe('Cell 1');
+      expect(cell2Text).toBe('Cell 2');
+
+      // Verify second row cell texts.
+      const row2 = Array.isArray(rows[1]['w:tc'])
+        ? rows[1]['w:tc']
+        : [rows[1]['w:tc']];
+      const cell3Text = Array.isArray(row2[0]['w:p'])
+        ? row2[0]['w:p'][0]['w:r']['w:t']['#text']
+        : row2[0]['w:p']['w:r']['w:t']['#text'];
+      const cell4Text = Array.isArray(row2[1]['w:p'])
+        ? row2[1]['w:p'][0]['w:r']['w:t']['#text']
+        : row2[1]['w:p']['w:r']['w:t']['#text'];
+      expect(cell3Text).toBe('Cell 3');
+      expect(cell4Text).toBe('Cell 4');
+    });
+
+    it('should convert a table with a cell having colspan', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Spanned Cell' }],
+                colspan: 2,
+                styles: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Normal Cell' }],
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+
+      // In our adapter the horizontal placeholder isn’t added as a separate cell,
+      // so we expect 2 cells: one with a grid span and one normal.
+      const row = Array.isArray(rows[0]['w:tc'])
+        ? rows[0]['w:tc']
+        : [rows[0]['w:tc']];
+      expect(row.length).toBe(2);
+
+      // Verify the first cell has a gridSpan attribute equal to "2".
+      const firstCell = row[0];
+      expect(firstCell['w:tcPr']['w:gridSpan']['@_w:val']).toBe('2');
+
+      // Verify the text content.
+      const firstCellText = Array.isArray(firstCell['w:p'])
+        ? firstCell['w:p'][0]['w:r']['w:t']['#text']
+        : firstCell['w:p']['w:r']['w:t']['#text'];
+      expect(firstCellText).toBe('Spanned Cell');
+
+      const secondCell = row[1];
+      const secondCellText = Array.isArray(secondCell['w:p'])
+        ? secondCell['w:p'][0]['w:r']['w:t']['#text']
+        : secondCell['w:p']['w:r']['w:t']['#text'];
+      expect(secondCellText).toBe('Normal Cell');
+    });
+
+    it('should convert a table with a cell having rowspan', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Rowspan Cell' }],
+                rowspan: 2,
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Second Row Cell' }],
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+      expect(rows.length).toBe(2);
+
+      // In the first row, the cell should have vertical merge set to "restart".
+      const row1 = Array.isArray(rows[0]['w:tc'])
+        ? rows[0]['w:tc']
+        : [rows[0]['w:tc']];
+      const firstCell = row1[0];
+      expect(firstCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('restart');
+      const firstCellText = Array.isArray(firstCell['w:p'])
+        ? firstCell['w:p'][0]['w:r']['w:t']['#text']
+        : firstCell['w:p']['w:r']['w:t']['#text'];
+      expect(firstCellText).toBe('Rowspan Cell');
+
+      // In the second row, the corresponding cell should have vertical merge set to "continue".
+      const row2 = Array.isArray(rows[1]['w:tc'])
+        ? rows[1]['w:tc']
+        : [rows[1]['w:tc']];
+      const vmCell = row2[0];
+      expect(vmCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('continue');
+      // The placeholder cell should have an empty paragraph.
+      const vmCellText = vmCell['w:p']
+        ? Array.isArray(vmCell['w:p'])
+          ? vmCell['w:p'][0]['w:r']['w:t']['#text']
+          : vmCell['w:p']['w:r']['w:t']['#text']
+        : '';
+      expect(vmCellText).toBe('');
+    });
+
+    it('should convert a table with combined colspan and rowspan', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Combined Cell' }],
+                colspan: 2,
+                rowspan: 2,
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+          {
+            // Second row is empty – the adapter should insert a vertical merge placeholder.
+            cells: [],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+      expect(rows.length).toBe(2);
+
+      // First row: verify the master cell has gridSpan of "2" and vertical merge "restart".
+      const row1 = Array.isArray(rows[0]['w:tc'])
+        ? rows[0]['w:tc']
+        : [rows[0]['w:tc']];
+      expect(row1.length).toBe(1);
+      const combinedCell = row1[0];
+      expect(combinedCell['w:tcPr']['w:gridSpan']['@_w:val']).toBe('2');
+      expect(combinedCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('restart');
+      const combinedCellText = Array.isArray(combinedCell['w:p'])
+        ? combinedCell['w:p'][0]['w:r']['w:t']['#text']
+        : combinedCell['w:p']['w:r']['w:t']['#text'];
+      expect(combinedCellText).toBe('Combined Cell');
+
+      // Second row: expect a vertical merge placeholder and an automatically added empty cell.
+      const row2 = Array.isArray(rows[1]['w:tc'])
+        ? rows[1]['w:tc']
+        : [rows[1]['w:tc']];
+      expect(row2.length).toBe(2);
+      const vmCell = row2[0];
+      expect(vmCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('continue');
+
+      const gapCell = row2[1];
+      const gapCellText = gapCell['w:p']
+        ? Array.isArray(gapCell['w:p'])
+          ? gapCell['w:p'][0]['w:r']['w:t']['#text']
+          : gapCell['w:p']['w:r']['w:t']['#text']
+        : '';
+      expect(gapCellText).toBe('');
+    });
+  });
 });

@@ -12,11 +12,14 @@ import {
 } from 'docx';
 import {
   DocumentElement,
+  GridCell,
   HeadingElement,
   ImageElement,
   ListElement,
   ListItemElement,
   ParagraphElement,
+  TableCellElement,
+  TableElement,
   TextElement,
 } from '../../core/types';
 import { IDocumentConverter } from '../IDocumentConverter';
@@ -171,7 +174,6 @@ export class DocxAdapter implements IDocumentConverter {
       return el.content
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
-          // Create a new TextRun with the merged styles and child's text.
           return handler(child, { ...styles, ...el.styles });
         })
         .flat()
@@ -377,25 +379,285 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
+  // private convertTable(
+  //   _el: DocumentElement,
+  //   styles: { [key: string]: any } = {}
+  // ): Table {
+  //   const el = _el as TableElement;
+  //   const mergedStyles = { ...styles, ...el.styles };
+  //   // Determine the number of rows.
+  //   const numRows = el.rows.length;
+
+  //   // Compute the maximum number of columns by summing colspans in each row.
+  //   let numCols = 0;
+  //   for (const row of el.rows) {
+  //     let colCount = 0;
+  //     for (const cell of row.cells) {
+  //       colCount += cell.colspan ? cell.colspan : 1;
+  //     }
+  //     numCols = Math.max(numCols, colCount);
+  //   }
+
+  //   // Create a grid (2D array) to hold each cell or placeholder.
+  //   const grid: (GridCell | null)[][] = Array.from({ length: numRows }, () =>
+  //     Array(numCols).fill(null)
+  //   );
+
+  //   // Populate the grid with master cells and placeholders.
+  //   for (let i = 0; i < numRows; i++) {
+  //     let colIndex = 0;
+  //     const row = el.rows[i];
+  //     for (const cell of row.cells) {
+  //       // Skip columns that are already occupied (by a rowspan from a previous row).
+  //       // Skip columns that are already occupied (by a rowspan from a previous row).
+  //       while (colIndex < numCols && grid[i][colIndex] !== null) {
+  //         colIndex++;
+  //       }
+  //       // If we've exceeded the column count, break out of the loop.
+  //       if (colIndex >= numCols) break;
+  //       const colspan = cell.colspan ? cell.colspan : 1;
+  //       const rowspan = cell.rowspan ? cell.rowspan : 1;
+
+  //       // Place the master cell.
+  //       grid[i][colIndex] = {
+  //         cell: cell,
+  //         horizontal: false,
+  //         verticalMerge: false,
+  //         isMaster: true,
+  //       };
+
+  //       // Mark horizontal placeholders for additional columns spanned by this cell.
+  //       for (let k = 1; k < colspan; k++) {
+  //         grid[i][colIndex + k] = {
+  //           cell: cell,
+  //           horizontal: true,
+  //           verticalMerge: false,
+  //           isMaster: false,
+  //         };
+  //       }
+
+  //       // For vertical merging, mark a placeholder in subsequent rows for the first column of the cell.
+  //       if (rowspan > 1) {
+  //         for (let r = i + 1; r < i + rowspan && r < numRows; r++) {
+  //           grid[r][colIndex] = {
+  //             cell: cell,
+  //             horizontal: false,
+  //             verticalMerge: true,
+  //             isMaster: false,
+  //           };
+  //         }
+  //       }
+  //       colIndex += colspan;
+  //     }
+  //   }
+
+  //   // Build the TableRow objects.
+  //   const tableRows: TableRow[] = [];
+  //   for (let i = 0; i < numRows; i++) {
+  //     const cells: TableCell[] = [];
+  //     let j = 0;
+  //     while (j < numCols) {
+  //       const gridCell = grid[i][j];
+  //       if (!gridCell) {
+  //         // If there's a gap in the grid, insert an empty cell.
+  //         cells.push(
+  //           new TableCell({
+  //             children: [new Paragraph('')],
+  //           })
+  //         );
+  //         j++;
+  //       } else if (gridCell.horizontal) {
+  //         // Skip horizontal placeholders since they are already spanned by the master cell.
+  //         j++;
+  //         continue;
+  //       } else if (gridCell.verticalMerge) {
+  //         // For vertical merge placeholders, output a cell with verticalMerge set to "continue".
+  //         cells.push(
+  //           new TableCell({
+  //             verticalMerge: 'continue',
+  //             children: [new Paragraph('')],
+  //           })
+  //         );
+  //         j++;
+  //       } else {
+  //         // For a master cell, use its colspan and set verticalMerge to "restart" if needed.
+  //         const originalCell = gridCell.cell!;
+  //         const colspan = originalCell.colspan ? originalCell.colspan : 1;
+  //         const rowspan = originalCell.rowspan ? originalCell.rowspan : 1;
+  //         const verticalMerge = rowspan > 1 ? 'restart' : undefined;
+  //         let prevChild: Paragraph | Table | TextRun | ImageRun;
+
+  //         // Convert the cell content.
+  //         // (Assuming your TableCellElement has a "content" property similar to ParagraphElement.)
+  //         const cellContent: (Paragraph | Table)[] =
+  //           originalCell.content && originalCell.content.length > 0
+  //             ? originalCell.content
+  //                 .flatMap((child) =>
+  //                   (this.handlers[child.type] || this.handlers.custom)(child, {
+  //                     ...styles,
+  //                     ...originalCell.styles,
+  //                   })
+  //                 )
+  //                 .flat()
+  //                 .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
+  //                   const isPreviousInline =
+  //                     currentIndex > 0 && prevChild && isInline(prevChild);
+
+  //                   if (isPreviousInline && isInline(child)) {
+  //                     if (Array.isArray(child)) {
+  //                       child.forEach((c) => {
+  //                         acc[acc.length - 1].addChildElement(c);
+  //                       });
+  //                     } else {
+  //                       acc[acc.length - 1].addChildElement(child);
+  //                     }
+  //                   } else if (isInline(child)) {
+  //                     acc.push(
+  //                       new Paragraph({
+  //                         run: {
+  //                           ...this._mapper.mapStyles(mergedStyles),
+  //                         },
+  //                         children: Array.isArray(child) ? [...child] : [child],
+  //                         ...this._mapper.mapStyles(mergedStyles),
+  //                       })
+  //                     );
+  //                   } else {
+  //                     acc.push(child as Paragraph | Table);
+  //                   }
+
+  //                   prevChild = child;
+
+  //                   return acc;
+  //                 }, [])
+  //             : [new Paragraph('')];
+
+  //         cells.push(
+  //           new TableCell({
+  //             children: cellContent,
+  //             columnSpan: colspan > 1 ? colspan : undefined,
+  //             verticalMerge: verticalMerge,
+  //             ...this._mapper.mapStyles(originalCell.styles || {}),
+  //           })
+  //         );
+  //         j += colspan;
+  //       }
+  //     }
+
+  //     // Apply row-level styles if provided.
+  //     const rowStyles = el.rows[i].styles || {};
+  //     tableRows.push(
+  //       new TableRow({
+  //         children: cells,
+  //         ...this._mapper.mapStyles(rowStyles),
+  //       })
+  //     );
+  //   }
+  //   // Return the constructed docx Table with any table-level styles applied.
+  //   return new Table({
+  //     rows: tableRows,
+  //     ...this._mapper.mapStyles(el.styles || {}),
+  //   });
+  // }
+
   private convertTable(
-    el: DocumentElement,
+    _el: DocumentElement,
     styles: { [key: string]: any } = {}
   ): Table {
-    // This is a very simplified version.
-    // Assume that el.rows is an array of arrays, where each inner array represents a row of cells (each cell being a string).
-    const rows: TableRow[] = [];
-    // const rows = (el.rows || []).map(
-    //   (row: any[]) =>
-    //     new TableRow({
-    //       children: row.map(
-    //         (cell) =>
-    //           new TableCell({
-    //             children: [new Paragraph(String(cell))],
-    //           })
-    //       ),
-    //     })
-    // );
+    const el = _el as TableElement;
+    const mergedStyles = { ...styles, ...el.styles };
 
-    return new Table({ rows });
+    const numRows = el.rows.length;
+
+    let numCols = 0;
+
+    for (const row of el.rows) {
+      let colCount = 0;
+      for (const cell of row.cells) {
+        colCount += cell.colspan ? cell.colspan : 1;
+      }
+      numCols = Math.max(numCols, colCount);
+    }
+
+    const grid: (GridCell | null)[][] = Array.from({ length: numRows }, () => {
+      return Array(numCols).fill(null);
+    });
+
+    for (let i = 0; i < numRows; i++) {
+      let colIndex = 0;
+      const row = el.rows[i];
+
+      for (const cell of row.cells) {
+        while (colIndex < numCols && grid[i][colIndex] !== null) colIndex++;
+        if (colIndex >= numCols) break;
+        const colSpan = cell.colspan || 1;
+        const rowSpan = cell.rowspan || 1;
+
+        grid[i][colIndex] = {
+          cell,
+          horizontal: false,
+          verticalMerge: false,
+          isMaster: true,
+        };
+
+        // Mark for horizontal merges
+        for (let k = 1; k < colSpan; k++) {
+          grid[i][colIndex + k] = {
+            cell,
+            horizontal: true,
+            verticalMerge: false,
+            isMaster: false,
+          };
+        }
+
+        // Mark for vertical merge
+        if (rowSpan > 1) {
+          for (let r = i + 1; r < i + rowSpan && r < numRows; r++) {
+            grid[r][colIndex] = {
+              cell,
+              horizontal: false,
+              verticalMerge: true,
+              isMaster: false,
+            };
+          }
+          colIndex += colSpan;
+        }
+      }
+    }
+    // Build the TableRows objects
+    const tableRows: TableRow[] = [];
+    for (let i = 0; i < numRows; i++) {
+      const cells: TableCell[] = [];
+      let j = 0;
+      while (j < numCols) {
+        const gridCell = grid[i][j];
+        if (!gridCell) {
+          cells.push(
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: '' })],
+                }),
+              ],
+            })
+          );
+          j++;
+        } else if (gridCell.horizontal) {
+          j++;
+          continue;
+        } else if (gridCell.verticalMerge) {
+          cells.push(
+            new TableCell({
+              verticalMerge: 'continue',
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: '' })],
+                }),
+              ],
+            })
+          );
+          j++;
+        }
+      }
+    }
   }
 }

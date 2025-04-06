@@ -73,6 +73,13 @@ export interface TableCellElement extends BaseElement {
   rowspan?: number;
 }
 
+export interface GridCell {
+  cell?: TableCellElement;
+  horizontal?: boolean; // placeholder for a horizontally merged cell
+  verticalMerge?: boolean; // placeholder for a vertically merged cell
+  isMaster?: boolean; // indicates the starting (master) cell
+}
+
 export type Middleware = (html: string) => Promise<string>;
 export type TagHandler = (
   element: HTMLElement | ChildNode,
