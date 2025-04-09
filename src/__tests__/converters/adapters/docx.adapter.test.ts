@@ -873,7 +873,7 @@ describe('Docx.adapter.convert', () => {
       expect(secondCellText).toBe('Normal Cell');
     });
 
-    it('should convert a table with a cell having rowspan', async () => {
+    it('should convert a table with one cell spanning two rows in the first column and separate cells in the second column', async () => {
       const table: DocumentElement = {
         type: 'table',
         rows: [
@@ -881,8 +881,13 @@ describe('Docx.adapter.convert', () => {
             cells: [
               {
                 type: 'table-cell',
-                content: [{ type: 'text', text: 'Rowspan Cell' }],
+                content: [{ type: 'text', text: 'Cell A' }],
                 rowspan: 2,
+                styles: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell B' }],
                 styles: {},
               },
             ],
@@ -892,7 +897,7 @@ describe('Docx.adapter.convert', () => {
             cells: [
               {
                 type: 'table-cell',
-                content: [{ type: 'text', text: 'Second Row Cell' }],
+                content: [{ type: 'text', text: 'Cell C' }],
                 styles: {},
               },
             ],
@@ -906,32 +911,48 @@ describe('Docx.adapter.convert', () => {
       const jsonDocument = await parseDocxDocument(buffer);
       const tbl = getTableFromDocx(jsonDocument);
       const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+
+      // There should be 2 rows
       expect(rows.length).toBe(2);
 
-      // In the first row, the cell should have vertical merge set to "restart".
       const row1 = Array.isArray(rows[0]['w:tc'])
         ? rows[0]['w:tc']
         : [rows[0]['w:tc']];
+      expect(row1.length).toBe(2);
+
       const firstCell = row1[0];
       expect(firstCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('restart');
       const firstCellText = Array.isArray(firstCell['w:p'])
         ? firstCell['w:p'][0]['w:r']['w:t']['#text']
         : firstCell['w:p']['w:r']['w:t']['#text'];
-      expect(firstCellText).toBe('Rowspan Cell');
+      expect(firstCellText).toBe('Cell A');
 
-      // In the second row, the corresponding cell should have vertical merge set to "continue".
+      const secondCellRow1 = row1[1];
+      const secondCellRow1Text = Array.isArray(secondCellRow1['w:p'])
+        ? secondCellRow1['w:p'][0]['w:r']['w:t']['#text']
+        : secondCellRow1['w:p']['w:r']['w:t']['#text'];
+      expect(secondCellRow1Text).toBe('Cell B');
+
       const row2 = Array.isArray(rows[1]['w:tc'])
         ? rows[1]['w:tc']
         : [rows[1]['w:tc']];
+      expect(row2.length).toBe(2);
+
       const vmCell = row2[0];
       expect(vmCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('continue');
-      // The placeholder cell should have an empty paragraph.
-      const vmCellText = vmCell['w:p']
-        ? Array.isArray(vmCell['w:p'])
-          ? vmCell['w:p'][0]['w:r']['w:t']['#text']
-          : vmCell['w:p']['w:r']['w:t']['#text']
-        : '';
+      const vmCellText =
+        (vmCell['w:p'] &&
+          (Array.isArray(vmCell['w:p'])
+            ? vmCell['w:p'][0]['w:r']['w:t']['#text']
+            : vmCell['w:p']['w:r']['w:t']['#text'])) ||
+        '';
       expect(vmCellText).toBe('');
+
+      const secondCellRow2 = row2[1];
+      const secondCellRow2Text = Array.isArray(secondCellRow2['w:p'])
+        ? secondCellRow2['w:p'][0]['w:r']['w:t']['#text']
+        : secondCellRow2['w:p']['w:r']['w:t']['#text'];
+      expect(secondCellRow2Text).toBe('Cell C');
     });
 
     it('should convert a table with combined colspan and rowspan', async () => {
@@ -987,11 +1008,8 @@ describe('Docx.adapter.convert', () => {
       expect(vmCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('continue');
 
       const gapCell = row2[1];
-      const gapCellText = gapCell['w:p']
-        ? Array.isArray(gapCell['w:p'])
-          ? gapCell['w:p'][0]['w:r']['w:t']['#text']
-          : gapCell['w:p']['w:r']['w:t']['#text']
-        : '';
+      const gapCellText =
+        gapCell?.['w:p']?.[0]?.['w:r']?.['w:t']?.['#text'] || '';
       expect(gapCellText).toBe('');
     });
   });

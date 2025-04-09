@@ -1,9 +1,9 @@
 import { DocumentElement, TagHandler } from '../core';
 import * as colornames from 'colornames';
 import { JSDOM } from 'jsdom';
+import { BorderStyle } from 'docx';
 
 const { window } = new JSDOM();
-const DOMElement = window.Element;
 
 export function parseStyles(element: any): Record<string, string> {
   const styleString =
@@ -46,3 +46,30 @@ export const colorConversion = (color: string) => {
 
   return colornames.get(color)?.value?.replace('#', '') || '000';
 };
+
+export function pixelsToTwips(pixels: number): number {
+  return Math.round(pixels * 15); // 1px = 15 twips (approx)
+}
+
+export function mapBorderStyle(style: string): string {
+  switch (style.toLowerCase()) {
+    case 'none':
+    case 'hidden':
+      return BorderStyle.NONE;
+    case 'solid':
+      return BorderStyle.SINGLE;
+    case 'dashed':
+      return BorderStyle.DASHED;
+    case 'dotted':
+      return BorderStyle.DOTTED;
+    case 'double':
+      return BorderStyle.DOUBLE;
+    case 'groove':
+    case 'ridge':
+    case 'inset':
+    case 'outset':
+      return BorderStyle.SINGLE; // No direct mapping, using solid as fallback
+    default:
+      return BorderStyle.SINGLE;
+  }
+}

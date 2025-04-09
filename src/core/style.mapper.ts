@@ -1,5 +1,9 @@
 import * as CSS from 'csstype';
-import { colorConversion } from '../utils/html.utils';
+import {
+  colorConversion,
+  mapBorderStyle,
+  pixelsToTwips,
+} from '../utils/html.utils';
 // @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
   // Use Partial to only require a subset of the CSS properties
@@ -14,41 +18,120 @@ export class StyleMapper {
   // Central place for all default mappings
   protected initializeDefaultMappings(): void {
     this.mappings = {
-      fontWeight: (value: string) => (value === 'bold' ? { bold: true } : {}),
-      fontStyle: (value: string) =>
-        value === 'italic' ? { italics: true } : {},
-      textDecoration: (value: string) =>
-        value === 'underline' ? { underline: true } : {},
-      color: (value: string) => ({ color: colorConversion(value) }),
-      backgroundColor: (value: string) => ({
-        highlight: colorConversion(value),
-      }),
-      fontSize: (value: string) => {
-        // Handle pixel values (e.g., "16px")
-        if (value.endsWith('px')) {
-          const px = parseFloat(value.slice(0, -2));
-          const halfPoints = Math.round(px * 1.5);
-          return { size: halfPoints };
+      // Text-related styles
+      fontWeight: (v) => (v === 'bold' ? { bold: true } : {}),
+      fontStyle: (v) => (v === 'italic' ? { italics: true } : {}),
+      textDecoration: (v) =>
+        v === 'underline'
+          ? { underline: {} }
+          : v === 'line-through'
+          ? { strike: true }
+          : {},
+      textTransform: (v) =>
+        v === 'uppercase'
+          ? { allCaps: true }
+          : v === 'capitalize'
+          ? { smallCaps: true }
+          : {},
+      textAlign: (v) => ({ alignment: v as any }), // left, right, center, justify
+      color: (v) => ({ color: colorConversion(v) }),
+      backgroundColor: (v) => ({ highlight: colorConversion(v) }),
+
+      // Font size
+      fontSize: (v) => {
+        if (v.endsWith('px')) {
+          const px = parseFloat(v.slice(0, -2));
+          return { size: Math.round(px * 1.5) };
+        } else if (v.endsWith('%')) {
+          const base = 16;
+          const percent = parseFloat(v.slice(0, -1));
+          return { size: Math.round(base * (percent / 100) * 1.5) };
+        } else {
+          const num = parseFloat(v);
+          return !isNaN(num) ? { size: Math.round(num * 1.5) } : {};
         }
-        // Handle percentage values (e.g., "150%")
-        else if (value.endsWith('%')) {
-          const percentage = parseFloat(value.slice(0, -1));
-          // Assume a base font size of 16px
-          const basePx = 16;
-          const computedPx = (percentage / 100) * basePx;
-          const halfPoints = Math.round(computedPx * 1.5);
-          return { size: halfPoints };
-        }
-        // Fallback: if the value is a plain number, assume it's in pixels
-        else {
-          const numeric = parseFloat(value);
-          if (!isNaN(numeric)) {
-            const halfPoints = Math.round(numeric * 1.5);
-            return { size: halfPoints };
-          }
-        }
-        return {};
       },
+
+      // Line height and spacing
+      lineHeight: (v) => {
+        const num = parseFloat(v);
+        return !isNaN(num) ? { spacing: { line: Math.round(num * 240) } } : {};
+      },
+
+      letterSpacing: (v) => {
+        const px = parseFloat(v);
+        return !isNaN(px) ? { characterSpacing: Math.round(px * 10) } : {};
+      },
+
+      // Table-related
+      border: (v) => ({
+        borders: { top: {}, bottom: {}, left: {}, right: {} },
+      }), // Add parsing logic as needed
+      borderColor: (v) => ({
+        borders: {
+          top: { color: colorConversion(v) },
+          bottom: { color: colorConversion(v) },
+          left: { color: colorConversion(v) },
+          right: { color: colorConversion(v) },
+        },
+      }),
+      borderStyle: (v) => ({
+        borders: {
+          top: { style: mapBorderStyle(v) },
+          bottom: { style: mapBorderStyle(v) },
+          left: { style: mapBorderStyle(v) },
+          right: { style: mapBorderStyle(v) },
+        },
+      }),
+      borderWidth: (v) => {
+        const w = parseFloat(v);
+        return isNaN(w)
+          ? {}
+          : {
+              borders: {
+                top: { size: w * 8 },
+                bottom: { size: w * 8 },
+                left: { size: w * 8 },
+                right: { size: w * 8 },
+              },
+            };
+      },
+      verticalAlign: (v) =>
+        v === 'middle'
+          ? { verticalAlign: 'center' }
+          : v === 'bottom'
+          ? { verticalAlign: 'bottom' }
+          : { verticalAlign: 'top' },
+
+      padding: (v) => {
+        const px = parseFloat(v);
+        return isNaN(px)
+          ? {}
+          : {
+              margins: {
+                top: px,
+                bottom: px,
+                left: px,
+                right: px,
+              },
+            };
+      },
+
+      // List-related
+      marginLeft: (v) => {
+        const px = parseFloat(v);
+        return !isNaN(px) ? { indent: { left: pixelsToTwips(px) } } : {};
+      },
+      paddingLeft: (v) => {
+        const px = parseFloat(v);
+        return !isNaN(px) ? { indent: { left: pixelsToTwips(px) } } : {};
+      },
+      listStyleType: (v) =>
+        v === 'decimal'
+          ? { numbering: 'decimal' }
+          : v === 'disc'
+          ? { bullet: true }
+          : {},
     };
   }
 
