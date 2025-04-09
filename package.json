@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "jest",
+    "demo": "vite --config demo/vite.config.ts",
     "prepare": "npm run build",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
