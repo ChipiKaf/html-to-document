@@ -1,5 +1,5 @@
-import { ConverterRegistry } from '../../registry/converter.registry';
-import { IDocumentConverter } from '../../converters/IDocumentConverter';
+import { ConverterRegistry } from '../../src/registry/converter.registry';
+import { IDocumentConverter } from '../../src/converters/IDocumentConverter';
 
 class DummyConverter implements IDocumentConverter {
   async convert(): Promise<Buffer> {

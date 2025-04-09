@@ -1,4 +1,4 @@
-import { MiddlewareManager } from '../../middleware';
+import { MiddlewareManager } from '../../src/middleware';
 
 describe('MiddlewareManager', () => {
   let manager: MiddlewareManager;

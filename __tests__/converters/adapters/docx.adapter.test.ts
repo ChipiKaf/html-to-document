@@ -1,11 +1,11 @@
 // import { DocxAdapter } from '../src/DocxAdapter';
 import { Packer } from 'docx';
-import { DocxAdapter } from '../../../converters';
-import { DocumentElement, Parser } from '../../../core';
+import { DocxAdapter } from '../../../src/converters';
+import { DocumentElement, Parser } from '../../../src/core';
 
 import JSZip from 'jszip';
 import { XMLParser } from 'fast-xml-parser';
-import { minifyMiddleware } from '../../../middleware/minify.middleware';
+import { minifyMiddleware } from '../../../src/middleware/minify.middleware';
 
 /**
  * Parses the document.xml from a DOCX buffer and returns a JSON representation.

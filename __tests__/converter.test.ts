@@ -1,5 +1,5 @@
-import { Converter } from '../converter';
-import { IDocumentConverter } from '../converters/IDocumentConverter';
+import { Converter } from '../src/converter';
+import { IDocumentConverter } from '../src/converters/IDocumentConverter';
 
 class DummyConverter implements IDocumentConverter {
   public parsed?: any;

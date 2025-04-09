@@ -1,6 +1,6 @@
-import { Parser } from '../../core/parser';
-import { DocumentElement, ParagraphElement } from '../../core/types';
-import { minifyMiddleware } from '../../middleware/minify.middleware';
+import { Parser } from '../../src/core/parser';
+import { DocumentElement, ParagraphElement } from '../../src/core/types';
+import { minifyMiddleware } from '../../src/middleware/minify.middleware';
 
 describe('Parser', () => {
   let parser: Parser;
