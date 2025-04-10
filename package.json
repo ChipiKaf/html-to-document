@@ -22,7 +22,10 @@
     "docx",
     "converter",
     "typescript",
-    "document"
+    "document",
+    "html-to-docx",
+    "html-to-pdf",
+    "bidirectional"
   ],
   "devDependencies": {
     "@types/colornames": "^1.1.4",
