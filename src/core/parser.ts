@@ -246,11 +246,30 @@ export class Parser {
       // @Todo: THink about even more nesting (Generally think about how to handle inline vs block)
       // Perhaps do the recursive thing with text as well, such that it returns multiple text runs
       case 'span':
+      case 'a':
         return {
           type: 'text',
           text: text,
           content: children,
           ...options,
+        };
+      case 'sup':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          styles: {
+            verticalAlign: 'super',
+          },
+        };
+      case 'sub':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          styles: {
+            verticalAlign: 'sub',
+          },
         };
       case 'img':
         return {

@@ -9,6 +9,7 @@ import {
   TableRow,
   TableCell,
   MathRun,
+  ExternalHyperlink,
 } from 'docx';
 import {
   DocumentElement,
@@ -29,7 +30,12 @@ import { StyleMapper } from '../../core/style.mapper';
 import { NumberFormat, AlignmentType } from 'docx';
 
 const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
-  if (el instanceof TextRun || el instanceof ImageRun || el instanceof MathRun)
+  if (
+    el instanceof TextRun ||
+    el instanceof ImageRun ||
+    el instanceof MathRun ||
+    el instanceof ExternalHyperlink
+  )
     return true;
   return false;
 };
@@ -120,7 +126,8 @@ export class DocxAdapter implements IDocumentConverter {
       | Table
       | TextRun
       | ImageRun
-      | (Paragraph | Table | TextRun | ImageRun)[]
+      | ExternalHyperlink
+      | (Paragraph | Table | TextRun | ImageRun | ExternalHyperlink)[]
   > = {
     paragraph: this.convertParagraph.bind(this),
     heading: this.convertHeading.bind(this),
@@ -136,7 +143,11 @@ export class DocxAdapter implements IDocumentConverter {
     (
       el: DocumentElement,
       styles: { [key: string]: string }
-    ) => TextRun | ImageRun | (TextRun | ImageRun)[]
+    ) =>
+      | TextRun
+      | ImageRun
+      | ExternalHyperlink
+      | (TextRun | ImageRun | ExternalHyperlink)[]
   > = {
     text: this.convertText.bind(this),
     image: this.convertImage.bind(this),
@@ -175,7 +186,7 @@ export class DocxAdapter implements IDocumentConverter {
     const mergedStyles = { ...styles, ...el.styles };
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
-      let prevChild: Paragraph | Table | TextRun | ImageRun;
+      let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
       return el.content
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
@@ -268,7 +279,7 @@ export class DocxAdapter implements IDocumentConverter {
   private convertText(
     _el: DocumentElement,
     styles: { [key: string]: any } = {}
-  ): (TextRun | ImageRun)[] {
+  ): (TextRun | ImageRun | ExternalHyperlink)[] {
     const el = _el as TextElement;
     const mergedStyles = { ...styles, ...el.styles };
     if (el.content && el.content.length > 0) {
@@ -280,6 +291,21 @@ export class DocxAdapter implements IDocumentConverter {
           return handler(child, { ...styles, ...el.styles });
         })
         .flat();
+    }
+    if (el.attributes?.href) {
+      const { href } = el.attributes!;
+      return [
+        new ExternalHyperlink({
+          children: [
+            new TextRun({
+              text: el.text || '',
+              ...this._mapper.mapStyles(mergedStyles),
+              style: 'Hyperlink',
+            }),
+          ],
+          link: href,
+        }),
+      ];
     }
     return [
       new TextRun({
@@ -316,7 +342,7 @@ export class DocxAdapter implements IDocumentConverter {
     // If there are nested inline children, create multiple text runs.
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
-      let prevChild: Paragraph | Table | TextRun | ImageRun;
+      let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
       return el.content
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
@@ -486,7 +512,12 @@ export class DocxAdapter implements IDocumentConverter {
           const colSpan = originalCell?.colspan ? originalCell.colspan : 1;
           const rowSpan = originalCell?.rowspan ? originalCell.rowspan : 1;
           const verticalMerge = rowSpan > 1 ? 'restart' : undefined;
-          let prevChild: Paragraph | Table | TextRun | ImageRun;
+          let prevChild:
+            | Paragraph
+            | Table
+            | TextRun
+            | ImageRun
+            | ExternalHyperlink;
           const cellContent: (Paragraph | Table)[] =
             originalCell?.content && originalCell.content?.length > 0
               ? originalCell.content

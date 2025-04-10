@@ -299,6 +299,87 @@ describe('Docx.adapter.convert', () => {
         expect(run['w:rPr']['w:bCs']).toBe('');
       });
     });
+    it('should render subscript and superscript text correctly', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'H' },
+            {
+              type: 'text',
+              text: '2',
+              styles: { verticalAlign: 'sub' },
+            },
+            { type: 'text', text: 'O and x' },
+            {
+              type: 'text',
+              text: '2',
+              styles: { verticalAlign: 'super' },
+            },
+          ],
+          styles: {},
+          attributes: {},
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const json = await parseDocxDocument(buffer);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+
+      expect(runs).toHaveLength(4);
+
+      // Check text content
+      expect(runs[0]['w:t']['#text']).toBe('H');
+      expect(runs[1]['w:t']['#text']).toBe(2);
+      expect(runs[2]['w:t']['#text']).toBe('O and x');
+      expect(runs[3]['w:t']['#text']).toBe(2);
+
+      // Check subscript run
+      expect(runs[1]['w:rPr']['w:vertAlign']['@_w:val']).toBe('subscript');
+
+      // Check superscript run
+      expect(runs[3]['w:rPr']['w:vertAlign']['@_w:val']).toBe('superscript');
+    });
+  });
+  describe('Links', () => {
+    it('should correctly render a hyperlink within a paragraph', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'This is a' },
+            {
+              type: 'text',
+              text: 'link',
+              styles: { color: 'blue' },
+              attributes: { href: 'https://example.com' },
+            },
+            { type: 'text', text: 'inside a paragraph.' },
+          ],
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const json = await parseDocxDocument(buffer);
+      const paragraph = json['w:document']['w:body']['w:p'];
+
+      // Validate the normal text runs
+      const runs = paragraph['w:r'];
+      expect(Array.isArray(runs)).toBe(true);
+      expect(runs[0]['w:t']['#text']).toBe('This is a');
+      expect(runs[1]['w:t']['#text']).toBe('inside a paragraph.');
+
+      // Validate the hyperlink
+      const hyperlink = paragraph['w:hyperlink'];
+      expect(hyperlink).toBeDefined();
+      expect(hyperlink['@_r:id']).toMatch(/^rId/);
+      expect(hyperlink['w:r']['w:t']['#text']).toBe('link');
+
+      // Validate styling
+      expect(
+        hyperlink['w:r']['w:rPr']['w:color']['@_w:val'].toUpperCase()
+      ).toBe('0000FF');
+    });
   });
   describe('Lists', () => {
     it('should render a flat unordered list with correct bullet symbols at level 0', async () => {

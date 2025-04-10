@@ -136,7 +136,11 @@ export class StyleMapper {
           ? { verticalAlign: 'center' }
           : v === 'bottom'
           ? { verticalAlign: 'bottom' }
-          : { verticalAlign: 'top' },
+          : v === 'super'
+          ? { superScript: true }
+          : v === 'sub'
+          ? { subScript: true }
+          : {},
 
       padding: (v) => {
         const px = parseFloat(v);
