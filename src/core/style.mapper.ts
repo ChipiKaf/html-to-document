@@ -4,12 +4,10 @@ import {
   mapBorderStyle,
   pixelsToTwips,
 } from '../utils/html.utils';
+import { StyleMapping } from './types';
 // @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
-  // Use Partial to only require a subset of the CSS properties
-  protected mappings: Partial<
-    Record<keyof CSS.Properties, (value: string) => any>
-  > = {};
+  protected mappings: StyleMapping = {};
 
   constructor() {
     this.initializeDefaultMappings();
@@ -153,9 +151,7 @@ export class StyleMapper {
   }
 
   // Method to add or override a mapping
-  public addMapping(
-    mappings: Partial<Record<keyof CSS.Properties, (value: string) => any>>
-  ): void {
+  public addMapping(mappings: StyleMapping): void {
     Object.entries(mappings).forEach((entries) => {
       this.mappings[entries[0] as keyof CSS.Properties] = entries[1];
     });

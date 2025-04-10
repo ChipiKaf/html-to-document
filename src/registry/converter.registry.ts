@@ -11,6 +11,8 @@ export class ConverterRegistry {
   }
 
   public get(name: string) {
-    return this._converters.get(name);
+    const converter = this._converters.get(name);
+    if (!converter) console.warn(`Converter for ${name} not registered`);
+    return converter;
   }
 }

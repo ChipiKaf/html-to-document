@@ -4,14 +4,21 @@ import {
   TableCellElement,
   TableRowElement,
   TagHandler,
+  TagHandlerObject,
 } from './types';
 import { JSDOM } from 'jsdom';
 
 // @ToDo: Handle passing of options for tag handlers and maybe Middleware
 export class Parser {
   private _tagHandlers: Map<string, TagHandler>;
-  constructor() {
+  constructor(tagHandlers?: TagHandlerObject[]) {
     this._tagHandlers = new Map();
+    // Add
+    if (tagHandlers && tagHandlers.length > 0) {
+      tagHandlers.forEach((tHandler) => {
+        this._tagHandlers.set(tHandler.key, tHandler.handler);
+      });
+    }
     this._parseElement = this._parseElement.bind(this);
     this._parseHTML = this._parseHTML.bind(this);
     this._defaultHandler = this._defaultHandler.bind(this);

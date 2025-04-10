@@ -1,3 +1,6 @@
+import * as CSS from 'csstype';
+import { IDocumentConverter } from '../converters';
+import { StyleMapper } from './style.mapper';
 export interface BaseElement {
   type: string; // not strictly limited to a union
   styles?: Record<string, string>;
@@ -85,3 +88,43 @@ export type TagHandler = (
   element: HTMLElement | ChildNode,
   options?: { [key: string]: any }
 ) => DocumentElement;
+
+export type TagHandlerObject = {
+  key: keyof HTMLElementTagNameMap;
+  handler: TagHandler;
+};
+
+export interface IConverterDependencies {
+  styleMapper: StyleMapper;
+  [key: string]: any;
+}
+
+export type StyleMapping = Partial<
+  Record<keyof CSS.Properties, (value: string) => any>
+>;
+export type AdapterProvider = new (
+  dependencies: IConverterDependencies
+) => IDocumentConverter;
+
+export type ConverterOptions = {
+  tagHandlers?: TagHandlerObject[];
+  adapters?: {
+    format: string;
+    adapter: IDocumentConverter;
+    styleMapper: StyleMapper;
+  }[];
+};
+
+export type InitOptions = {
+  middleware?: Middleware[];
+  tagHandlers?: TagHandlerObject[];
+  clearMiddleware?: boolean;
+  styleMappings?: {
+    format: string;
+    handlers: StyleMapping;
+  }[];
+  adapters?: {
+    format: string;
+    adapter: AdapterProvider;
+  }[];
+};

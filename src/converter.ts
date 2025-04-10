@@ -1,19 +1,37 @@
+import { DocxAdapter } from './converters';
 import { IDocumentConverter } from './converters/IDocumentConverter';
-import { Middleware, Parser } from './core';
+import { ConverterOptions, InitOptions, Middleware } from './core';
+import { Parser } from './core/parser';
+import { StyleMapper } from './core/style.mapper';
 import { MiddlewareManager } from './middleware/middleware.manager';
-import { ConverterRegistry } from './registry/converter.registry';
+import { minifyMiddleware } from './middleware/minify.middleware';
+import { ConverterRegistry } from './registry';
 
-export class Converter {
+class Converter {
   private _middlewareManager: MiddlewareManager;
   private _parser: Parser;
   private _registry: ConverterRegistry;
 
-  constructor() {
+  constructor(options: ConverterOptions) {
+    const { tagHandlers, adapters } = options;
     this._registry = new ConverterRegistry();
     this._middlewareManager = new MiddlewareManager();
-    this._parser = new Parser();
+    this._parser = new Parser(tagHandlers);
 
-    // Register built in adapters
+    // Register default Adapters
+    const docxAdapter = new DocxAdapter({
+      styleMapper:
+        adapters?.find((adapter) => adapter.format === 'docx')?.styleMapper ||
+        new StyleMapper(),
+    });
+    this.registerConverter('docx', docxAdapter);
+
+    // Register custom adapters
+    if (adapters && adapters.length > 0) {
+      adapters.forEach(({ format, adapter }) => {
+        this.registerConverter(format, adapter);
+      });
+    }
   }
 
   public useMiddleware(mw: Middleware) {
@@ -32,3 +50,43 @@ export class Converter {
     return adapter.convert(parsed);
   }
 }
+
+export const init = (options: InitOptions) => {
+  const {
+    middleware,
+    tagHandlers,
+    adapters: Adapters,
+    styleMappings,
+  } = options;
+
+  // Adapters
+  const adapters = Adapters?.map(({ format, adapter: Adapter }) => {
+    const mapper = styleMappings?.find((map) => map.format === format);
+    const styleMapper = new StyleMapper();
+
+    // Overwrite existing style mappings
+    if (mapper) {
+      styleMapper.addMapping(mapper.handlers);
+    }
+
+    // Instantiate Adapters passed in
+    const adapter = new Adapter({ styleMapper });
+    return { format, adapter, styleMapper };
+  });
+
+  const converter = new Converter({ tagHandlers, adapters });
+
+  // Default middleware
+  if (!options.clearMiddleware) {
+    converter.useMiddleware(minifyMiddleware);
+  }
+
+  // Incoming middleware
+  if (middleware && middleware.length > 0) {
+    middleware.forEach((mw) => {
+      converter.useMiddleware(mw);
+    });
+  }
+
+  return converter;
+};

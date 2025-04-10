@@ -14,18 +14,19 @@ import {
   DocumentElement,
   GridCell,
   HeadingElement,
+  IConverterDependencies,
   ImageElement,
   ListElement,
   ListItemElement,
   ParagraphElement,
-  TableCellElement,
+  StyleMapping,
   TableElement,
   TextElement,
 } from '../../core/types';
 import { IDocumentConverter } from '../IDocumentConverter';
 import { StyleMapper } from '../../core/style.mapper';
 
-import { Numbering, NumberFormat, AlignmentType } from 'docx';
+import { NumberFormat, AlignmentType } from 'docx';
 
 const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
   if (el instanceof TextRun || el instanceof ImageRun || el instanceof MathRun)
@@ -35,8 +36,8 @@ const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
 
-  constructor() {
-    this._mapper = new StyleMapper();
+  constructor({ styleMapper }: IConverterDependencies) {
+    this._mapper = styleMapper;
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer> {
