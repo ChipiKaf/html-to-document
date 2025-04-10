@@ -1,3 +1,4 @@
 node_modules
 dist
 _index.ts
+.DS_Store

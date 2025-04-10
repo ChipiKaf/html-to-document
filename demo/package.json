@@ -14,6 +14,7 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
-    "tinymce": "^7.8.0"
+    "tinymce": "^7.8.0",
+    "html-to-document": "file:../"
   }
 }
