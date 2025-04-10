@@ -5,6 +5,37 @@ import {
   pixelsToTwips,
 } from '../utils/html.utils';
 import { StyleMapping } from './types';
+import { HighlightColor, WidthType } from 'docx';
+
+const parseWidth = (value: string) => {
+  if (value.endsWith('px')) {
+    const px = parseFloat(value);
+    return {
+      size: Math.round(px * 15),
+      type: WidthType.DXA,
+    };
+  } else if (value.endsWith('%')) {
+    const percent = parseFloat(value);
+    return {
+      size: Math.round(percent),
+      type: WidthType.PERCENTAGE,
+    };
+  } else if (value.endsWith('in')) {
+    const inches = parseFloat(value);
+    return {
+      size: Math.round(inches * 1440),
+      type: WidthType.DXA,
+    };
+  } else if (value.endsWith('cm')) {
+    const cm = parseFloat(value);
+    return {
+      size: Math.round(cm * 567),
+      type: WidthType.DXA,
+    };
+  }
+  return undefined;
+};
+
 // @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
   protected mappings: StyleMapping = {};
@@ -17,7 +48,9 @@ export class StyleMapper {
   protected initializeDefaultMappings(): void {
     this.mappings = {
       // Text-related styles
-      fontWeight: (v) => (v === 'bold' ? { bold: true } : {}),
+      fontWeight: (v) => {
+        return v === 'bold' ? { bold: true } : {};
+      },
       fontStyle: (v) => (v === 'italic' ? { italics: true } : {}),
       textDecoration: (v) =>
         v === 'underline'
@@ -33,7 +66,7 @@ export class StyleMapper {
           : {},
       textAlign: (v) => ({ alignment: v as any }), // left, right, center, justify
       color: (v) => ({ color: colorConversion(v) }),
-      backgroundColor: (v) => ({ highlight: colorConversion(v) }),
+      backgroundColor: (v) => ({ highlight: v }),
 
       // Font size
       fontSize: (v) => {
@@ -54,6 +87,10 @@ export class StyleMapper {
       lineHeight: (v) => {
         const num = parseFloat(v);
         return !isNaN(num) ? { spacing: { line: Math.round(num * 240) } } : {};
+      },
+      width: (v) => {
+        const parsed = parseWidth(v); // use helper above
+        return parsed ? { width: parsed } : {};
       },
 
       letterSpacing: (v) => {

@@ -183,7 +183,23 @@ export class Parser {
           text,
           content: children,
           ...options,
-          styles: { ...(options.styles || {}), 'font-weight': 'bold' },
+          styles: { ...(options.styles || {}), fontWeight: 'bold' },
+        };
+      case 'em':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          styles: { ...(options.styles || {}), fontStyle: 'italic' },
+        };
+      case 'u':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          styles: { ...(options.styles || {}), textDecoration: 'underline' },
         };
       case 'h1':
       case 'h2':
@@ -241,6 +257,16 @@ export class Parser {
           type: 'image',
           src: (element as HTMLImageElement).src,
           ...options,
+        };
+      case 'code':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          styles: {
+            backgroundColor: 'lightGray',
+          },
         };
       default:
         return {
