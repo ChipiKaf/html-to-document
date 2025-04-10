@@ -113,6 +113,7 @@ export type ConverterOptions = {
     adapter: IDocumentConverter;
     styleMapper: StyleMapper;
   }[];
+  domParser?: IDOMParser;
 };
 
 export type InitOptions = {
@@ -127,4 +128,8 @@ export type InitOptions = {
     format: string;
     adapter: AdapterProvider;
   }[];
+  domParser?: IDOMParser;
 };
+export interface IDOMParser {
+  parse(html: string): Document;
+}

@@ -40,7 +40,7 @@ export class DocxAdapter implements IDocumentConverter {
     this._mapper = styleMapper;
   }
 
-  async convert(elements: DocumentElement[]): Promise<Buffer> {
+  async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
     // Convert our intermediate representation into an array of docx children.
     const children = elements.flatMap((el) => this.convertElement(el));
 
@@ -103,7 +103,11 @@ export class DocxAdapter implements IDocumentConverter {
     });
 
     // Pack the document to a Buffer.
-    return await Packer.toBuffer(doc);
+    if (typeof window !== 'undefined') {
+      return await Packer.toBlob(doc);
+    } else {
+      return await Packer.toBuffer(doc);
+    }
   }
 
   private handlers: Record<

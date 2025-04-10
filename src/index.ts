@@ -1,2 +1,2 @@
-export * from './converter';
+export { init } from './converter';
 export * from './core';

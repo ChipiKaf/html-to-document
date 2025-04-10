@@ -10,14 +10,20 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "jest",
+    "test": "jest --silent",
     "prepare": "npm run build",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "author": "Chipili Kafwilo",
   "license": "ISC",
-  "keywords": ["html", "docx", "converter", "typescript", "document"],
+  "keywords": [
+    "html",
+    "docx",
+    "converter",
+    "typescript",
+    "document"
+  ],
   "devDependencies": {
     "@types/colornames": "^1.1.4",
     "@types/jest": "^29.5.14",
@@ -34,6 +40,8 @@
     "colornames": "^1.1.1",
     "csstype": "^3.1.3",
     "docx": "^9.3.0",
-    "jsdom": "^26.0.0"
+    "i": "^0.3.7",
+    "jsdom": "^26.0.0",
+    "npm": "^10.9.2"
   }
 }

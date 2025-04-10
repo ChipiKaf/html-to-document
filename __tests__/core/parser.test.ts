@@ -1,12 +1,13 @@
 import { Parser } from '../../src/core/parser';
 import { DocumentElement, ParagraphElement } from '../../src/core/types';
 import { minifyMiddleware } from '../../src/middleware/minify.middleware';
+import { JSDOMParser } from '../utils/parser.helper';
 
 describe('Parser', () => {
   let parser: Parser;
 
   beforeEach(() => {
-    parser = new Parser();
+    parser = new Parser([], new JSDOMParser());
   });
 
   it('returns default parsing including styles and attributes for built-in tags', () => {

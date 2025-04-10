@@ -1,4 +1,3 @@
-// NB! Make sure you run `npm run build` in root then `npm install` in demo folder
 import { init } from 'html-to-document';
 
 export const run: () => Promise<any> = async () => {
@@ -6,27 +5,16 @@ export const run: () => Promise<any> = async () => {
   if (!editorContainer) throw new Error('Entrypoint not found');
 
   // Append a textarea for TinyMCE.
-  editorContainer.append(document.createElement('textarea'));
+  const textarea = document.createElement('textarea');
+  editorContainer.append(textarea);
 
   // Dynamically import TinyMCE.
   const tinymceModule = await import('tinymce');
   const tinymce = tinymceModule.default;
-  const converter = init({
-    middleware: [async (html) => html.toUpperCase()],
-    tagHandlers: [
-      {
-        key: 'p',
-        handler: (element, _) => {
-          return {
-            type: 'text',
-            text: element.textContent,
-          };
-        },
-      },
-    ],
-  });
 
-  // Initialize TinyMCE.
+  // Get convert function from your html-to-document package.
+  const converter = init();
+
   tinymce.init({
     selector: 'textarea',
     height: window.innerHeight - 20,
@@ -38,15 +26,40 @@ export const run: () => Promise<any> = async () => {
     setup: (editor) => {
       editor.on('init', function () {
         console.log('TinyMCE editor is initialized');
-        // Register a custom button on the toolbar named "mydocx".
+
+        // Register a custom button on the toolbar named "docx".
         editor.ui.registry.addButton('docx', {
           icon: 'export-word',
-          text: 'Export word',
+          text: 'Export Word',
           tooltip: 'Generate DOCX from Editor Content',
           onAction: async () => {
-            // Get the current content from TinyMCE.
+            // 1. Retrieve HTML content.
             const htmlContent = editor.getContent();
             console.log('HTML Content:', htmlContent);
+
+            try {
+              // 2. Convert HTML to DOCX format (returns a Promise<Buffer>).
+              const docxBuffer = await converter.convert(htmlContent, 'docx');
+
+              // 3. Create a Blob from the buffer.
+              // If using a Node Buffer in a browser context, it can usually be passed directly.
+              // Otherwise, you might need to convert the Buffer to an ArrayBuffer or Uint8Array.
+              const blob = new Blob([docxBuffer], {
+                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              });
+
+              // 4. Create an object URL and trigger the download.
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'document.docx'; // File name for the download.
+              a.click();
+
+              // Clean up the object URL after download.
+              URL.revokeObjectURL(url);
+            } catch (error) {
+              console.error('Conversion failed:', error);
+            }
           },
         });
       });

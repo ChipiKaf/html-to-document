@@ -1,5 +1,6 @@
 import { Converter } from '../src/converter';
 import { IDocumentConverter } from '../src/converters/IDocumentConverter';
+import { JSDOMParser } from './utils/parser.helper';
 
 class DummyConverter implements IDocumentConverter {
   public parsed?: any;
@@ -13,7 +14,7 @@ describe('Converter', () => {
   let converter: Converter;
 
   beforeEach(() => {
-    converter = new Converter();
+    converter = new Converter({ domParser: new JSDOMParser() });
   });
 
   it('throws when no converter registered', async () => {

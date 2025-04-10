@@ -1,9 +1,6 @@
 import { DocumentElement, TagHandler } from '../core';
 import * as colornames from 'colornames';
-import { JSDOM } from 'jsdom';
 import { BorderStyle } from 'docx';
-
-const { window } = new JSDOM();
 
 export function parseStyles(element: any): Record<string, string> {
   const styleString =

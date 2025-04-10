@@ -7,16 +7,16 @@ import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
 
-class Converter {
+export class Converter {
   private _middlewareManager: MiddlewareManager;
   private _parser: Parser;
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
-    const { tagHandlers, adapters } = options;
+    const { tagHandlers, adapters, domParser } = options;
     this._registry = new ConverterRegistry();
     this._middlewareManager = new MiddlewareManager();
-    this._parser = new Parser(tagHandlers);
+    this._parser = new Parser(tagHandlers, domParser);
 
     // Register default Adapters
     const docxAdapter = new DocxAdapter({
@@ -42,7 +42,7 @@ class Converter {
     this._registry.register(name, converter);
   }
 
-  async convert(html: string, format: string): Promise<Buffer> {
+  async convert(html: string, format: string): Promise<Buffer | Blob> {
     const adapter = this._registry.get(format);
     if (!adapter) throw new Error('Format not available');
     const modifiedHtml = await this._middlewareManager.execute(html);
@@ -51,12 +51,13 @@ class Converter {
   }
 }
 
-export const init = (options: InitOptions) => {
+export const init = (options: InitOptions = {}) => {
   const {
     middleware,
     tagHandlers,
     adapters: Adapters,
     styleMappings,
+    domParser,
   } = options;
 
   // Adapters
@@ -74,7 +75,7 @@ export const init = (options: InitOptions) => {
     return { format, adapter, styleMapper };
   });
 
-  const converter = new Converter({ tagHandlers, adapters });
+  const converter = new Converter({ tagHandlers, adapters, domParser });
 
   // Default middleware
   if (!options.clearMiddleware) {

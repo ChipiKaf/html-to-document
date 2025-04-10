@@ -7,6 +7,15 @@ describe('minifyMiddleware', () => {
     expect(output).toBe('<div>Hello</div>');
   });
 
+  it('maintains spaces between tags', async () => {
+    const input =
+      '<div><span>Hello </span><span>World</span><span> We</span><span> Here</span></div>';
+    const output = await minifyMiddleware(input);
+    expect(output).toBe(
+      '<div><span>Hello </span><span>World</span><span> We</span><span> Here</span></div>'
+    );
+  });
+
   it('removes newlines and carriage returns', async () => {
     const input = '<div>\nHello\r\nWorld</div>';
     const output = await minifyMiddleware(input);

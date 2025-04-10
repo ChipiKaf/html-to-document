@@ -1,6 +1,7 @@
 import { parseAttributes, parseStyles } from '../utils/html.utils';
 import {
   DocumentElement,
+  IDOMParser,
   TableCellElement,
   TableRowElement,
   TagHandler,
@@ -8,10 +9,19 @@ import {
 } from './types';
 import { JSDOM } from 'jsdom';
 
+class NativeParser implements IDOMParser {
+  parse(html: string): Document {
+    const parser = new DOMParser();
+    return parser.parseFromString(html, 'text/html');
+  }
+}
+
 // @ToDo: Handle passing of options for tag handlers and maybe Middleware
 export class Parser {
   private _tagHandlers: Map<string, TagHandler>;
-  constructor(tagHandlers?: TagHandlerObject[]) {
+  private _domParser: IDOMParser;
+  constructor(tagHandlers?: TagHandlerObject[], domParser?: IDOMParser) {
+    this._domParser = domParser || new NativeParser();
     this._tagHandlers = new Map();
     // Add
     if (tagHandlers && tagHandlers.length > 0) {
@@ -89,8 +99,7 @@ export class Parser {
   }
 
   private _parseHTML(html: string): DocumentElement[] {
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
+    const doc = this._domParser.parse(html);
     const content: DocumentElement[] = [];
 
     doc.body.childNodes.forEach((child) => {

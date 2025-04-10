@@ -1,41 +1,16 @@
-// import { DocxAdapter } from '../src/DocxAdapter';
-import { Packer } from 'docx';
 import { DocxAdapter } from '../../../src/converters';
-import { DocumentElement, Parser } from '../../../src/core';
-
-import JSZip from 'jszip';
-import { XMLParser } from 'fast-xml-parser';
+import { DocumentElement } from '../../../src/core';
 import { minifyMiddleware } from '../../../src/middleware/minify.middleware';
-
-/**
- * Parses the document.xml from a DOCX buffer and returns a JSON representation.
- * @param docxBuffer The DOCX file as a Buffer.
- */
-async function parseDocxDocument(docxBuffer: Buffer): Promise<any> {
-  // Load the DOCX file as a ZIP archive
-  const zip = await JSZip.loadAsync(docxBuffer);
-
-  // Extract the main document XML (usually at word/document.xml)
-  const documentXmlFile = zip.file('word/document.xml');
-  if (!documentXmlFile) {
-    throw new Error('Document.xml not found in DOCX.');
-  }
-  const documentXml = await documentXmlFile.async('text');
-
-  // Parse the XML string into a JSON object
-  const parser = new XMLParser({
-    ignoreAttributes: false, // Set this to true if you want to ignore attributes
-  });
-  const jsonObj = parser.parse(documentXml);
-  return jsonObj;
-}
+import { Parser } from '../../../src/core/parser';
+import { StyleMapper } from '../../../src/core/style.mapper';
+import { JSDOMParser, parseDocxDocument } from '../../utils/parser.helper';
 
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
   let parser: Parser;
   beforeEach(() => {
-    adapter = new DocxAdapter();
-    parser = new Parser();
+    adapter = new DocxAdapter({ styleMapper: new StyleMapper() });
+    parser = new Parser([], new JSDOMParser());
   });
 
   describe('general', () => {
@@ -695,7 +670,7 @@ describe('Docx.adapter.convert', () => {
     let parser: Parser;
 
     beforeEach(() => {
-      adapter = new DocxAdapter();
+      adapter = new DocxAdapter({ styleMapper: new StyleMapper() });
       parser = new Parser();
     });
 
