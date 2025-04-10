@@ -10,7 +10,7 @@ export default defineConfig({
     alias: {
       './_index-or-default': useLocal
         ? path.resolve(__dirname, 'src/_index.ts')
-        : path.resolve(__dirname, 'src/default-entry.ts'),
+        : path.resolve(__dirname, 'src/index.ts'),
     },
   },
   build: {
