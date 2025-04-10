@@ -54,23 +54,23 @@ export class DocxAdapter implements IDocumentConverter {
               {
                 level: 0,
                 format: NumberFormat.BULLET,
-                text: '•', // disc
+                text: '•',
                 alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+                style: { paragraph: { indent: { left: 240, hanging: 240 } } },
               },
               {
                 level: 1,
                 format: NumberFormat.BULLET,
-                text: '◦', // circle
+                text: '◦',
                 alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 1440, hanging: 360 } } },
+                style: { paragraph: { indent: { left: 480, hanging: 240 } } },
               },
               {
                 level: 2,
                 format: NumberFormat.BULLET,
-                text: '▪', // square
+                text: '▪',
                 alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 2160, hanging: 360 } } },
+                style: { paragraph: { indent: { left: 720, hanging: 240 } } },
               },
             ],
           },
@@ -82,14 +82,14 @@ export class DocxAdapter implements IDocumentConverter {
                 format: NumberFormat.DECIMAL,
                 text: '%1.',
                 alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+                style: { paragraph: { indent: { left: 240, hanging: 240 } } },
               },
               {
                 level: 1,
                 format: NumberFormat.DECIMAL,
                 text: '%2.',
                 alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 1440, hanging: 360 } } },
+                style: { paragraph: { indent: { left: 480, hanging: 240 } } },
               },
             ],
           },

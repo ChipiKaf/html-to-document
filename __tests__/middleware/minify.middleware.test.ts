@@ -15,6 +15,44 @@ describe('minifyMiddleware', () => {
       '<div><span>Hello </span><span>World</span><span> We</span><span> Here</span></div>'
     );
   });
+  it('Properly formats the html', async () => {
+    const html = `<ol>
+                    <li>awej</li>
+                    <li>awew</li>
+                    <li>rw</li>
+                    </ol>
+                    <ul>
+                    <li>Hello
+                    <ul>
+                    <li>There</li>
+                    </ul>
+                    </li>
+                    <li>My <span style="color: #b96ad9;">world is</span> here 
+                    <ul>
+                    <li>Also <strong>ther</strong>
+                    <ul>
+                    <li><strong>What else? </strong>Is <strong>There?</strong></li>
+                    </ul>
+                    </li>
+                    </ul>
+                    </li>
+                    </ul>`;
+    const output = await minifyMiddleware(html);
+    expect(output).toBe(
+      `<ol><li>awej</li><li>awew</li><li>rw</li></ol><ul><li>Hello <ul><li>There</li></ul></li><li>My <span style="color: #b96ad9;">world is</span> here <ul><li>Also <strong>ther</strong><ul><li><strong>What else? </strong>Is <strong>There?</strong></li></ul></li></ul></li></ul>`
+    );
+  });
+
+  it('adds max one space between tags', async () => {
+    let html = `<p style="font-weight:bold" data-custom="x">
+      <span style="color: red;">Hello
+        <span style="color: green;">Green World</span>
+      </span>World</p>`;
+    const output = await minifyMiddleware(html);
+    expect(output).toBe(
+      '<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello <span style="color: green;">Green World</span></span>World</p>'
+    );
+  });
 
   it('removes newlines and carriage returns', async () => {
     const input = '<div>\nHello\r\nWorld</div>';

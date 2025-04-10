@@ -61,7 +61,7 @@ describe('Parser', () => {
             content: [
               {
                 type: 'text',
-                text: 'Hello',
+                text: 'Hello ',
               },
               {
                 type: 'text',
@@ -228,7 +228,7 @@ describe('Parser', () => {
             content: [
               {
                 type: 'text',
-                text: 'Indent level 0 a',
+                text: 'Indent level 0 a ',
               },
               {
                 type: 'list',
@@ -393,7 +393,7 @@ describe('Parser', () => {
                     content: [
                       {
                         type: 'text',
-                        text: 'Level 1 c',
+                        text: 'Level 1 c ',
                       },
                       {
                         type: 'list',
@@ -415,7 +415,7 @@ describe('Parser', () => {
                             content: [
                               {
                                 type: 'text',
-                                text: 'Level 2 b',
+                                text: 'Level 2 b ',
                               },
                               {
                                 type: 'list',
