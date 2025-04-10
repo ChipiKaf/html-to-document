@@ -1,4 +1,5 @@
-import { Converter } from 'html-to-document';
+// NB! Make sure you run `npm run build` in root then `npm install` in demo folder
+import { init } from 'html-to-document';
 
 export const run: () => Promise<any> = async () => {
   const editorContainer = document.getElementById('editor');
@@ -10,7 +11,20 @@ export const run: () => Promise<any> = async () => {
   // Dynamically import TinyMCE.
   const tinymceModule = await import('tinymce');
   const tinymce = tinymceModule.default;
-  const converter = new Converter();
+  const converter = init({
+    middleware: [async (html) => html.toUpperCase()],
+    tagHandlers: [
+      {
+        key: 'p',
+        handler: (element, _) => {
+          return {
+            type: 'text',
+            text: element.textContent,
+          };
+        },
+      },
+    ],
+  });
 
   // Initialize TinyMCE.
   tinymce.init({
