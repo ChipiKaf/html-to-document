@@ -90,6 +90,48 @@ describe('Parser', () => {
       },
     ]);
   });
+  it('parses a paragraph with strong children', () => {
+    const result = parser.parse(
+      '<p>He<strong>llo</strong>w<strong>or</strong>ld</p>'
+    );
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'He',
+          },
+          {
+            type: 'text',
+            text: 'llo',
+            styles: {
+              'font-weight': 'bold',
+            },
+            attributes: {},
+          },
+          {
+            type: 'text',
+            text: 'w',
+          },
+          {
+            type: 'text',
+            text: 'or',
+            styles: {
+              'font-weight': 'bold',
+            },
+            attributes: {},
+          },
+          {
+            type: 'text',
+            text: 'ld',
+          },
+        ],
+        styles: {},
+        attributes: {},
+      },
+    ]);
+  });
 
   it('parses a single paragraph element with children content when no handler is registered', () => {
     const result = parser.parse(

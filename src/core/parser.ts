@@ -161,6 +161,14 @@ export class Parser {
           content: children,
           ...options,
         };
+      case 'strong':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          styles: { ...(options.styles || {}), 'font-weight': 'bold' },
+        };
       case 'h1':
       case 'h2':
       case 'h3':
