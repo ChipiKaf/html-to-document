@@ -10,6 +10,7 @@ import {
   TableCell,
   MathRun,
   ExternalHyperlink,
+  VerticalAlign,
 } from 'docx';
 import {
   DocumentElement,
@@ -41,9 +42,11 @@ const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
 };
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
+  private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
 
-  constructor({ styleMapper }: IConverterDependencies) {
+  constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
     this._mapper = styleMapper;
+    this._defaultStyles = defaultStyles || {};
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -120,7 +123,7 @@ export class DocxAdapter implements IDocumentConverter {
     string,
     (
       el: DocumentElement,
-      styles: { [key: string]: string }
+      styles: { [key: string]: string | number }
     ) =>
       | Paragraph
       | Table
@@ -183,7 +186,11 @@ export class DocxAdapter implements IDocumentConverter {
   ): (Paragraph | Table)[] {
     const el = _el as ParagraphElement;
     // If there are nested inline children, create multiple text runs.
-    const mergedStyles = { ...styles, ...el.styles };
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
       let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
@@ -209,7 +216,7 @@ export class DocxAdapter implements IDocumentConverter {
             acc.push(
               new Paragraph({
                 run: {
-                  ...this._mapper.mapStyles(mergedStyles),
+                  ...{ ...this._mapper.mapStyles(mergedStyles) },
                 },
                 children: Array.isArray(child) ? [...child] : [child],
                 ...this._mapper.mapStyles(mergedStyles),
@@ -244,7 +251,11 @@ export class DocxAdapter implements IDocumentConverter {
   ): Paragraph {
     const el = _el as HeadingElement;
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
-    const mergedStyles = { ...styles, ...el.styles };
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
 
     if (el.content && el.content.length > 0) {
       const children = el.content
@@ -267,11 +278,14 @@ export class DocxAdapter implements IDocumentConverter {
     }
 
     return new Paragraph({
-      text: el.text || '',
       heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
-      run: {
-        ...this._mapper.mapStyles(mergedStyles),
-      },
+      children: [
+        new TextRun({
+          text: el.text,
+          color: '000000',
+          ...this._mapper.mapStyles(mergedStyles),
+        }),
+      ],
       ...this._mapper.mapStyles(mergedStyles),
     });
   }
@@ -281,7 +295,11 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): (TextRun | ImageRun | ExternalHyperlink)[] {
     const el = _el as TextElement;
-    const mergedStyles = { ...styles, ...el.styles };
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
     if (el.content && el.content.length > 0) {
       return el.content
         .map((child) => {
@@ -320,6 +338,7 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Paragraph[] {
     const el = _el as ListElement;
+    const mergedStyles = { ...this._defaultStyles?.[el.type] };
     return el.content
       .map((child) => {
         child['metadata'] = {
@@ -328,7 +347,11 @@ export class DocxAdapter implements IDocumentConverter {
             el.markerStyle && el.markerStyle !== '' ? `-${el.markerStyle}` : ''
           }`,
         };
-        return this._convertListItem(child, { ...styles, ...el.styles }).flat();
+        return this._convertListItem(child, {
+          ...mergedStyles,
+          ...styles,
+          ...el.styles,
+        }).flat();
       })
       .flat();
   }
@@ -338,7 +361,11 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Paragraph[] {
     const el = _el as ListItemElement;
-    const mergedStyles = { ...styles, ...el.styles };
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
     // If there are nested inline children, create multiple text runs.
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
@@ -347,7 +374,7 @@ export class DocxAdapter implements IDocumentConverter {
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
           // Create a new TextRun with the merged styles and child's text.
-          return handler(child, { ...styles, ...el.styles });
+          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
         })
         .flat()
         .reduce<Paragraph[]>((acc, child, currentIndex) => {
@@ -385,10 +412,15 @@ export class DocxAdapter implements IDocumentConverter {
           reference: el.metadata?.reference || '',
           level: el.level,
         },
-        text: el.text,
         run: {
           ...this._mapper.mapStyles(mergedStyles),
         },
+        children: [
+          new TextRun({
+            text: el.text,
+            ...this._mapper.mapStyles(mergedStyles),
+          }),
+        ],
       }),
     ];
   }
@@ -401,7 +433,11 @@ export class DocxAdapter implements IDocumentConverter {
     // Here we assume that el.src is a base64 encoded string for simplicity.
     // You also might want to use el.attributes to read width/height.
     const el = _el as ImageElement;
-    const mergedStyles = { ...styles, ...el.styles };
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
     return new ImageRun({
       data: Buffer.from(el.src || '', 'base64'),
       transformation: { width: 100, height: 100 },
@@ -415,7 +451,11 @@ export class DocxAdapter implements IDocumentConverter {
     styles: { [key: string]: any } = {}
   ): Table {
     const el = _el as TableElement;
-    const mergedStyles = { ...styles, ...el.styles };
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
 
     const numRows = el.rows.length;
 
@@ -484,6 +524,7 @@ export class DocxAdapter implements IDocumentConverter {
         if (!gridCell) {
           cells.push(
             new TableCell({
+              verticalAlign: VerticalAlign.CENTER,
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: '' })],
@@ -499,6 +540,7 @@ export class DocxAdapter implements IDocumentConverter {
           cells.push(
             new TableCell({
               verticalMerge: 'continue',
+              verticalAlign: VerticalAlign.CENTER,
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: '' })],
@@ -562,6 +604,7 @@ export class DocxAdapter implements IDocumentConverter {
               children: cellContent,
               columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalMerge: verticalMerge,
+              verticalAlign: VerticalAlign.CENTER,
               ...this._mapper.mapStyles(originalCell?.styles || {}),
             })
           );

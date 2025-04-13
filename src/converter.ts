@@ -13,7 +13,7 @@ export class Converter {
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
-    const { tagHandlers, adapters, domParser } = options;
+    const { tagHandlers, adapters, domParser, defaultStyles } = options;
     this._registry = new ConverterRegistry();
     this._middlewareManager = new MiddlewareManager();
     this._parser = new Parser(tagHandlers, domParser);
@@ -23,6 +23,8 @@ export class Converter {
       styleMapper:
         adapters?.find((adapter) => adapter.format === 'docx')?.styleMapper ||
         new StyleMapper(),
+      defaultStyles:
+        defaultStyles?.find((s) => s.format === 'docx')?.styles || {},
     });
     this.registerConverter('docx', docxAdapter);
 
@@ -56,6 +58,7 @@ export const init = (options: InitOptions = {}) => {
     middleware,
     tagHandlers,
     adapters: Adapters,
+    defaultStyles,
     styleMappings,
     domParser,
   } = options;
@@ -71,11 +74,21 @@ export const init = (options: InitOptions = {}) => {
     }
 
     // Instantiate Adapters passed in
-    const adapter = new Adapter({ styleMapper });
+    const adapter = new Adapter({
+      styleMapper,
+      defaultStyles:
+        defaultStyles?.find(({ format: nFormat }) => nFormat === format)
+          ?.styles || {},
+    });
     return { format, adapter, styleMapper };
   });
 
-  const converter = new Converter({ tagHandlers, adapters, domParser });
+  const converter = new Converter({
+    tagHandlers,
+    adapters,
+    domParser,
+    defaultStyles,
+  });
 
   // Default middleware
   if (!options.clearMiddleware) {

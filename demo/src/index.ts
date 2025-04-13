@@ -13,7 +13,22 @@ export const run: () => Promise<any> = async () => {
   const tinymce = tinymceModule.default;
 
   // Get convert function from your html-to-document package.
-  const converter = init();
+  const converter = init({
+    defaultStyles: [
+      {
+        format: 'docx',
+        styles: {
+          heading: {
+            color: 'black',
+            lineHeight: 1.5,
+          },
+          paragraph: {
+            lineHeight: 1.5,
+          },
+        },
+      },
+    ],
+  });
 
   tinymce.init({
     selector: 'textarea',

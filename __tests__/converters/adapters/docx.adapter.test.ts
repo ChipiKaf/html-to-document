@@ -76,21 +76,24 @@ describe('Docx.adapter.convert', () => {
           attributes: {},
         },
       ];
+
       const buffer = await adapter.convert(elements);
       const jsonDocument = await parseDocxDocument(buffer);
       const heading = jsonDocument['w:document']['w:body']['w:p'];
-      const runProps = heading['w:pPr']['w:rPr'];
 
-      // Check heading style for Heading1
-      expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading1');
-      // Check that the run text is correct
-      expect(heading['w:r']['w:t']['#text']).toBe('Styled Heading');
+      // Paragraph-level properties
+      const paraProps = heading['w:pPr'];
+      expect(paraProps['w:pStyle']['@_w:val']).toBe('Heading1');
 
-      // Check for extra bold and italic properties in run formatting
-      expect(runProps).toHaveProperty('w:b');
-      expect(runProps).toHaveProperty('w:bCs');
-      expect(runProps).toHaveProperty('w:i');
-      expect(runProps).toHaveProperty('w:iCs');
+      // Run-level properties (inside w:r)
+      const run = heading['w:r'];
+      expect(run['w:t']['#text']).toBe('Styled Heading');
+
+      const runProps = run['w:rPr'];
+      expect(runProps).toHaveProperty('w:b'); // bold
+      expect(runProps).toHaveProperty('w:bCs'); // bold complex script
+      expect(runProps).toHaveProperty('w:i'); // italic
+      expect(runProps).toHaveProperty('w:iCs'); // italic complex script
     });
 
     it('should render a heading with underline, custom font size, and text color', async () => {
@@ -107,21 +110,22 @@ describe('Docx.adapter.convert', () => {
           attributes: {},
         },
       ];
+
       const buffer = await adapter.convert(elements);
       const jsonDocument = await parseDocxDocument(buffer);
       const heading = jsonDocument['w:document']['w:body']['w:p'];
-      const runProps = heading['w:pPr']['w:rPr'];
 
-      // Check heading style for Heading2
+      // Paragraph-level check
       expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading2');
-      // Check run text
-      expect(heading['w:r']['w:t']['#text']).toBe('Custom Styled Heading');
 
-      // Underline: our mapping should add w:u with a value of "single"
+      // Run-level check
+      const run = heading['w:r'];
+      const runProps = run['w:rPr'];
 
-      expect(runProps['w:u']['@_w:val']).toBe('single');
-      expect(runProps['w:sz']['@_w:val']).toBe('30');
-      expect(runProps['w:color']['@_w:val']).toBe('00ff00');
+      expect(run['w:t']['#text']).toBe('Custom Styled Heading');
+      expect(runProps['w:u']['@_w:val']).toBe('single'); // Underline
+      expect(runProps['w:sz']['@_w:val']).toBe('30'); // Font size (20px → 30 half-points)
+      expect(runProps['w:color']['@_w:val']).toBe('00ff00'); // Text color
     });
   });
 

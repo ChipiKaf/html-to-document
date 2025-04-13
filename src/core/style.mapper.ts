@@ -66,7 +66,9 @@ export class StyleMapper {
           : {},
       textAlign: (v) => ({ alignment: v as any }), // left, right, center, justify
       color: (v) => ({ color: colorConversion(v) }),
-      backgroundColor: (v) => ({ highlight: v }),
+      backgroundColor: (v) => ({
+        highlight: v,
+      }),
 
       // Font size
       fontSize: (v) => {
@@ -86,7 +88,21 @@ export class StyleMapper {
       // Line height and spacing
       lineHeight: (v) => {
         const num = parseFloat(v);
-        return !isNaN(num) ? { spacing: { line: Math.round(num * 240) } } : {};
+        if (isNaN(num)) return {};
+
+        return {
+          spacing: {
+            line: Math.round(num * 240), // 1 = 240 twips, which is single line spacing
+          },
+        };
+      },
+      marginTop: (v) => {
+        const px = parseFloat(v);
+        return isNaN(px) ? {} : { spacing: { before: px * 20 } };
+      },
+      marginBottom: (v) => {
+        const px = parseFloat(v);
+        return isNaN(px) ? {} : { spacing: { after: px * 20 } };
       },
       width: (v) => {
         const parsed = parseWidth(v); // use helper above
@@ -176,7 +192,7 @@ export class StyleMapper {
 
   // Method to map raw styles to a generic style object
   public mapStyles(
-    rawStyles: Partial<Record<keyof CSS.Properties, string>>
+    rawStyles: Partial<Record<keyof CSS.Properties, string | number>>
   ): Record<string, any> {
     return (Object.keys(rawStyles) as (keyof CSS.Properties)[]).reduce(
       (acc, cssProp) => {

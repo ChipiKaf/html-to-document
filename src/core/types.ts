@@ -2,12 +2,20 @@ import * as CSS from 'csstype';
 import { IDocumentConverter } from '../converters';
 import { StyleMapper } from './style.mapper';
 export interface BaseElement {
-  type: string; // not strictly limited to a union
+  type: ElementType; // not strictly limited to a union
   styles?: Record<string, string>;
   attributes?: { [key: string]: any };
   metadata?: { [key: string]: any };
   content?: DocumentElement[];
 }
+export type ElementType =
+  | 'paragraph'
+  | 'heading'
+  | 'image'
+  | 'text'
+  | 'list'
+  | 'list-item'
+  | (string & {});
 
 export interface ParagraphElement extends BaseElement {
   type: 'paragraph';
@@ -55,10 +63,7 @@ export type DocumentElement =
   | TableElement
   | TextElement
   | (BaseElement & {
-      type: Exclude<
-        string,
-        'paragraph' | 'heading' | 'image' | 'text' | 'list' | 'list-item'
-      >;
+      type: ElementType;
     });
 
 export interface TableElement extends BaseElement {
@@ -96,6 +101,9 @@ export type TagHandlerObject = {
 
 export interface IConverterDependencies {
   styleMapper: StyleMapper;
+  defaultStyles?: Partial<
+    Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
+  >;
   [key: string]: any;
 }
 
@@ -113,6 +121,10 @@ export type ConverterOptions = {
     adapter: IDocumentConverter;
     styleMapper: StyleMapper;
   }[];
+  defaultStyles?: {
+    format: string;
+    styles: IConverterDependencies['defaultStyles'];
+  }[];
   domParser?: IDOMParser;
 };
 
@@ -123,6 +135,10 @@ export type InitOptions = {
   styleMappings?: {
     format: string;
     handlers: StyleMapping;
+  }[];
+  defaultStyles?: {
+    format: string;
+    styles: IConverterDependencies['defaultStyles'];
   }[];
   adapters?: {
     format: string;
