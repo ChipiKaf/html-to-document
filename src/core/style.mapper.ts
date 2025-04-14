@@ -48,6 +48,15 @@ export class StyleMapper {
   protected initializeDefaultMappings(): void {
     this.mappings = {
       // Text-related styles
+      fontFamily: (v: string) => {
+        if (!v) return {};
+        // Split by comma in case multiple fonts are provided, then remove quotes and trim whitespace.
+        const fonts = v
+          .split(',')
+          .map((font) => font.trim().replace(/['"]/g, ''));
+        // Return the first font as the primary font
+        return { font: fonts[0] };
+      },
       fontWeight: (v) => {
         return v === 'bold' ? { bold: true } : {};
       },

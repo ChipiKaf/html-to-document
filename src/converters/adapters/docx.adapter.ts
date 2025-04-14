@@ -145,7 +145,7 @@ export class DocxAdapter implements IDocumentConverter {
     string,
     (
       el: DocumentElement,
-      styles: { [key: string]: string }
+      styles: { [key: string]: string | number }
     ) =>
       | TextRun
       | ImageRun
@@ -197,7 +197,7 @@ export class DocxAdapter implements IDocumentConverter {
       return el.content
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
-          return handler(child, { ...styles, ...el.styles });
+          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
         })
         .flat()
         .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
@@ -262,7 +262,7 @@ export class DocxAdapter implements IDocumentConverter {
         .map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
           // Create a new TextRun with the merged styles and child's text.
-          return handler(child, { ...styles, ...el.styles });
+          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
         })
         .flat();
 
@@ -306,7 +306,7 @@ export class DocxAdapter implements IDocumentConverter {
           const handler =
             this.inlineHandlers[child.type] || this.inlineHandlers.text;
           // Create a new TextRun with the merged styles and child's text.
-          return handler(child, { ...styles, ...el.styles });
+          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
         })
         .flat();
     }

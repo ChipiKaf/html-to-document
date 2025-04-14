@@ -80,4 +80,7 @@ export const run: () => Promise<any> = async () => {
       });
     },
   });
+  const app = document.getElementById('app');
+  if (!app) return;
+  app.innerHTML = `<p>Remember to run build in root and run install in /demo when you make changes to the html-to-document package`;
 };
