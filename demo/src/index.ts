@@ -20,7 +20,9 @@ export const run: () => Promise<any> = async () => {
         styles: {
           heading: {
             color: 'black',
-            lineHeight: 1.5,
+            fontFamily: 'Aptos Display',
+            marginTop: '10px',
+            marginBottom: '10px',
           },
           paragraph: {
             lineHeight: 1.5,

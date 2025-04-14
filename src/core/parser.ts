@@ -207,6 +207,11 @@ export class Parser {
           ...options,
           styles: { ...(options.styles || {}), textDecoration: 'underline' },
         };
+      case 'hr':
+        return {
+          type: 'line',
+          ...options,
+        };
       case 'h1':
       case 'h2':
       case 'h3':

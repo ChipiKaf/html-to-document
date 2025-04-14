@@ -36,6 +36,22 @@ const parseWidth = (value: string) => {
   return undefined;
 };
 
+function deepMerge(target: any, source: any): any {
+  for (const key in source) {
+    // If both target and source have an object at the same key, merge them recursively.
+    if (
+      source[key] &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key])
+    ) {
+      target[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
 // @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
   protected mappings: StyleMapping = {};
@@ -207,9 +223,10 @@ export class StyleMapper {
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper) {
-          return { ...acc, ...mapper(rawStyles[cssProp] as string) };
+          const newStyle = mapper(rawStyles[cssProp] as string);
+          // Deep merge the new style into the accumulator
+          return deepMerge(acc, newStyle);
         }
-        // Optionally log or ignore unmapped styles
         return acc;
       },
       {}

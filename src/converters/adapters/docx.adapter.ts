@@ -11,6 +11,7 @@ import {
   MathRun,
   ExternalHyperlink,
   VerticalAlign,
+  BorderStyle,
 } from 'docx';
 import {
   DocumentElement,
@@ -18,6 +19,7 @@ import {
   HeadingElement,
   IConverterDependencies,
   ImageElement,
+  LineElement,
   ListElement,
   ListItemElement,
   ParagraphElement,
@@ -135,6 +137,7 @@ export class DocxAdapter implements IDocumentConverter {
     paragraph: this.convertParagraph.bind(this),
     heading: this.convertHeading.bind(this),
     list: this.convertList.bind(this),
+    line: this.convertLine.bind(this),
     image: this.convertImage.bind(this),
     table: this.convertTable.bind(this),
     text: this.convertText.bind(this),
@@ -169,6 +172,9 @@ export class DocxAdapter implements IDocumentConverter {
 
       case 'list':
         return this.convertList(el as ListElement);
+
+      case 'line':
+        return this.convertLine(el);
 
       case 'table':
         return [this.convertTable(el)];
@@ -241,6 +247,32 @@ export class DocxAdapter implements IDocumentConverter {
             ...this._mapper.mapStyles(mergedStyles || {}),
           }),
         ],
+      }),
+    ];
+  }
+
+  private convertLine(
+    _el: DocumentElement,
+    styles: { [key: string]: any } = {}
+  ): Paragraph[] {
+    const el = _el as LineElement;
+    // If there are nested inline children, create multiple text runs.
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...styles,
+      ...el.styles,
+    };
+    return [
+      new Paragraph({
+        border: {
+          bottom: {
+            style: BorderStyle.SINGLE,
+            size: 6, // Thickness of the line (in eighths of a point)
+            color: '808080', // Color can be set explicitly, e.g., "000000"
+            space: 1, // Space between the text (if any) and the line
+          },
+        },
+        ...this._mapper.mapStyles(mergedStyles || {}),
       }),
     ];
   }

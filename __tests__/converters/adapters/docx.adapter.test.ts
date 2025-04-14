@@ -765,7 +765,76 @@ describe('Docx.adapter.convert', () => {
       expect(paragraphs[4]['w:pPr']['w:numPr']['w:numId']['@_w:val']).toBe('2');
     });
   });
-  describe('Table conversion', () => {
+  describe('Line', () => {
+    it('should convert a horizontal line (type "line") to a DOCX paragraph with a bottom border', async () => {
+      // Create a DocumentElement with type 'line'
+      const element: DocumentElement = {
+        type: 'line',
+        styles: {},
+        attributes: {},
+      };
+
+      // Convert the element using the adapter
+      const buffer = await adapter.convert([element]);
+      expect(buffer).toBeInstanceOf(Buffer);
+
+      // Parse the resulting DOCX document into JSON for assertions
+      const jsonDocument = await parseDocxDocument(buffer);
+      const para = jsonDocument['w:document']['w:body']['w:p'];
+
+      // Check that the paragraph has paragraph properties.
+      expect(para['w:pPr']).toBeDefined();
+
+      // Check that a paragraph border property (w:pBdr) exists.
+      expect(para['w:pPr']['w:pBdr']).toBeDefined();
+
+      // The bottom border should be set to simulate the horizontal line.
+      expect(para['w:pPr']['w:pBdr']['w:bottom']).toBeDefined();
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:val']).toBe('single');
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:sz']).toBe('6');
+
+      // Optionally, you might also check the border's color and spacing if that is important:
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:color']).toBe('808080');
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:space']).toBe('1');
+    });
+    it('should render a horizontal line with added margins and center alignment', async () => {
+      // Create a DocumentElement representing a horizontal line with extra styles.
+      const element: DocumentElement = {
+        type: 'line',
+        styles: {
+          marginTop: '10px', // should map to spacing.before (10 * 20 = 200)
+          marginBottom: '5px', // should map to spacing.after (5 * 20 = 100)
+          textAlign: 'center', // should map to w:jc with value "center"
+        },
+        attributes: {},
+      };
+
+      const buffer = await adapter.convert([element]);
+      expect(buffer).toBeInstanceOf(Buffer);
+
+      // Parse the DOCX buffer into a JSON object for assertions.
+      const jsonDocument = await parseDocxDocument(buffer);
+      const para = jsonDocument['w:document']['w:body']['w:p'];
+
+      // Verify that the default border settings for the line are present.
+      expect(para['w:pPr']['w:pBdr']).toBeDefined();
+      expect(para['w:pPr']['w:pBdr']['w:bottom']).toBeDefined();
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:val']).toBe('single');
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:sz']).toBe('6');
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:color']).toBe('808080');
+      expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:space']).toBe('1');
+
+      // Verify that additional spacing styles are merged properly.
+      // marginTop "10px" maps to 10 * 20 = 200
+      // marginBottom "5px" maps to 5 * 20 = 100
+      expect(para['w:pPr']['w:spacing']['@_w:before']).toBe('200');
+      expect(para['w:pPr']['w:spacing']['@_w:after']).toBe('100');
+
+      // Verify that text alignment is mapped. For center alignment, DOCX uses w:jc.
+      expect(para['w:pPr']['w:jc']['@_w:val']).toBe('center');
+    });
+  });
+  describe('Table', () => {
     let adapter: DocxAdapter;
     let parser: Parser;
 

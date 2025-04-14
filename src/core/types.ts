@@ -13,6 +13,7 @@ export type ElementType =
   | 'heading'
   | 'image'
   | 'text'
+  | 'line'
   | 'list'
   | 'list-item'
   | (string & {});
@@ -21,6 +22,10 @@ export interface ParagraphElement extends BaseElement {
   type: 'paragraph';
   text?: string;
   content?: DocumentElement[];
+}
+
+export interface LineElement extends BaseElement {
+  type: 'line';
 }
 
 export interface HeadingElement extends BaseElement {
@@ -61,6 +66,7 @@ export type DocumentElement =
   | ListElement
   | ListItemElement
   | TableElement
+  | LineElement
   | TextElement
   | (BaseElement & {
       type: ElementType;
