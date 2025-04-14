@@ -1,12 +1,11 @@
-import { DocumentElement, TagHandler } from '../core';
 import * as colornames from 'colornames';
 import { BorderStyle } from 'docx';
 
-export function parseStyles(element: any): Record<string, string> {
+export function parseStyles(
+  element: HTMLElement | ChildNode
+): Record<string, string | number> {
   const styleString =
-    typeof element.getAttribute === 'function'
-      ? element.getAttribute('style')
-      : '';
+    element instanceof HTMLElement ? element.getAttribute('style') : '';
   const styles: Record<string, string> = {};
 
   if (styleString) {
@@ -24,8 +23,10 @@ export function parseStyles(element: any): Record<string, string> {
   return styles;
 }
 
-export function parseAttributes(element: any): Record<string, string> {
-  if (!(typeof element.attributes === 'object')) return {};
+export function parseAttributes(
+  element: HTMLElement | ChildNode
+): Record<string, string | number> {
+  if (!(element instanceof HTMLElement)) return {};
   const attributes: Record<string, string> = {};
   for (const attr of Array.from((element as HTMLElement).attributes)) {
     if (attr.name === 'style') continue;

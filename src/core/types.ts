@@ -1,11 +1,15 @@
 import * as CSS from 'csstype';
 import { IDocumentConverter } from '../converters';
 import { StyleMapper } from './style.mapper';
+
+export type Styles = Record<string, string | number> &
+  Partial<Record<keyof CSS.Properties, string | number>>;
 export interface BaseElement {
   type: ElementType; // not strictly limited to a union
-  styles?: Record<string, any> & Partial<Record<keyof CSS.Properties, any>>;
-  attributes?: { [key: string]: any };
-  metadata?: { [key: string]: any };
+  text?: string;
+  styles?: Styles;
+  attributes?: { [key: string]: string | number };
+  metadata?: { [key: string]: unknown };
   content?: DocumentElement[];
 }
 export type ElementType =
@@ -46,6 +50,7 @@ export interface TextElement extends BaseElement {
 
 export interface ListElement extends BaseElement {
   type: 'list';
+  text?: string;
   listType: 'ordered' | 'unordered';
   markerStyle?: string;
   level: number;
@@ -78,8 +83,8 @@ export interface TableElement extends BaseElement {
 
 export interface TableRowElement {
   cells: TableCellElement[];
-  styles?: Record<string, any> & Partial<Record<keyof CSS.Properties, any>>;
-  attributes?: Record<string, string>;
+  styles?: Styles;
+  attributes?: Record<string, string | number>;
 }
 
 export interface TableCellElement extends BaseElement {
@@ -95,18 +100,19 @@ export interface GridCell {
 }
 
 export type Middleware = (html: string) => Promise<string>;
+export type TagHandlerOptions = {
+  styles?: Styles;
+  attributes?: {
+    [key: string]: string | number;
+  };
+  metadata?: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
 export type TagHandler = (
   element: HTMLElement | ChildNode,
-  options?: {
-    styles?: Record<string, any> & Partial<Record<keyof CSS.Properties, any>>;
-    attributes?: {
-      [key: string]: any;
-    };
-    metadata?: {
-      [key: string]: any;
-    };
-    [key: string]: any;
-  }
+  options?: TagHandlerOptions
 ) => DocumentElement;
 
 export type TagHandlerObject = {
@@ -119,11 +125,11 @@ export interface IConverterDependencies {
   defaultStyles?: Partial<
     Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
   >;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export type StyleMapping = Partial<
-  Record<keyof CSS.Properties, (value: string) => any>
+  Record<keyof CSS.Properties, (value: string) => unknown>
 >;
 export type AdapterProvider = new (
   dependencies: IConverterDependencies

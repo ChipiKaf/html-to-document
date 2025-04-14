@@ -6,8 +6,8 @@ import {
   TableRowElement,
   TagHandler,
   TagHandlerObject,
+  TagHandlerOptions,
 } from './types';
-import { JSDOM } from 'jsdom';
 
 class NativeParser implements IDOMParser {
   parse(html: string): Document {
@@ -46,7 +46,7 @@ export class Parser {
   private _parseElement(
     element: HTMLElement | ChildNode,
     handler: TagHandler,
-    options: { [key: string]: any } = {}
+    options: TagHandlerOptions = {}
   ) {
     let styles = parseStyles(element);
     let attributes = parseAttributes(element);
@@ -122,7 +122,7 @@ export class Parser {
 
   private _defaultHandler(
     element: HTMLElement | ChildNode,
-    options: any
+    options: TagHandlerOptions = {}
   ): DocumentElement {
     if (element.nodeType === 3) {
       return {
@@ -146,9 +146,10 @@ export class Parser {
       const newLevel =
         options &&
         options.metadata &&
-        typeof options.metadata.level !== 'undefined'
+        typeof options.metadata.level !== 'undefined' &&
+        typeof options.metadata.level === 'string'
           ? tag === 'li'
-            ? (parseInt(options.metadata.level) + 1).toString()
+            ? (parseInt(options.metadata.level || '0') + 1).toString()
             : options.metadata.level
           : '0';
 
@@ -233,7 +234,9 @@ export class Parser {
             typeof options?.metadata?.level !== 'undefined'
               ? typeof options.metadata.level === 'string'
                 ? parseInt(options.metadata.level)
-                : options.metadata.level
+                : typeof options.metadata.level === 'number'
+                  ? options.metadata.level
+                  : 0
               : 0,
           ...options,
           metadata: {
@@ -249,7 +252,9 @@ export class Parser {
             typeof options?.metadata?.level !== 'undefined'
               ? typeof options.metadata.level === 'string'
                 ? parseInt(options.metadata.level)
-                : options.metadata.level
+                : typeof options.metadata.level === 'number'
+                  ? options.metadata.level
+                  : 0
               : 0,
           content: children,
           ...options,

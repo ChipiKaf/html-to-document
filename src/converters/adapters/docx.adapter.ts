@@ -23,7 +23,7 @@ import {
   ListElement,
   ListItemElement,
   ParagraphElement,
-  StyleMapping,
+  Styles,
   TableElement,
   TextElement,
 } from '../../core/types';
@@ -188,7 +188,7 @@ export class DocxAdapter implements IDocumentConverter {
 
   private convertParagraph(
     _el: DocumentElement,
-    styles: { [key: string]: any } = {}
+    styles: Styles = {}
   ): (Paragraph | Table)[] {
     const el = _el as ParagraphElement;
     // If there are nested inline children, create multiple text runs.
@@ -251,10 +251,7 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertLine(
-    _el: DocumentElement,
-    styles: { [key: string]: any } = {}
-  ): Paragraph[] {
+  private convertLine(_el: DocumentElement, styles: Styles = {}): Paragraph[] {
     const el = _el as LineElement;
     // If there are nested inline children, create multiple text runs.
     const mergedStyles = {
@@ -277,10 +274,7 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertHeading(
-    _el: DocumentElement,
-    styles: { [key: string]: any } = {}
-  ): Paragraph {
+  private convertHeading(_el: DocumentElement, styles: Styles = {}): Paragraph {
     const el = _el as HeadingElement;
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
     const mergedStyles = {
@@ -324,7 +318,7 @@ export class DocxAdapter implements IDocumentConverter {
 
   private convertText(
     _el: DocumentElement,
-    styles: { [key: string]: any } = {}
+    styles: Styles = {}
   ): (TextRun | ImageRun | ExternalHyperlink)[] {
     const el = _el as TextElement;
     const mergedStyles = {
@@ -353,7 +347,7 @@ export class DocxAdapter implements IDocumentConverter {
               style: 'Hyperlink',
             }),
           ],
-          link: href,
+          link: href as string,
         }),
       ];
     }
@@ -365,10 +359,7 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertList(
-    _el: DocumentElement,
-    styles: { [key: string]: any } = {}
-  ): Paragraph[] {
+  private convertList(_el: DocumentElement, styles: Styles = {}): Paragraph[] {
     const el = _el as ListElement;
     const mergedStyles = { ...this._defaultStyles?.[el.type] };
     return el.content
@@ -390,7 +381,7 @@ export class DocxAdapter implements IDocumentConverter {
 
   private _convertListItem(
     _el: DocumentElement,
-    styles: { [key: string]: any } = {}
+    styles: Styles = {}
   ): Paragraph[] {
     const el = _el as ListItemElement;
     const mergedStyles = {
@@ -419,7 +410,7 @@ export class DocxAdapter implements IDocumentConverter {
             acc.push(
               new Paragraph({
                 numbering: {
-                  reference: el.metadata?.reference || '',
+                  reference: (el.metadata?.reference as string) || '',
                   level: el.level,
                 },
                 run: {
@@ -441,7 +432,7 @@ export class DocxAdapter implements IDocumentConverter {
     return [
       new Paragraph({
         numbering: {
-          reference: el.metadata?.reference || '',
+          reference: (el.metadata?.reference as string) || '',
           level: el.level,
         },
         run: {
@@ -457,10 +448,7 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertImage(
-    _el: DocumentElement,
-    styles: { [key: string]: any } = {}
-  ): ImageRun {
+  private convertImage(_el: DocumentElement, styles: Styles = {}): ImageRun {
     // For a real implementation, you might need to load the image from a URL or file.
     // Here we assume that el.src is a base64 encoded string for simplicity.
     // You also might want to use el.attributes to read width/height.
@@ -478,10 +466,7 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private convertTable(
-    _el: DocumentElement,
-    styles: { [key: string]: any } = {}
-  ): Table {
+  private convertTable(_el: DocumentElement, styles: Styles = {}): Table {
     const el = _el as TableElement;
     const mergedStyles = {
       ...this._defaultStyles?.[el.type],

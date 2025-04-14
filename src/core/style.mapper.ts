@@ -5,7 +5,7 @@ import {
   pixelsToTwips,
 } from '../utils/html.utils';
 import { StyleMapping } from './types';
-import { HighlightColor, WidthType } from 'docx';
+import { WidthType } from 'docx';
 
 const parseWidth = (value: string) => {
   if (value.endsWith('px')) {
@@ -36,20 +36,32 @@ const parseWidth = (value: string) => {
   return undefined;
 };
 
-function deepMerge(target: any, source: any): any {
-  for (const key in source) {
-    // If both target and source have an object at the same key, merge them recursively.
+function deepMerge<T extends object, U extends object>(
+  target: T,
+  source: U
+): T & U {
+  const result = { ...target } as T & U;
+  for (const key of Object.keys(source)) {
+    const sourceValue = (source as Record<string, unknown>)[key];
     if (
-      source[key] &&
-      typeof source[key] === 'object' &&
-      !Array.isArray(source[key])
+      sourceValue &&
+      typeof sourceValue === 'object' &&
+      !Array.isArray(sourceValue)
     ) {
-      target[key] = deepMerge(target[key] || {}, source[key]);
+      const targetValue = (target as Record<string, unknown>)[key];
+      (result as Record<string, unknown>)[key] = deepMerge(
+        targetValue &&
+          typeof targetValue === 'object' &&
+          !Array.isArray(targetValue)
+          ? (targetValue as Record<string, unknown>)
+          : {},
+        sourceValue as Record<string, unknown>
+      );
     } else {
-      target[key] = source[key];
+      (result as Record<string, unknown>)[key] = sourceValue;
     }
   }
-  return target;
+  return result;
 }
 
 // @To-do: Consider making the conversion from px or any other size extensible
@@ -81,15 +93,15 @@ export class StyleMapper {
         v === 'underline'
           ? { underline: {} }
           : v === 'line-through'
-          ? { strike: true }
-          : {},
+            ? { strike: true }
+            : {},
       textTransform: (v) =>
         v === 'uppercase'
           ? { allCaps: true }
           : v === 'capitalize'
-          ? { smallCaps: true }
-          : {},
-      textAlign: (v) => ({ alignment: v as any }), // left, right, center, justify
+            ? { smallCaps: true }
+            : {},
+      textAlign: (v) => ({ alignment: v }), // left, right, center, justify
       color: (v) => ({ color: colorConversion(v) }),
       backgroundColor: (v) => ({
         highlight: v,
@@ -139,10 +151,10 @@ export class StyleMapper {
         return !isNaN(px) ? { characterSpacing: Math.round(px * 10) } : {};
       },
 
-      // Table-related
-      border: (v) => ({
-        borders: { top: {}, bottom: {}, left: {}, right: {} },
-      }), // Add parsing logic as needed
+      // // Table-related
+      // border: (v) => ({
+      //   borders: { top: {}, bottom: {}, left: {}, right: {} },
+      // }), // Add parsing logic as needed
       borderColor: (v) => ({
         borders: {
           top: { color: colorConversion(v) },
@@ -176,12 +188,12 @@ export class StyleMapper {
         v === 'middle'
           ? { verticalAlign: 'center' }
           : v === 'bottom'
-          ? { verticalAlign: 'bottom' }
-          : v === 'super'
-          ? { superScript: true }
-          : v === 'sub'
-          ? { subScript: true }
-          : {},
+            ? { verticalAlign: 'bottom' }
+            : v === 'super'
+              ? { superScript: true }
+              : v === 'sub'
+                ? { subScript: true }
+                : {},
 
       padding: (v) => {
         const px = parseFloat(v);
@@ -210,20 +222,20 @@ export class StyleMapper {
         v === 'decimal'
           ? { numbering: 'decimal' }
           : v === 'disc'
-          ? { bullet: true }
-          : {},
+            ? { bullet: true }
+            : {},
     };
   }
 
   // Method to map raw styles to a generic style object
   public mapStyles(
     rawStyles: Partial<Record<keyof CSS.Properties, string | number>>
-  ): Record<string, any> {
+  ): Record<string, unknown> {
     return (Object.keys(rawStyles) as (keyof CSS.Properties)[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper) {
-          const newStyle = mapper(rawStyles[cssProp] as string);
+          const newStyle = mapper(rawStyles[cssProp] as string) as object;
           // Deep merge the new style into the accumulator
           return deepMerge(acc, newStyle);
         }

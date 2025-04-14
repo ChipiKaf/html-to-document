@@ -2,7 +2,6 @@ import { Middleware } from '../core';
 
 // Define which tags are block–level and which are inline.
 const blockTags = new Set(['div', 'p', 'ol', 'ul', 'li']);
-const inlineTags = new Set(['span', 'strong']);
 
 // Our very simple node structure.
 type Node =
@@ -74,13 +73,6 @@ function parseHTML(input: string): Node[] {
  */
 function isBlock(tag: string): boolean {
   return blockTags.has(tag);
-}
-
-/**
- * Determines if a tag is inline.
- */
-function isInline(tag: string): boolean {
-  return inlineTags.has(tag);
 }
 
 /**
