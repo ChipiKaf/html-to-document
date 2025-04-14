@@ -77,7 +77,13 @@ export class Parser {
         const cellElement: TableCellElement = {
           type: 'table-cell',
           content,
-          styles,
+          styles:
+            cell.localName === 'th'
+              ? {
+                  textAlign: 'center',
+                  ...styles,
+                }
+              : styles,
           attributes,
           colspan: cell.getAttribute('colspan')
             ? Number(cell.getAttribute('colspan'))

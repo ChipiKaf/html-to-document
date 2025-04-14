@@ -565,6 +565,7 @@ export class DocxAdapter implements IDocumentConverter {
               ? originalCell.content
                   .flatMap((child) =>
                     (this.handlers[child.type] || this.handlers.custom)(child, {
+                      ...this._defaultStyles?.[originalCell?.type],
                       ...styles,
                       ...originalCell.styles,
                     })
@@ -575,6 +576,7 @@ export class DocxAdapter implements IDocumentConverter {
                       currentIndex > 0 && prevChild && isInline(prevChild);
 
                     if (isPreviousInline && isInline(child)) {
+                      // If the previous and current are inline
                       if (Array.isArray(child)) {
                         child.forEach((c) => {
                           acc[acc.length - 1].addChildElement(c);
@@ -586,10 +588,16 @@ export class DocxAdapter implements IDocumentConverter {
                       acc.push(
                         new Paragraph({
                           run: {
-                            ...this._mapper.mapStyles(mergedStyles),
+                            ...this._mapper.mapStyles({
+                              ...originalCell.styles,
+                              ...mergedStyles,
+                            }),
                           },
                           children: Array.isArray(child) ? [...child] : [child],
-                          ...this._mapper.mapStyles(mergedStyles),
+                          ...this._mapper.mapStyles({
+                            ...originalCell.styles,
+                            ...mergedStyles,
+                          }),
                         })
                       );
                     } else {
@@ -615,13 +623,13 @@ export class DocxAdapter implements IDocumentConverter {
       tableRows.push(
         new TableRow({
           children: cells,
-          ...this._mapper.mapStyles(rowStyles),
+          ...this._mapper.mapStyles({ ...mergedStyles, ...rowStyles }),
         })
       );
     }
     return new Table({
       rows: tableRows,
-      ...this._mapper.mapStyles(el.styles || {}),
+      ...this._mapper.mapStyles({ ...mergedStyles, ...el.styles }),
     });
   }
 }

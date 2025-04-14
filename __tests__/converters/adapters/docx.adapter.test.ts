@@ -177,6 +177,21 @@ describe('Docx.adapter.convert', () => {
       expect(para['w:r']['w:rPr']).toHaveProperty('w:iCs');
       expect(para['w:r']['w:t']['#text']).toBe('Italic text');
     });
+    it('should render centered text in the paragraph', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Center text',
+          styles: { textAlign: 'center' },
+          attributes: {},
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const para = jsonDocument['w:document']['w:body']['w:p'];
+      expect(para['w:pPr']['w:jc']['@_w:val']).toEqual('center');
+      expect(para['w:r']['w:t']['#text']).toBe('Center text');
+    });
     it('should create a DOCX buffer with a bold paragraph', async () => {
       const elements: DocumentElement[] = [
         {
@@ -1071,6 +1086,43 @@ describe('Docx.adapter.convert', () => {
       const gapCellText =
         gapCell?.['w:p']?.[0]?.['w:r']?.['w:t']?.['#text'] || '';
       expect(gapCellText).toBe('');
+    });
+    it('should render a table cell with centered text alignment', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Centered Cell' }],
+                styles: { textAlign: 'center' },
+              },
+            ],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      // Get the first row and the first cell
+      const row = Array.isArray(tbl['w:tr']) ? tbl['w:tr'][0] : tbl['w:tr'];
+      const cell = Array.isArray(row['w:tc']) ? row['w:tc'][0] : row['w:tc'];
+      const para = Array.isArray(cell['w:p']) ? cell['w:p'][0] : cell['w:p'];
+
+      // Check that the paragraph in the table cell has centered alignment.
+      // In DOCX, centered text is represented with a <w:jc> element with its attribute value set to "center".
+      expect(para['w:pPr']['w:jc']['@_w:val']).toBe('center');
+
+      // Check that the text in the cell is correct.
+      const cellText = Array.isArray(para['w:r'])
+        ? para['w:r'][0]['w:t']['#text']
+        : para['w:r']['w:t']['#text'];
+      expect(cellText).toBe('Centered Cell');
     });
   });
 });

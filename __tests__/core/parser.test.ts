@@ -725,6 +725,71 @@ describe('Parser', () => {
         },
       ]);
     });
+    it('centers the content of a table heading', () => {
+      const html = `<table style="border-style: dashed" data-table="x">
+      <tr style="border-width: 3px">
+      <th style="color: red" colspan="3" rowspan="3">Heading 1</th>
+      <th colspan="1" rowspan="1"><div style="font-family: times-new-roman">Heading 2</div></th>
+      </tr>
+      </table>`;
+      const result = parser.parse(html);
+      expect(result).toEqual([
+        {
+          type: 'table',
+          rows: [
+            {
+              cells: [
+                {
+                  type: 'table-cell',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Heading 1',
+                    },
+                  ],
+                  styles: {
+                    textAlign: 'center',
+                    color: 'red',
+                  },
+                  attributes: {},
+                  colspan: 3,
+                  rowspan: 3,
+                },
+                {
+                  type: 'table-cell',
+                  content: [
+                    {
+                      type: 'custom',
+                      text: 'Heading 2',
+                      styles: {
+                        fontFamily: 'times-new-roman',
+                      },
+                      attributes: {},
+                    },
+                  ],
+                  styles: {
+                    textAlign: 'center',
+                  },
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+              ],
+              styles: {
+                borderWidth: '3px',
+              },
+              attributes: {},
+            },
+          ],
+          styles: {
+            borderStyle: 'dashed',
+          },
+          attributes: {
+            'data-table': 'x',
+          },
+        },
+      ]);
+    });
   });
   describe('sup tag', () => {
     it('parses sup and sub tags with appropriate verticalAlign styles', () => {
