@@ -32,6 +32,7 @@ export const run: () => Promise<any> = async () => {
     ],
   });
 
+  // Initialize editor
   tinymce.init({
     selector: 'textarea',
     height: window.innerHeight - 20,

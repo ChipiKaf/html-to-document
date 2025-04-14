@@ -3,7 +3,7 @@ import { IDocumentConverter } from '../converters';
 import { StyleMapper } from './style.mapper';
 export interface BaseElement {
   type: ElementType; // not strictly limited to a union
-  styles?: Record<string, string>;
+  styles?: Record<string, any> & Partial<Record<keyof CSS.Properties, any>>;
   attributes?: { [key: string]: any };
   metadata?: { [key: string]: any };
   content?: DocumentElement[];
@@ -78,7 +78,7 @@ export interface TableElement extends BaseElement {
 
 export interface TableRowElement {
   cells: TableCellElement[];
-  styles?: Record<string, string>;
+  styles?: Record<string, any> & Partial<Record<keyof CSS.Properties, any>>;
   attributes?: Record<string, string>;
 }
 
@@ -97,11 +97,20 @@ export interface GridCell {
 export type Middleware = (html: string) => Promise<string>;
 export type TagHandler = (
   element: HTMLElement | ChildNode,
-  options?: { [key: string]: any }
+  options?: {
+    styles?: Record<string, any> & Partial<Record<keyof CSS.Properties, any>>;
+    attributes?: {
+      [key: string]: any;
+    };
+    metadata?: {
+      [key: string]: any;
+    };
+    [key: string]: any;
+  }
 ) => DocumentElement;
 
 export type TagHandlerObject = {
-  key: keyof HTMLElementTagNameMap;
+  key: keyof HTMLElementTagNameMap | (string & {});
   handler: TagHandler;
 };
 
