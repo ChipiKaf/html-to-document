@@ -1,6 +1,11 @@
 import { DocxAdapter } from './converters';
 import { IDocumentConverter } from './converters/IDocumentConverter';
-import { ConverterOptions, InitOptions, Middleware } from './core';
+import {
+  ConverterOptions,
+  DocumentElement,
+  InitOptions,
+  Middleware,
+} from './core';
 import { Parser } from './core/parser';
 import { StyleMapper } from './core/style.mapper';
 import { MiddlewareManager } from './middleware/middleware.manager';
@@ -44,12 +49,47 @@ export class Converter {
     this._registry.register(name, converter);
   }
 
-  async convert(html: string, format: string): Promise<Buffer | Blob> {
+  /**
+   * Converts the provided content into a specified file format (e.g., DOCX, PDF, Markdown, etc.).
+   *
+   * @param content - The input content to convert. Can be either:
+   *   - A raw HTML string to be parsed before conversion, or
+   *   - A pre-parsed array of `DocumentElement` objects.
+   * @param format - The target output format (e.g., `'docx'`, `'pdf'`, `'md'`, etc.).
+   * @returns A `Promise` that resolves to a `Buffer` (for Node environments) or a `Blob` (for browser environments),
+   *          representing the generated file in the specified format.
+   *
+   * @throws Will throw an error if the specified format does not have a registered adapter.
+   */
+  async convert(
+    content: string | DocumentElement[],
+    format: string
+  ): Promise<Buffer | Blob> {
     const adapter = this._registry.get(format);
     if (!adapter) throw new Error('Format not available');
-    const modifiedHtml = await this._middlewareManager.execute(html);
-    const parsed = this._parser.parse(modifiedHtml);
+
+    let parsed: DocumentElement[];
+
+    if (typeof content === 'string') {
+      parsed = await this.parse(content);
+    } else parsed = content;
+
     return adapter.convert(parsed);
+  }
+
+  /**
+   * Parses an HTML string into a structured array of `DocumentElement` objects.
+   *
+   * This method first executes any registered middleware transformations on the HTML,
+   * then uses the configured parser to convert the modified HTML into a document-agnostic
+   * intermediate format (`DocumentElement[]`), which can be used by format adapters (e.g., DOCX, PDF).
+   *
+   * @param html - The raw HTML string to be parsed.
+   * @returns A `Promise` that resolves to an array of `DocumentElement` objects representing the parsed content.
+   */
+  async parse(html: string): Promise<DocumentElement[]> {
+    const modifiedHtml = await this._middlewareManager.execute(html);
+    return this._parser.parse(modifiedHtml);
   }
 }
 
