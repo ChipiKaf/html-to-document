@@ -110,6 +110,19 @@ export type TagHandlerOptions = {
   };
   [key: string]: unknown;
 };
+// export type TagHandler<
+//   K extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap,
+// > = (
+//   element: HTMLElementTagNameMap[K] | ChildNode,
+//   options?: TagHandlerOptions
+// ) => DocumentElement;
+
+// export type TagHandlerObject<
+//   K extends keyof HTMLElementTagNameMap = keyof HTMLElementTagNameMap,
+// > = {
+//   key: K | (string & {}); // For known keys, K will be used; otherwise, any string.
+//   handler: TagHandler<K>;
+// };
 export type TagHandler = (
   element: HTMLElement | ChildNode,
   options?: TagHandlerOptions
@@ -119,7 +132,6 @@ export type TagHandlerObject = {
   key: keyof HTMLElementTagNameMap | (string & {});
   handler: TagHandler;
 };
-
 export interface IConverterDependencies {
   styleMapper: StyleMapper;
   defaultStyles?: Partial<

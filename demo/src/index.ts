@@ -14,6 +14,17 @@ export const run: () => Promise<any> = async () => {
 
   // Get convert function from your html-to-document package.
   const converter = init({
+    tagHandlers: [
+      {
+        key: 'hgroup',
+        handler: (node) => {
+          return {
+            type: 'heading',
+            text: node.textContent || '',
+          };
+        },
+      },
+    ],
     defaultStyles: [
       {
         format: 'docx',
