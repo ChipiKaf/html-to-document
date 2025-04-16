@@ -251,6 +251,18 @@ export type TagHandlerObject = {
   /**
    * The handler function to process elements with this tag/key.
    *
+   * The handler is called for each matching HTML element during parsing and is responsible for returning a document element object.
+   *
+   * @param element - The source HTMLElement being processed.
+   * @param options - An object containing contextual data for this element, including:
+   *   - styles: A Record<string, string | number> of all computed styles for the element, with property names converted from kebab-case (e.g., 'font-size') to camelCase (e.g., 'fontSize').
+   *   - attributes: A Record<string, string> of all HTML attributes present on the element.
+   *   - metadata: Optional metadata propagated from parent elements (e.g., list nesting level).
+   *   - content: Optional array of parsed child elements, if any.
+   *   - text: Optional text content of the element, if applicable.
+   *
+   * The handler should return a structured object representing the parsed element, typically spreading the options and adding or overriding properties as needed.
+   *
    * Example:
    *   handler: (element, options) => ({
    *     ...options,
