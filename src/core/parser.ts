@@ -7,7 +7,9 @@ import {
   TagHandler,
   TagHandlerObject,
   TagHandlerOptions,
+  ListItemElement,
 } from './types';
+import * as CSS from 'csstype';
 
 class NativeParser implements IDOMParser {
   parse(html: string): Document {
@@ -20,15 +22,42 @@ class NativeParser implements IDOMParser {
 export class Parser {
   private _tagHandlers: Map<string, TagHandler>;
   private _domParser: IDOMParser;
-  constructor(tagHandlers?: TagHandlerObject[], domParser?: IDOMParser) {
+  private _defaultStyles: Map<
+    keyof HTMLElementTagNameMap,
+    Partial<Record<keyof CSS.Properties, string | number>>
+  >;
+  private _defaultAttributes: Map<
+    keyof HTMLElementTagNameMap,
+    Record<string, string | number>
+  >;
+  constructor(
+    tagHandlers?: TagHandlerObject[],
+    domParser?: IDOMParser,
+    defaultStyles: {
+      key: keyof HTMLElementTagNameMap;
+      styles: Partial<Record<keyof CSS.Properties, string | number>>;
+    }[] = [],
+    defaultAttributes: {
+      key: keyof HTMLElementTagNameMap;
+      attributes: Record<string, string | number>;
+    }[] = []
+  ) {
     this._domParser = domParser || new NativeParser();
     this._tagHandlers = new Map();
+    this._defaultStyles = new Map();
+    this._defaultAttributes = new Map();
     // Add
     if (tagHandlers && tagHandlers.length > 0) {
       tagHandlers.forEach((tHandler) => {
         this._tagHandlers.set(tHandler.key, tHandler.handler);
       });
     }
+    defaultStyles.forEach((style) => {
+      this._defaultStyles.set(style.key, style.styles);
+    });
+    defaultAttributes.forEach((attribute) => {
+      this._defaultAttributes.set(attribute.key, attribute.attributes);
+    });
     this._parseElement = this._parseElement.bind(this);
     this._parseHTML = this._parseHTML.bind(this);
     this._defaultHandler = this._defaultHandler.bind(this);
@@ -47,26 +76,90 @@ export class Parser {
     element: HTMLElement | ChildNode,
     handler: TagHandler,
     options: TagHandlerOptions = {}
-  ) {
+  ): DocumentElement {
     // If this is a text node, return it as is
-    // @Todo - Add a way to extend text nodes
     if (element.nodeType === 3) {
-      return handler(element, { ...options });
+      return {
+        type: 'text',
+        text: element.textContent || '',
+        ...options,
+      };
     }
     let styles = parseStyles(element as HTMLElement);
     let attributes = parseAttributes(element as HTMLElement);
-    if (options.attributes) {
-      attributes = { ...options.attributes, ...attributes };
+
+    // Add default attributes
+    attributes = {
+      ...(this._defaultAttributes.get(
+        (
+          element as HTMLElement
+        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      ) ?? {}),
+      ...options.attributes,
+      ...attributes,
+    };
+
+    // Add default styles
+    styles = {
+      ...(this._defaultStyles.get(
+        (
+          element as HTMLElement
+        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      ) ?? {}),
+      ...options.styles,
+      ...styles,
+    };
+
+    // Extract children
+    let children: DocumentElement[] | undefined = undefined;
+    if (
+      !(element.childNodes.length === 1 && element.childNodes[0].nodeType === 3)
+    ) {
+      const tag = element.nodeName.toLowerCase();
+      const isList = tag === 'ul' || tag === 'ol' || tag === 'li';
+      const newLevel =
+        options &&
+        options.metadata &&
+        typeof options.metadata.level !== 'undefined' &&
+        typeof options.metadata.level === 'string'
+          ? tag === 'li'
+            ? (parseInt(options.metadata.level || '0') + 1).toString()
+            : options.metadata.level
+          : '0';
+      children = Array.from(element.childNodes).map((child) => {
+        const key = child.nodeName.toLowerCase();
+        return this._parseElement(
+          child,
+          this._tagHandlers.get(key) ?? this._defaultHandler,
+          isList
+            ? {
+                metadata: {
+                  level: newLevel,
+                },
+              }
+            : {}
+        );
+      });
     }
-    if (options.styles) {
-      styles = { ...options.styles, ...styles };
-    }
-    return handler(element, { ...options, ...{ styles, attributes } });
+    // Extract text
+    const text =
+      children === undefined
+        ? element.textContent
+          ? element.textContent
+          : undefined
+        : undefined;
+    return handler(element as HTMLElement, {
+      ...options,
+      styles,
+      attributes,
+      content: children,
+      text,
+    });
   }
 
   private _parseTable(
     element: HTMLElement | ChildNode,
-    options = {}
+    options: TagHandlerOptions = {}
   ): DocumentElement {
     const rows: TableRowElement[] = [];
     // Query all trs (Perhaps we lose the styles of thead, tbody and tfooter so we need to fix this)
@@ -105,7 +198,8 @@ export class Parser {
     return {
       type: 'table',
       rows,
-      ...options,
+      styles: options.styles || {},
+      attributes: options.attributes || {},
     };
   }
 
@@ -141,45 +235,12 @@ export class Parser {
     if (tag === 'table') {
       return this._parseTable(element, options);
     }
-    let children: DocumentElement[] | undefined;
-    // If we only have text inside, then
-    if (
-      !(element.childNodes.length === 1 && element.childNodes[0].nodeType === 3)
-    ) {
-      const tag = element.nodeName.toLowerCase();
-      const isList = tag === 'ul' || tag === 'ol' || tag === 'li';
-      const newLevel =
-        options &&
-        options.metadata &&
-        typeof options.metadata.level !== 'undefined' &&
-        typeof options.metadata.level === 'string'
-          ? tag === 'li'
-            ? (parseInt(options.metadata.level || '0') + 1).toString()
-            : options.metadata.level
-          : '0';
-
-      children = Array.from(element.childNodes).map((child) => {
-        // Change this to have even the custom tag handlers
-        const key = child.nodeName.toLowerCase();
-        return this._parseElement(
-          child,
-          this._tagHandlers.get(key) ?? this._defaultHandler,
-          isList
-            ? {
-                metadata: {
-                  level: newLevel,
-                },
-              }
-            : {}
-        );
-      });
-    }
-    const text =
-      children === undefined
-        ? element.textContent
-          ? element.textContent
-          : undefined
-        : undefined;
+    // Now just use options.text and options.content (children)
+    const text = (options.text ?? undefined) as string | undefined;
+    const children = (options.content ?? undefined) as
+      | DocumentElement[]
+      | ListItemElement[]
+      | undefined;
 
     switch (tag) {
       case 'p':

@@ -13,35 +13,40 @@ export const run: () => Promise<any> = async () => {
   const tinymceModule = await import('tinymce');
   const tinymce = tinymceModule.default;
 
-  // Get convert function from your html-to-document package.
+  // Get convert function from the html-to-document package.
   const converter = init({
-    tagHandlers: [
-      {
-        key: 'hgroup',
-        handler: (node) => {
-          return {
-            type: 'heading',
-            text: node.textContent || '',
-          };
-        },
-      },
-    ],
-    defaultStyles: [
-      {
-        format: 'docx',
-        styles: {
-          heading: {
-            color: 'black',
-            fontFamily: 'Aptos Display',
-            marginTop: '10px',
-            marginBottom: '10px',
-          },
-          paragraph: {
-            lineHeight: 1.5,
+    tags: {
+      tagHandlers: [
+        {
+          key: 'hgroup',
+          handler: (node, options) => {
+            return {
+              ...options,
+              type: 'heading',
+              text: node.textContent || '',
+            };
           },
         },
-      },
-    ],
+      ],
+    },
+    adapters: {
+      defaultStyles: [
+        {
+          format: 'docx',
+          styles: {
+            heading: {
+              color: 'black',
+              fontFamily: 'Aptos Display',
+              marginTop: '10px',
+              marginBottom: '10px',
+            },
+            paragraph: {
+              lineHeight: 1.5,
+            },
+          },
+        },
+      ],
+    },
   });
 
   // Initialize editor

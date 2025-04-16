@@ -20,6 +20,53 @@ describe('Docx.adapter.convert', () => {
       expect(buffer).toBeInstanceOf(Buffer);
     });
   });
+  describe('image', () => {
+    const base64Png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+    const dataUri = `data:image/png;base64,${base64Png}`;
+
+    it('should create a DOCX buffer with a base64 data URI image', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'image',
+          src: dataUri,
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      expect(buffer).toBeInstanceOf(Buffer);
+      // Optionally: further checks on buffer content can be added here
+    });
+
+    it('should create a DOCX buffer with a remote image (mocked fetch)', async () => {
+      const remoteUrl = 'https://example.com/image.png';
+      const fakeArrayBuffer = Uint8Array.from([137,80,78,71,13,10,26,10]).buffer; // PNG header
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => fakeArrayBuffer,
+        headers: { get: () => 'image/png' },
+      });
+      const elements: DocumentElement[] = [
+        {
+          type: 'image',
+          src: remoteUrl,
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(global.fetch).toHaveBeenCalledWith(remoteUrl);
+    });
+
+    it('should throw an error for an invalid image src', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'image',
+          src: '',
+        },
+      ];
+      await expect(adapter.convert(elements)).rejects.toThrow('No src defined for image.');
+    });
+  });
+
   describe('heading', () => {
     it('should create a DOCX buffer with different headings and their heading levels', async () => {
       const elements: DocumentElement[] = [

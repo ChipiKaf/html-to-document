@@ -18,24 +18,29 @@ export class Converter {
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
-    const { tagHandlers, adapters, domParser, defaultStyles } = options;
+    const { tags, adapters, domParser, registerAdapters } = options;
     this._registry = new ConverterRegistry();
     this._middlewareManager = new MiddlewareManager();
-    this._parser = new Parser(tagHandlers, domParser);
+    this._parser = new Parser(
+      tags?.tagHandlers,
+      domParser,
+      tags?.defaultStyles,
+      tags?.defaultAttributes
+    );
 
     // Register default Adapters
     const docxAdapter = new DocxAdapter({
       styleMapper:
-        adapters?.find((adapter) => adapter.format === 'docx')?.styleMapper ||
-        new StyleMapper(),
+        registerAdapters?.find((adapter) => adapter.format === 'docx')
+          ?.styleMapper || new StyleMapper(),
       defaultStyles:
-        defaultStyles?.find((s) => s.format === 'docx')?.styles || {},
+        adapters?.defaultStyles?.find((s) => s.format === 'docx')?.styles || {},
     });
     this.registerConverter('docx', docxAdapter);
 
     // Register custom adapters
-    if (adapters && adapters.length > 0) {
-      adapters.forEach(({ format, adapter }) => {
+    if (registerAdapters && registerAdapters.length > 0) {
+      registerAdapters.forEach(({ format, adapter }) => {
         this.registerConverter(format, adapter);
       });
     }
@@ -94,40 +99,38 @@ export class Converter {
 }
 
 export const init = (options: InitOptions = {}) => {
-  const {
-    middleware,
-    tagHandlers,
-    adapters: Adapters,
-    defaultStyles,
-    styleMappings,
-    domParser,
-  } = options;
+  const { middleware, tags, adapters, domParser } = options;
 
-  // Adapters
-  const adapters = Adapters?.map(({ format, adapter: Adapter }) => {
-    const mapper = styleMappings?.find((map) => map.format === format);
-    const styleMapper = new StyleMapper();
+  // Initialize registered adapters and inject style mapper
+  const registerAdapters = adapters?.register?.map(
+    ({ format, adapter: Adapter }) => {
+      const mapper = adapters?.styleMappings?.find(
+        (map) => map.format === format
+      );
+      const styleMapper = new StyleMapper();
 
-    // Overwrite existing style mappings
-    if (mapper) {
-      styleMapper.addMapping(mapper.handlers);
+      // Overwrite existing style mappings
+      if (mapper) {
+        styleMapper.addMapping(mapper.handlers);
+      }
+
+      // Instantiate Adapters passed in
+      const adapter = new Adapter({
+        styleMapper,
+        defaultStyles:
+          adapters?.defaultStyles?.find(
+            ({ format: nFormat }) => nFormat === format
+          )?.styles || {},
+      });
+      return { format, adapter, styleMapper };
     }
-
-    // Instantiate Adapters passed in
-    const adapter = new Adapter({
-      styleMapper,
-      defaultStyles:
-        defaultStyles?.find(({ format: nFormat }) => nFormat === format)
-          ?.styles || {},
-    });
-    return { format, adapter, styleMapper };
-  });
+  );
 
   const converter = new Converter({
-    tagHandlers,
-    adapters,
+    tags,
+    registerAdapters,
     domParser,
-    defaultStyles,
+    adapters,
   });
 
   // Default middleware
