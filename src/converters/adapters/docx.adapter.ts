@@ -34,6 +34,56 @@ import { StyleMapper } from '../../core/style.mapper';
 import { NumberFormat, AlignmentType } from 'docx';
 import { base64ToUint8Array } from '../../utils/html.utils';
 
+// --- Utility Functions ---
+function mergeStyles(...sources: Styles[]): Styles {
+  return Object.assign({}, ...sources.filter(Boolean));
+}
+
+// Types for possible docx elements returned by handlers
+type DocxElement = Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
+
+async function handleChildren(
+  handlerMap: Record<
+    string,
+    (
+      el: DocumentElement,
+      styles: Styles
+    ) => Promise<DocxElement | DocxElement[]>
+  >,
+  children: DocumentElement[] = [],
+  mergedStyles: Styles = {},
+  ...extraStyles: Styles[]
+): Promise<DocxElement[]> {
+  return (
+    await Promise.all(
+      children.map((child) => {
+        const handler = handlerMap[child.type] || handlerMap.custom;
+        // Always pass a Styles object (never undefined)
+        return handler(child, mergeStyles(mergedStyles, ...extraStyles));
+      })
+    )
+  ).flat();
+}
+
+function toBinaryBuffer(
+  input: string | ArrayBuffer,
+  encoding: BufferEncoding = 'base64'
+): Buffer | Uint8Array {
+  if (typeof Buffer !== 'undefined') {
+    if (typeof input === 'string') {
+      return Buffer.from(input, encoding);
+    } else {
+      return Buffer.from(input);
+    }
+  } else {
+    if (typeof input === 'string') {
+      return base64ToUint8Array(input);
+    } else {
+      return new Uint8Array(input);
+    }
+  }
+}
+
 const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
   if (
     el instanceof TextRun ||
@@ -212,20 +262,18 @@ export class DocxAdapter implements IDocumentConverter {
       ...el.styles,
     };
     if (el.content && el.content.length > 0) {
-      // Merge parent's styles into each child (child style overrides parent's if provided)
       let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-      const childResults = await Promise.all(
-        el.content.map((child) => {
-          const handler = this.handlers[child.type] || this.handlers.custom;
-          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-        })
+      const childResults = await handleChildren(
+        this.handlers,
+        el.content,
+        mergedStyles,
+        styles ?? {},
+        el.styles ?? {}
       );
-      return childResults
-        .flat()
-        .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
+      return childResults.reduce<(Paragraph | Table)[]>(
+        (acc, child, currentIndex) => {
           const isPreviousInline =
             currentIndex > 0 && prevChild && isInline(prevChild);
-
           if (isPreviousInline && isInline(child)) {
             if (Array.isArray(child)) {
               child.forEach((c) => {
@@ -237,9 +285,7 @@ export class DocxAdapter implements IDocumentConverter {
           } else if (isInline(child)) {
             acc.push(
               new Paragraph({
-                run: {
-                  ...{ ...this._mapper.mapStyles(mergedStyles) },
-                },
+                run: { ...this._mapper.mapStyles(mergedStyles) },
                 children: Array.isArray(child) ? [...child] : [child],
                 ...this._mapper.mapStyles(mergedStyles),
               })
@@ -254,11 +300,11 @@ export class DocxAdapter implements IDocumentConverter {
           } else {
             acc.push(child as Paragraph | Table);
           }
-
           prevChild = child;
-
           return acc;
-        }, []);
+        },
+        []
+      );
     }
     // Otherwise, if no nested children, simply create one TextRun.
     return [
@@ -313,15 +359,13 @@ export class DocxAdapter implements IDocumentConverter {
     };
 
     if (el.content && el.content.length > 0) {
-      const children = (
-        await Promise.all(
-          el.content.map((child) => {
-            const handler = this.handlers[child.type] || this.handlers.custom;
-            // Create a new TextRun with the merged styles and child's text.
-            return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-          })
-        )
-      ).flat();
+      const children = await handleChildren(
+        this.handlers,
+        el.content,
+        mergedStyles,
+        styles ?? {},
+        el.styles ?? {}
+      );
 
       // @To-do: This may not work well in case of overlap... Check how to separate inline from block styles
       return new Paragraph({
@@ -358,16 +402,20 @@ export class DocxAdapter implements IDocumentConverter {
       ...el.styles,
     };
     if (el.content && el.content.length > 0) {
-      return (
-        await Promise.all(
-          el.content.map((child) => {
-            const handler =
-              this.inlineHandlers[child.type] || this.inlineHandlers.text;
-            // Create a new TextRun with the merged styles and child's text.
-            return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-          })
-        )
-      ).flat();
+      const allChildren = await handleChildren(
+        this.inlineHandlers,
+        el.content,
+        mergedStyles,
+        styles ?? {},
+        el.styles ?? {}
+      );
+      // Only allow inline elements
+      return allChildren.filter(
+        (c): c is TextRun | ImageRun | ExternalHyperlink =>
+          c instanceof TextRun ||
+          c instanceof ImageRun ||
+          c instanceof ExternalHyperlink
+      );
     }
     if (el.attributes?.href) {
       const { href } = el.attributes!;
@@ -433,44 +481,38 @@ export class DocxAdapter implements IDocumentConverter {
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
       let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-      return (
-        await Promise.all(
-          el.content.map((child) => {
-            const handler = this.handlers[child.type] || this.handlers.custom;
-            // Create a new TextRun with the merged styles and child's text.
-            return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-          })
-        )
-      )
-        .flat()
-        .reduce<Paragraph[]>((acc, child, currentIndex) => {
-          const isPreviousInline =
-            currentIndex > 0 && prevChild && isInline(prevChild);
-
-          if (isPreviousInline && isInline(child)) {
-            acc[acc.length - 1].addChildElement(child);
-          } else if (isInline(child)) {
-            acc.push(
-              new Paragraph({
-                numbering: {
-                  reference: (el.metadata?.reference as string) || '',
-                  level: el.level,
-                },
-                run: {
-                  ...this._mapper.mapStyles(mergedStyles),
-                },
-                children: [child],
+      const childResults = await handleChildren(
+        this.handlers,
+        el.content,
+        mergedStyles,
+        styles ?? {},
+        el.styles ?? {}
+      );
+      return childResults.reduce<Paragraph[]>((acc, child, currentIndex) => {
+        const isPreviousInline =
+          currentIndex > 0 && prevChild && isInline(prevChild);
+        if (isPreviousInline && isInline(child)) {
+          acc[acc.length - 1].addChildElement(child);
+        } else if (isInline(child)) {
+          acc.push(
+            new Paragraph({
+              numbering: {
+                reference: (el.metadata?.reference as string) || '',
+                level: el.level,
+              },
+              run: {
                 ...this._mapper.mapStyles(mergedStyles),
-              })
-            );
-          } else {
-            acc.push(child as Paragraph);
-          }
-
-          prevChild = child;
-
-          return acc;
-        }, []);
+              },
+              children: [child],
+              ...this._mapper.mapStyles(mergedStyles),
+            })
+          );
+        } else {
+          acc.push(child as Paragraph);
+        }
+        prevChild = child;
+        return acc;
+      }, []);
     }
     return [
       new Paragraph({
@@ -520,12 +562,7 @@ export class DocxAdapter implements IDocumentConverter {
       }
       imageType = matches[1].split('/')[1] as IImageOptions['type']; // e.g. "image/png" becomes "png"
       const base64Data = matches[2];
-      if (typeof Buffer !== 'undefined') {
-        dataBuffer = Buffer.from(base64Data, 'binary');
-      } else {
-        // Browser
-        dataBuffer = base64ToUint8Array(base64Data);
-      }
+      dataBuffer = toBinaryBuffer(base64Data, 'base64');
     } else if (
       src.startsWith('http://') ||
       src.startsWith('https://') ||
@@ -537,12 +574,7 @@ export class DocxAdapter implements IDocumentConverter {
         throw new Error(`Failed to fetch image from ${src}`);
       }
       const arrayBuffer = await response.arrayBuffer();
-      if (typeof Buffer !== 'undefined') {
-        dataBuffer = Buffer.from(arrayBuffer);
-      } else {
-        // Browser
-        dataBuffer = new Uint8Array(arrayBuffer);
-      }
+      dataBuffer = toBinaryBuffer(arrayBuffer);
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.startsWith('image/')) {
         imageType = contentType.split('/')[1] as IImageOptions['type'];
@@ -577,14 +609,9 @@ export class DocxAdapter implements IDocumentConverter {
     // Add fallback for SVGs
     if (imageType === 'svg') {
       // 1x1 transparent PNG fallback
-      let fallback: Buffer | Uint8Array;
       const fallbackBase64 =
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
-      if (typeof Buffer !== 'undefined') {
-        fallback = Buffer.from(fallbackBase64, 'base64');
-      } else {
-        fallback = base64ToUint8Array(fallbackBase64);
-      }
+      const fallback = toBinaryBuffer(fallbackBase64, 'base64');
       return new ImageRun({
         data: dataBuffer!,
         transformation: { width: 100, height: 100 },
@@ -718,55 +745,44 @@ export class DocxAdapter implements IDocumentConverter {
           const cellContent: (Paragraph | Table)[] =
             originalCell?.content && originalCell.content?.length > 0
               ? (
-                  await Promise.all(
-                    originalCell.content.map((child) =>
-                      (this.handlers[child.type] || this.handlers.custom)(
-                        child,
-                        {
-                          ...this._defaultStyles?.[originalCell?.type],
-                          ...styles,
-                          ...originalCell.styles,
-                        }
-                      )
-                    )
-                  )
-                )
-                  .flat()
-                  .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
-                    const isPreviousInline =
-                      currentIndex > 0 && prevChild && isInline(prevChild);
-
-                    if (isPreviousInline && isInline(child)) {
-                      // If the previous and current are inline
-                      if (Array.isArray(child)) {
-                        child.forEach((c) => {
-                          acc[acc.length - 1].addChildElement(c);
-                        });
-                      } else {
-                        acc[acc.length - 1].addChildElement(child);
-                      }
-                    } else if (isInline(child)) {
-                      acc.push(
-                        new Paragraph({
-                          run: {
-                            ...this._mapper.mapStyles({
-                              ...originalCell.styles,
-                              ...mergedStyles,
-                            }),
-                          },
-                          children: Array.isArray(child) ? [...child] : [child],
+                  await handleChildren(this.handlers, originalCell.content, {
+                    ...this._defaultStyles?.[originalCell?.type],
+                    ...styles,
+                    ...originalCell.styles,
+                  })
+                ).reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
+                  const isPreviousInline =
+                    currentIndex > 0 && prevChild && isInline(prevChild);
+                  if (isPreviousInline && isInline(child)) {
+                    if (Array.isArray(child)) {
+                      child.forEach((c) => {
+                        acc[acc.length - 1].addChildElement(c);
+                      });
+                    } else {
+                      acc[acc.length - 1].addChildElement(child);
+                    }
+                  } else if (isInline(child)) {
+                    acc.push(
+                      new Paragraph({
+                        run: {
                           ...this._mapper.mapStyles({
                             ...originalCell.styles,
                             ...mergedStyles,
                           }),
-                        })
-                      );
-                    } else {
-                      acc.push(child as Paragraph | Table);
-                    }
-                    prevChild = child;
-                    return acc;
-                  }, [])
+                        },
+                        children: Array.isArray(child) ? [...child] : [child],
+                        ...this._mapper.mapStyles({
+                          ...originalCell.styles,
+                          ...mergedStyles,
+                        }),
+                      })
+                    );
+                  } else {
+                    acc.push(child as Paragraph | Table);
+                  }
+                  prevChild = child;
+                  return acc;
+                }, [])
               : [new Paragraph('')];
           cells.push(
             new TableCell({
