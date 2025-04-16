@@ -32,6 +32,7 @@ import { IDocumentConverter } from '../IDocumentConverter';
 import { StyleMapper } from '../../core/style.mapper';
 
 import { NumberFormat, AlignmentType } from 'docx';
+import { base64ToUint8Array } from '../../utils/html.utils';
 
 const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
   if (
@@ -502,7 +503,7 @@ export class DocxAdapter implements IDocumentConverter {
       ...el.styles,
     };
 
-    let dataBuffer: Buffer | undefined;
+    let dataBuffer: Buffer | Uint8Array | undefined;
     let imageType: IImageOptions['type'] = 'png'; // default type
 
     const src = el.src || '';
@@ -519,7 +520,12 @@ export class DocxAdapter implements IDocumentConverter {
       }
       imageType = matches[1].split('/')[1] as IImageOptions['type']; // e.g. "image/png" becomes "png"
       const base64Data = matches[2];
-      dataBuffer = Buffer.from(base64Data, 'base64');
+      if (typeof Buffer !== 'undefined') {
+        dataBuffer = Buffer.from(base64Data, 'binary');
+      } else {
+        // Browser
+        dataBuffer = base64ToUint8Array(base64Data);
+      }
     } else if (
       src.startsWith('http://') ||
       src.startsWith('https://') ||
@@ -531,7 +537,12 @@ export class DocxAdapter implements IDocumentConverter {
         throw new Error(`Failed to fetch image from ${src}`);
       }
       const arrayBuffer = await response.arrayBuffer();
-      dataBuffer = Buffer.from(arrayBuffer);
+      if (typeof Buffer !== 'undefined') {
+        dataBuffer = Buffer.from(arrayBuffer);
+      } else {
+        // Browser
+        dataBuffer = new Uint8Array(arrayBuffer);
+      }
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.startsWith('image/')) {
         imageType = contentType.split('/')[1] as IImageOptions['type'];
@@ -566,10 +577,14 @@ export class DocxAdapter implements IDocumentConverter {
     // Add fallback for SVGs
     if (imageType === 'svg') {
       // 1x1 transparent PNG fallback
-      const fallback = Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==',
-        'base64'
-      );
+      let fallback: Buffer | Uint8Array;
+      const fallbackBase64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+      if (typeof Buffer !== 'undefined') {
+        fallback = Buffer.from(fallbackBase64, 'base64');
+      } else {
+        fallback = base64ToUint8Array(fallbackBase64);
+      }
       return new ImageRun({
         data: dataBuffer!,
         transformation: { width: 100, height: 100 },
