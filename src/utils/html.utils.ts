@@ -2,10 +2,9 @@ import * as colornames from 'colornames';
 import { BorderStyle } from 'docx';
 
 export function parseStyles(
-  element: HTMLElement | ChildNode
+  element: HTMLElement
 ): Record<string, string | number> {
-  const styleString =
-    element instanceof HTMLElement ? element.getAttribute('style') : '';
+  const styleString = element.getAttribute('style') || '';
   const styles: Record<string, string> = {};
 
   if (styleString) {
@@ -24,11 +23,10 @@ export function parseStyles(
 }
 
 export function parseAttributes(
-  element: HTMLElement | ChildNode
+  element: HTMLElement
 ): Record<string, string | number> {
-  if (!(element instanceof HTMLElement)) return {};
   const attributes: Record<string, string> = {};
-  for (const attr of Array.from((element as HTMLElement).attributes)) {
+  for (const attr of Array.from(element.attributes)) {
     if (attr.name === 'style') continue;
     if (attr.name === 'colspan') continue;
     if (attr.name === 'rowspan') continue;

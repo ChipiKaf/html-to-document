@@ -48,8 +48,13 @@ export class Parser {
     handler: TagHandler,
     options: TagHandlerOptions = {}
   ) {
-    let styles = parseStyles(element);
-    let attributes = parseAttributes(element);
+    // If this is a text node, return it as is
+    // @Todo - Add a way to extend text nodes
+    if (element.nodeType === 3) {
+      return handler(element, { ...options });
+    }
+    let styles = parseStyles(element as HTMLElement);
+    let attributes = parseAttributes(element as HTMLElement);
     if (options.attributes) {
       attributes = { ...options.attributes, ...attributes };
     }
@@ -68,11 +73,11 @@ export class Parser {
     const trElements = (element as Element).querySelectorAll('tr');
     trElements.forEach((tr) => {
       const cells: TableCellElement[] = [];
-      const styles = parseStyles(tr);
-      const attributes = parseAttributes(tr);
+      const styles = parseStyles(tr as HTMLElement);
+      const attributes = parseAttributes(tr as HTMLElement);
       tr.querySelectorAll('td, th').forEach((cell) => {
-        const styles = parseStyles(cell);
-        const attributes = parseAttributes(cell);
+        const styles = parseStyles(cell as HTMLElement);
+        const attributes = parseAttributes(cell as HTMLElement);
         const content = this._parseHTML(cell.innerHTML);
         const cellElement: TableCellElement = {
           type: 'table-cell',

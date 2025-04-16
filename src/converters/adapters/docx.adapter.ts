@@ -12,6 +12,7 @@ import {
   ExternalHyperlink,
   VerticalAlign,
   BorderStyle,
+  IImageOptions,
 } from 'docx';
 import {
   DocumentElement,
@@ -53,7 +54,10 @@ export class DocxAdapter implements IDocumentConverter {
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
     // Convert our intermediate representation into an array of docx children.
-    const children = elements.flatMap((el) => this.convertElement(el));
+    const childrenArrays = await Promise.all(
+      elements.map((el) => this.convertElement(el))
+    );
+    const children = childrenArrays.flat();
 
     // Create a docx Document with a single section.
     const doc = new Document({
@@ -126,13 +130,14 @@ export class DocxAdapter implements IDocumentConverter {
     (
       el: DocumentElement,
       styles: { [key: string]: string | number }
-    ) =>
+    ) => Promise<
       | Paragraph
       | Table
       | TextRun
       | ImageRun
       | ExternalHyperlink
       | (Paragraph | Table | TextRun | ImageRun | ExternalHyperlink)[]
+    >
   > = {
     paragraph: this.convertParagraph.bind(this),
     heading: this.convertHeading.bind(this),
@@ -149,11 +154,12 @@ export class DocxAdapter implements IDocumentConverter {
     (
       el: DocumentElement,
       styles: { [key: string]: string | number }
-    ) =>
+    ) => Promise<
       | TextRun
       | ImageRun
       | ExternalHyperlink
       | (TextRun | ImageRun | ExternalHyperlink)[]
+    >
   > = {
     text: this.convertText.bind(this),
     image: this.convertImage.bind(this),
@@ -162,34 +168,41 @@ export class DocxAdapter implements IDocumentConverter {
   /**
    * Converts a DocumentElement (or an array of them) into an array of docx elements.
    */
-  private convertElement(el: DocumentElement): (Paragraph | Table)[] {
+  private async convertElement(
+    el: DocumentElement
+  ): Promise<(Paragraph | Table)[]> {
     switch (el.type) {
       case 'paragraph':
-        return [...this.convertParagraph(el as ParagraphElement)];
+        return [...(await this.convertParagraph(el as ParagraphElement))];
 
       case 'heading':
-        return [this.convertHeading(el as HeadingElement)];
+        return [await this.convertHeading(el as HeadingElement)];
 
       case 'list':
-        return this.convertList(el as ListElement);
+        return await this.convertList(el as ListElement);
 
       case 'line':
-        return this.convertLine(el);
+        return await this.convertLine(el as LineElement);
+
+      case 'image':
+        return [
+          new Paragraph({
+            children: [await this.convertImage(el as ImageElement)],
+          }),
+        ];
 
       case 'table':
-        return [this.convertTable(el)];
-      // You can add more cases for 'link', 'code', 'blockquote', etc.
-      case 'custom':
+        return [await this.convertTable(el as TableElement)];
+
       default:
-        // For any unrecognized type, treat it as a paragraph.
-        return [...this.convertParagraph(el as DocumentElement)];
+        return [...(await this.convertParagraph(el as ParagraphElement))];
     }
   }
 
-  private convertParagraph(
+  private async convertParagraph(
     _el: DocumentElement,
     styles: Styles = {}
-  ): (Paragraph | Table)[] {
+  ): Promise<(Paragraph | Table)[]> {
     const el = _el as ParagraphElement;
     // If there are nested inline children, create multiple text runs.
     const mergedStyles = {
@@ -200,11 +213,13 @@ export class DocxAdapter implements IDocumentConverter {
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
       let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-      return el.content
-        .map((child) => {
+      const childResults = await Promise.all(
+        el.content.map((child) => {
           const handler = this.handlers[child.type] || this.handlers.custom;
           return handler(child, { ...mergedStyles, ...styles, ...el.styles });
         })
+      );
+      return childResults
         .flat()
         .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
           const isPreviousInline =
@@ -225,6 +240,13 @@ export class DocxAdapter implements IDocumentConverter {
                   ...{ ...this._mapper.mapStyles(mergedStyles) },
                 },
                 children: Array.isArray(child) ? [...child] : [child],
+                ...this._mapper.mapStyles(mergedStyles),
+              })
+            );
+          } else if (child instanceof ImageRun) {
+            acc.push(
+              new Paragraph({
+                children: [child],
                 ...this._mapper.mapStyles(mergedStyles),
               })
             );
@@ -251,7 +273,10 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertLine(_el: DocumentElement, styles: Styles = {}): Paragraph[] {
+  private async convertLine(
+    _el: DocumentElement,
+    styles: Styles = {}
+  ): Promise<Paragraph[]> {
     const el = _el as LineElement;
     // If there are nested inline children, create multiple text runs.
     const mergedStyles = {
@@ -274,7 +299,10 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertHeading(_el: DocumentElement, styles: Styles = {}): Paragraph {
+  private async convertHeading(
+    _el: DocumentElement,
+    styles: Styles = {}
+  ): Promise<Paragraph> {
     const el = _el as HeadingElement;
     const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
     const mergedStyles = {
@@ -284,13 +312,15 @@ export class DocxAdapter implements IDocumentConverter {
     };
 
     if (el.content && el.content.length > 0) {
-      const children = el.content
-        .map((child) => {
-          const handler = this.handlers[child.type] || this.handlers.custom;
-          // Create a new TextRun with the merged styles and child's text.
-          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-        })
-        .flat();
+      const children = (
+        await Promise.all(
+          el.content.map((child) => {
+            const handler = this.handlers[child.type] || this.handlers.custom;
+            // Create a new TextRun with the merged styles and child's text.
+            return handler(child, { ...mergedStyles, ...styles, ...el.styles });
+          })
+        )
+      ).flat();
 
       // @To-do: This may not work well in case of overlap... Check how to separate inline from block styles
       return new Paragraph({
@@ -316,10 +346,10 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private convertText(
+  private async convertText(
     _el: DocumentElement,
     styles: Styles = {}
-  ): (TextRun | ImageRun | ExternalHyperlink)[] {
+  ): Promise<(TextRun | ImageRun | ExternalHyperlink)[]> {
     const el = _el as TextElement;
     const mergedStyles = {
       ...this._defaultStyles?.[el.type],
@@ -327,14 +357,16 @@ export class DocxAdapter implements IDocumentConverter {
       ...el.styles,
     };
     if (el.content && el.content.length > 0) {
-      return el.content
-        .map((child) => {
-          const handler =
-            this.inlineHandlers[child.type] || this.inlineHandlers.text;
-          // Create a new TextRun with the merged styles and child's text.
-          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-        })
-        .flat();
+      return (
+        await Promise.all(
+          el.content.map((child) => {
+            const handler =
+              this.inlineHandlers[child.type] || this.inlineHandlers.text;
+            // Create a new TextRun with the merged styles and child's text.
+            return handler(child, { ...mergedStyles, ...styles, ...el.styles });
+          })
+        )
+      ).flat();
     }
     if (el.attributes?.href) {
       const { href } = el.attributes!;
@@ -359,30 +391,37 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertList(_el: DocumentElement, styles: Styles = {}): Paragraph[] {
-    const el = _el as ListElement;
-    const mergedStyles = { ...this._defaultStyles?.[el.type] };
-    return el.content
-      .map((child) => {
-        child['metadata'] = {
-          ...child['metadata'],
-          reference: `${el.listType}${
-            el.markerStyle && el.markerStyle !== '' ? `-${el.markerStyle}` : ''
-          }`,
-        };
-        return this._convertListItem(child, {
-          ...mergedStyles,
-          ...styles,
-          ...el.styles,
-        }).flat();
-      })
-      .flat();
-  }
-
-  private _convertListItem(
+  private async convertList(
     _el: DocumentElement,
     styles: Styles = {}
-  ): Paragraph[] {
+  ): Promise<Paragraph[]> {
+    const el = _el as ListElement;
+    const mergedStyles = { ...this._defaultStyles?.[el.type] };
+    return (
+      await Promise.all(
+        el.content.map((child) => {
+          child['metadata'] = {
+            ...child['metadata'],
+            reference: `${el.listType}${
+              el.markerStyle && el.markerStyle !== ''
+                ? `-${el.markerStyle}`
+                : ''
+            }`,
+          };
+          return this._convertListItem(child, {
+            ...mergedStyles,
+            ...styles,
+            ...el.styles,
+          });
+        })
+      )
+    ).flat();
+  }
+
+  private async _convertListItem(
+    _el: DocumentElement,
+    styles: Styles = {}
+  ): Promise<Paragraph[]> {
     const el = _el as ListItemElement;
     const mergedStyles = {
       ...this._defaultStyles?.[el.type],
@@ -393,12 +432,15 @@ export class DocxAdapter implements IDocumentConverter {
     if (el.content && el.content.length > 0) {
       // Merge parent's styles into each child (child style overrides parent's if provided)
       let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-      return el.content
-        .map((child) => {
-          const handler = this.handlers[child.type] || this.handlers.custom;
-          // Create a new TextRun with the merged styles and child's text.
-          return handler(child, { ...mergedStyles, ...styles, ...el.styles });
-        })
+      return (
+        await Promise.all(
+          el.content.map((child) => {
+            const handler = this.handlers[child.type] || this.handlers.custom;
+            // Create a new TextRun with the merged styles and child's text.
+            return handler(child, { ...mergedStyles, ...styles, ...el.styles });
+          })
+        )
+      )
         .flat()
         .reduce<Paragraph[]>((acc, child, currentIndex) => {
           const isPreviousInline =
@@ -448,25 +490,106 @@ export class DocxAdapter implements IDocumentConverter {
     ];
   }
 
-  private convertImage(_el: DocumentElement, styles: Styles = {}): ImageRun {
-    // For a real implementation, you might need to load the image from a URL or file.
-    // Here we assume that el.src is a base64 encoded string for simplicity.
-    // You also might want to use el.attributes to read width/height.
+  // Note: Ensure this function can use asynchronous operations
+  private async convertImage(
+    _el: DocumentElement,
+    styles: Styles = {}
+  ): Promise<ImageRun> {
     const el = _el as ImageElement;
     const mergedStyles = {
       ...this._defaultStyles?.[el.type],
       ...styles,
       ...el.styles,
     };
+
+    let dataBuffer: Buffer | undefined;
+    let imageType: IImageOptions['type'] = 'png'; // default type
+
+    const src = el.src || '';
+    if (!src) {
+      throw new Error('No src defined for image.');
+    }
+
+    if (src.startsWith('data:')) {
+      // Handle data URIs in the form:
+      //   data:[<MIME-type>][;base64],<data>
+      const matches = src.match(/^data:(image\/[a-zA-Z]+);base64,(.*)$/);
+      if (!matches || matches.length < 3) {
+        throw new Error('Invalid data URI');
+      }
+      imageType = matches[1].split('/')[1] as IImageOptions['type']; // e.g. "image/png" becomes "png"
+      const base64Data = matches[2];
+      dataBuffer = Buffer.from(base64Data, 'base64');
+    } else if (
+      src.startsWith('http://') ||
+      src.startsWith('https://') ||
+      src.startsWith('//')
+    ) {
+      // Handle external URLs: fetch the image data.
+      const response = await fetch(src);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image from ${src}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      dataBuffer = Buffer.from(arrayBuffer);
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.startsWith('image/')) {
+        imageType = contentType.split('/')[1] as IImageOptions['type'];
+      }
+    } else if (typeof window === 'undefined') {
+      // Assume it's a local file path.
+      // This code path is only supported in Node environments.
+      const fs = import('fs');
+      const path = import('path');
+      if (!(await fs).default.existsSync(src)) {
+        throw new Error(`File not found: ${src}`);
+      }
+      dataBuffer = (await fs).default.readFileSync(src);
+      imageType =
+        ((await path).default.extname(src).slice(1) as IImageOptions['type']) ||
+        'png';
+    }
+
+    if (!dataBuffer) {
+      throw new Error('Image data could not be loaded.');
+    }
+    // Ensure dataBuffer is Buffer (Node) or Uint8Array (browser)
+    if (typeof Buffer !== 'undefined' && !(dataBuffer instanceof Buffer)) {
+      dataBuffer = Buffer.from(dataBuffer);
+    } else if (
+      typeof Buffer === 'undefined' &&
+      !(dataBuffer instanceof Uint8Array)
+    ) {
+      dataBuffer = new Uint8Array(dataBuffer) as Buffer;
+    }
+
+    // Add fallback for SVGs
+    if (imageType === 'svg') {
+      // 1x1 transparent PNG fallback
+      const fallback = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==',
+        'base64'
+      );
+      return new ImageRun({
+        data: dataBuffer!,
+        transformation: { width: 100, height: 100 },
+        type: imageType,
+        fallback: { data: fallback, type: 'png' },
+        ...this._mapper.mapStyles(mergedStyles),
+      });
+    }
     return new ImageRun({
-      data: Buffer.from(el.src || '', 'base64'),
+      data: dataBuffer!,
       transformation: { width: 100, height: 100 },
-      type: 'png', // specify the image type (e.g. 'png', 'jpeg')
+      type: imageType,
       ...this._mapper.mapStyles(mergedStyles),
     });
   }
 
-  private convertTable(_el: DocumentElement, styles: Styles = {}): Table {
+  private async convertTable(
+    _el: DocumentElement,
+    styles: Styles = {}
+  ): Promise<Table> {
     const el = _el as TableElement;
     const mergedStyles = {
       ...this._defaultStyles?.[el.type],
@@ -579,14 +702,20 @@ export class DocxAdapter implements IDocumentConverter {
             | ExternalHyperlink;
           const cellContent: (Paragraph | Table)[] =
             originalCell?.content && originalCell.content?.length > 0
-              ? originalCell.content
-                  .flatMap((child) =>
-                    (this.handlers[child.type] || this.handlers.custom)(child, {
-                      ...this._defaultStyles?.[originalCell?.type],
-                      ...styles,
-                      ...originalCell.styles,
-                    })
+              ? (
+                  await Promise.all(
+                    originalCell.content.map((child) =>
+                      (this.handlers[child.type] || this.handlers.custom)(
+                        child,
+                        {
+                          ...this._defaultStyles?.[originalCell?.type],
+                          ...styles,
+                          ...originalCell.styles,
+                        }
+                      )
+                    )
                   )
+                )
                   .flat()
                   .reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
                     const isPreviousInline =
