@@ -8,7 +8,6 @@ import {
   Table,
   TableRow,
   TableCell,
-  MathRun,
   ExternalHyperlink,
   VerticalAlign,
   BorderStyle,
@@ -32,68 +31,8 @@ import { IDocumentConverter } from '../IDocumentConverter';
 import { StyleMapper } from '../../core/style.mapper';
 
 import { NumberFormat, AlignmentType } from 'docx';
-import { base64ToUint8Array } from '../../utils/html.utils';
+import { handleChildren, isInline, toBinaryBuffer } from './docx.util';
 
-// --- Utility Functions ---
-function mergeStyles(...sources: Styles[]): Styles {
-  return Object.assign({}, ...sources.filter(Boolean));
-}
-
-// Types for possible docx elements returned by handlers
-type DocxElement = Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-
-async function handleChildren(
-  handlerMap: Record<
-    string,
-    (
-      el: DocumentElement,
-      styles: Styles
-    ) => Promise<DocxElement | DocxElement[]>
-  >,
-  children: DocumentElement[] = [],
-  mergedStyles: Styles = {},
-  ...extraStyles: Styles[]
-): Promise<DocxElement[]> {
-  return (
-    await Promise.all(
-      children.map((child) => {
-        const handler = handlerMap[child.type] || handlerMap.custom;
-        // Always pass a Styles object (never undefined)
-        return handler(child, mergeStyles(mergedStyles, ...extraStyles));
-      })
-    )
-  ).flat();
-}
-
-function toBinaryBuffer(
-  input: string | ArrayBuffer,
-  encoding: BufferEncoding = 'base64'
-): Buffer | Uint8Array {
-  if (typeof Buffer !== 'undefined') {
-    if (typeof input === 'string') {
-      return Buffer.from(input, encoding);
-    } else {
-      return Buffer.from(input);
-    }
-  } else {
-    if (typeof input === 'string') {
-      return base64ToUint8Array(input);
-    } else {
-      return new Uint8Array(input);
-    }
-  }
-}
-
-const isInline = (el: TextRun | ImageRun | MathRun | Paragraph | Table) => {
-  if (
-    el instanceof TextRun ||
-    el instanceof ImageRun ||
-    el instanceof MathRun ||
-    el instanceof ExternalHyperlink
-  )
-    return true;
-  return false;
-};
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
