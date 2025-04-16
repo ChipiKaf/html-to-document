@@ -5,6 +5,16 @@ import { Parser } from '../../../src/core/parser';
 import { StyleMapper } from '../../../src/core/style.mapper';
 import { JSDOMParser, parseDocxDocument } from '../../utils/parser.helper';
 
+// Helper function to recursively find a drawing element in the DOCX JSON structure.
+const findDrawingInObject = (obj: any): boolean => {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+  if ('w:drawing' in obj) {
+    return true;
+  }
+  return Object.values(obj).some((value) => findDrawingInObject(value));
+};
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
   let parser: Parser;
@@ -20,50 +30,86 @@ describe('Docx.adapter.convert', () => {
       expect(buffer).toBeInstanceOf(Buffer);
     });
   });
-  describe('image', () => {
-    const base64Png =
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
-    const dataUri = `data:image/png;base64,${base64Png}`;
+  describe('DocxAdapter image conversion', () => {
+    let adapter: DocxAdapter;
+    let parser: Parser;
 
-    it('should create a DOCX buffer with a base64 data URI image', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'image',
-          src: dataUri,
-        },
-      ];
-      const buffer = await adapter.convert(elements);
-      expect(buffer).toBeInstanceOf(Buffer);
-      // Optionally: further checks on buffer content can be added here
+    beforeEach(() => {
+      adapter = new DocxAdapter({ styleMapper: new StyleMapper() });
+      parser = new Parser([], new JSDOMParser());
     });
 
-    it('should create a DOCX buffer with a remote image (mocked fetch)', async () => {
-      const remoteUrl = 'https://example.com/image.png';
-      const fakeArrayBuffer = Uint8Array.from([137,80,78,71,13,10,26,10]).buffer; // PNG header
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        arrayBuffer: async () => fakeArrayBuffer,
-        headers: { get: () => 'image/png' },
+    describe('Base64 data URI image', () => {
+      const base64Png =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+      const dataUri = `data:image/png;base64,${base64Png}`;
+
+      it('should correctly embed a base64 data URI image', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        // Parse the DOCX document into JSON.
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        // Look for the drawing element that indicates an image.
+        const hasDrawing = findDrawingInObject(body);
+        expect(hasDrawing).toBe(true);
       });
-      const elements: DocumentElement[] = [
-        {
-          type: 'image',
-          src: remoteUrl,
-        },
-      ];
-      const buffer = await adapter.convert(elements);
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(global.fetch).toHaveBeenCalledWith(remoteUrl);
     });
 
-    it('should throw an error for an invalid image src', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'image',
-          src: '',
-        },
-      ];
-      await expect(adapter.convert(elements)).rejects.toThrow('No src defined for image.');
+    describe('Remote image (with mocked fetch)', () => {
+      const remoteUrl = 'https://example.com/image.png';
+      const fakeArrayBuffer = Uint8Array.from([
+        137, 80, 78, 71, 13, 10, 26, 10,
+      ]).buffer; // This represents a PNG header.
+
+      beforeEach(() => {
+        global.fetch = jest.fn().mockResolvedValue({
+          ok: true,
+          arrayBuffer: async () => fakeArrayBuffer,
+          headers: { get: () => 'image/png' },
+        });
+      });
+
+      it('should correctly fetch and embed a remote image', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: remoteUrl,
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+        expect(global.fetch).toHaveBeenCalledWith(remoteUrl);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        // Verify the DOCX document contains a drawing element for the remote image.
+        const hasDrawing = findDrawingInObject(body);
+        expect(hasDrawing).toBe(true);
+      });
+    });
+
+    describe('Invalid image source', () => {
+      it('should throw an error for an invalid image src', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: '',
+          },
+        ];
+        await expect(adapter.convert(elements)).rejects.toThrow(
+          'No src defined for image.'
+        );
+      });
     });
   });
 
