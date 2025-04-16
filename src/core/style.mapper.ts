@@ -176,12 +176,26 @@ export class StyleMapper {
         return isNaN(w)
           ? {}
           : {
-              borders: {
+              border: {
                 top: { size: w * 8 },
                 bottom: { size: w * 8 },
                 left: { size: w * 8 },
                 right: { size: w * 8 },
               },
+            };
+      },
+      borderLeftColor: (v) => ({
+        border: { left: { color: colorConversion(v) } },
+      }),
+      borderLeftStyle: (v) => ({
+        border: { left: { style: mapBorderStyle(v) } },
+      }),
+      borderLeftWidth: (v) => {
+        const w = parseFloat(v);
+        return isNaN(w)
+          ? {}
+          : {
+              border: { left: { size: w * 8 } },
             };
       },
       verticalAlign: (v) =>
@@ -212,11 +226,31 @@ export class StyleMapper {
       // List-related
       marginLeft: (v) => {
         const px = parseFloat(v);
-        return !isNaN(px) ? { indent: { left: pixelsToTwips(px) } } : {};
+        return isNaN(px) ? {} : { indent: { left: pixelsToTwips(px) } };
       },
       paddingLeft: (v) => {
         const px = parseFloat(v);
-        return !isNaN(px) ? { indent: { left: pixelsToTwips(px) } } : {};
+        return isNaN(px)
+          ? {}
+          : { border: { left: { space: pixelsToTwips(px) } } };
+      },
+      paddingRight: (v) => {
+        const px = parseFloat(v);
+        return isNaN(px)
+          ? {}
+          : { border: { right: { space: pixelsToTwips(px) } } };
+      },
+      paddingTop: (v) => {
+        const px = parseFloat(v);
+        return isNaN(px)
+          ? {}
+          : { border: { top: { space: pixelsToTwips(px) } } };
+      },
+      paddingBottom: (v) => {
+        const px = parseFloat(v);
+        return isNaN(px)
+          ? {}
+          : { border: { bottom: { space: pixelsToTwips(px) } } };
       },
       listStyleType: (v) =>
         v === 'decimal'

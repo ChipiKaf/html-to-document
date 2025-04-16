@@ -198,7 +198,7 @@ describe('Docx.adapter.convert', () => {
           styles: {
             textDecoration: 'underline',
             fontSize: '20px',
-            color: '#00ff00',
+            color: '#00FF00',
           },
           attributes: {},
         },
@@ -218,7 +218,7 @@ describe('Docx.adapter.convert', () => {
       expect(run['w:t']['#text']).toBe('Custom Styled Heading');
       expect(runProps['w:u']['@_w:val']).toBe('single'); // Underline
       expect(runProps['w:sz']['@_w:val']).toBe('30'); // Font size (20px → 30 half-points)
-      expect(runProps['w:color']['@_w:val']).toBe('00ff00'); // Text color
+      expect(runProps['w:color']['@_w:val']).toBe('00FF00'); // Text color
     });
   });
 
@@ -329,7 +329,7 @@ describe('Docx.adapter.convert', () => {
         {
           type: 'paragraph',
           text: 'Colored text',
-          styles: { color: '#ff0000' },
+          styles: { color: '#FF0000' },
           attributes: {},
         },
       ];
@@ -337,7 +337,7 @@ describe('Docx.adapter.convert', () => {
       const jsonDocument = await parseDocxDocument(buffer);
       const para = jsonDocument['w:document']['w:body']['w:p'];
 
-      expect(para['w:r']['w:rPr']['w:color']['@_w:val']).toBe('ff0000');
+      expect(para['w:r']['w:rPr']['w:color']['@_w:val']).toBe('FF0000');
       expect(para['w:r']['w:t']['#text']).toBe('Colored text');
     });
 
@@ -346,7 +346,7 @@ describe('Docx.adapter.convert', () => {
         {
           type: 'paragraph',
           text: 'Highlighted text',
-          styles: { backgroundColor: '#ffff00' },
+          styles: { backgroundColor: '#FFFF00' },
           attributes: {},
         },
       ];

@@ -374,6 +374,7 @@ export class DocxAdapter implements IDocumentConverter {
     return [
       new TextRun({
         text: el.text || '',
+        break: (el.metadata?.break as number) || undefined,
         ...this._mapper.mapStyles(mergedStyles),
       }),
     ];

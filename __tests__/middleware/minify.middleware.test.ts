@@ -7,6 +7,22 @@ describe('minifyMiddleware', () => {
     expect(output).toBe('<div>Hello</div>');
   });
 
+  it('maintains carriage returns for children of pre tag', async () => {
+    const input = '<pre>Hello\r\nWorld</pre>';
+    const output = await minifyMiddleware(input);
+    expect(output).toBe('<pre>Hello\r\nWorld</pre>');
+  });
+
+  it('maintains whitespace for children of pre tag', async () => {
+    const input = `<pre>Hello
+    
+    World</pre>`;
+    const output = await minifyMiddleware(input);
+    expect(output).toBe(`<pre>Hello
+    
+    World</pre>`);
+  });
+
   it('maintains spaces between tags', async () => {
     const input =
       '<div><span>Hello </span><span>World</span><span> We</span><span> Here</span></div>';

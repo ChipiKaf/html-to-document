@@ -827,4 +827,36 @@ describe('Parser', () => {
       ]);
     });
   });
+  describe('line-break', () => {
+    it('parses br tags as text elements with break metadata', () => {
+      const result = parser.parse('<p>Hello<br>World</p>');
+      expect(result).toEqual([
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Hello',
+            },
+            {
+              styles: {},
+              attributes: {},
+              content: [],
+              text: '',
+              type: 'text',
+              metadata: {
+                break: 1,
+              },
+            },
+            {
+              type: 'text',
+              text: 'World',
+            },
+          ],
+          styles: {},
+          attributes: {},
+        },
+      ]);
+    });
+  });
 });

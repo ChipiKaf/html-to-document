@@ -213,7 +213,7 @@ export type TagHandlerOptions = {
     [key: string]: unknown;
   };
   /** Optional array of parsed child DocumentElements. */
-  children?: DocumentElement[];
+  content?: DocumentElement[];
   /** Optional text content for the element. */
   text?: string;
   /** Any additional custom properties required by specific handlers or extensions. */

@@ -1,4 +1,5 @@
-import * as colornames from 'colornames';
+import colornames from 'colornames';
+
 import { BorderStyle } from 'docx';
 
 export function parseStyles(
@@ -35,13 +36,23 @@ export function parseAttributes(
   return attributes;
 }
 
-export const colorConversion = (color: string) => {
-  if (color.includes('#')) {
-    return color.replace('#', '');
+export function colorConversion(color: string): string {
+  const v = color.trim().toLowerCase();
+
+  // 1) If it comes in as a hex already, just strip the “#”
+  if (/^#?[0-9a-f]{6}$/i.test(v)) {
+    return v.replace(/^#/, '').toUpperCase();
   }
 
-  return colornames.get(color)?.value?.replace('#', '') || '000';
-};
+  // 2) Ask colornames() for it (this covers all CSS keyword names)
+  const hex = colornames(v); // e.g. "#D3D3D3" for "lightgray"
+  if (hex) {
+    return hex.replace('#', '').toUpperCase();
+  }
+
+  // 3) Last resort, black
+  return '000000';
+}
 
 export function pixelsToTwips(pixels: number): number {
   return Math.round(pixels * 15); // 1px = 15 twips (approx)

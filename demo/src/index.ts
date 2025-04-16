@@ -71,7 +71,6 @@ export const run: () => Promise<any> = async () => {
           onAction: async () => {
             // 1. Retrieve HTML content.
             const htmlContent = editor.getContent();
-            console.log('HTML Content:', htmlContent);
 
             try {
               // 2. Convert HTML to DOCX format (returns a Promise<Buffer>).

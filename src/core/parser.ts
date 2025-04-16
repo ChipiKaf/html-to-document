@@ -359,6 +359,13 @@ export class Parser {
           src: (element as HTMLImageElement).src,
           ...options,
         };
+      case 'pre':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          ...options,
+        };
       case 'code':
         return {
           type: 'text',
@@ -367,6 +374,28 @@ export class Parser {
           ...options,
           styles: {
             backgroundColor: 'lightGray',
+          },
+        };
+      case 'br':
+        return {
+          ...options,
+          type: 'text',
+          text: '',
+          metadata: { break: 1, ...options.metadata },
+        };
+      case 'blockquote':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          ...options,
+          styles: {
+            borderLeftColor: 'lightGray',
+            borderLeftStyle: 'solid',
+            borderLeftWidth: 2,
+            paddingLeft: '16px',
+            marginLeft: '24px',
+            ...(options.styles || {}),
           },
         };
       default:

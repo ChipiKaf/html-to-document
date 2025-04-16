@@ -2,8 +2,8 @@ import { Middleware } from '../core';
 
 // Define which tags are block–level and which are inline.
 const blockTags = new Set(['div', 'p', 'ol', 'ul', 'li']);
+const voidElements = new Set(['br', 'img', 'hr', 'input', 'link', 'meta']);
 
-// Our very simple node structure.
 type Node =
   | {
       type: 'tag';
@@ -20,7 +20,6 @@ type Node =
  */
 function parseHTML(input: string): Node[] {
   const tokens = input.match(/(<[^>]+>|[^<]+)/g) || [];
-  // Use a dummy root node.
   const root: Node = {
     type: 'tag',
     tagName: 'root',
@@ -32,129 +31,117 @@ function parseHTML(input: string): Node[] {
 
   for (const token of tokens) {
     if (token.startsWith('<')) {
-      // Check for a closing tag.
       if (/^<\/\s*([a-zA-Z0-9]+)/.test(token)) {
-        // Pop the stack (assume matching tag exists).
         stack.pop();
       } else {
-        // Opening (or self-closing) tag.
-        const isSelfClosing = /\/>$/.test(token);
         const tagMatch = token.match(/^<\s*([a-zA-Z0-9]+)/);
         const tagName = tagMatch ? tagMatch[1].toLowerCase() : '';
+        const isSelfClosing = /\/>$/.test(token) || voidElements.has(tagName);
         const node: Node = {
           type: 'tag',
           tagName,
-          raw: token, // preserve the original opening tag as-is
+          raw: token,
           isSelfClosing,
           children: [],
         };
-        // Append to the current (top) node’s children.
         const parent = stack[stack.length - 1];
-        if (parent.type === 'tag') {
-          parent.children.push(node);
-        }
-        if (!isSelfClosing) {
-          stack.push(node);
-        }
+        if (parent.type === 'tag') parent.children.push(node);
+        if (!isSelfClosing) stack.push(node);
       }
     } else {
-      // Text node.
       const parent = stack[stack.length - 1];
       if (parent.type === 'tag') {
         parent.children.push({ type: 'text', content: token });
       }
     }
   }
-  return root.type === 'tag' ? root.children : [];
+
+  return root.children;
 }
 
 /**
- * Determines if a tag is block-level.
+ * Is this a block-level tag?
  */
 function isBlock(tag: string): boolean {
   return blockTags.has(tag);
 }
 
 /**
- * Recursively processes a list of nodes and returns a minified string.
- *
- * @param nodes The node array.
- * @param parentTag If given, the tag name of the parent.
+ * Processes nodes and minifies, preserving `<pre>` whitespace.
  */
 function processNodes(nodes: Node[], parentTag?: string): string {
-  const trimEdges = parentTag ? isBlock(parentTag) : true;
+  const isPre = parentTag === 'pre';
 
+  // Map nodes to text, preserving raw whitespace inside <pre>
   const processed = nodes.map((node) => {
     if (node.type === 'text') {
-      const collapsed = node.content.replace(/\s+/g, ' ');
-      return { type: 'text' as const, text: collapsed };
-    } else if (node.type === 'tag') {
-      const inner = processNodes(node.children, node.tagName);
-      const closingTag = node.isSelfClosing ? '' : `</${node.tagName}>`;
-      return {
-        type: 'tag' as const,
-        text: `${node.raw}${inner}${closingTag}`,
-        tagName: node.tagName,
-      };
-    } else {
-      return { type: 'text' as const, text: '' };
+      if (isPre) {
+        return { type: 'text' as const, text: node.content };
+      }
+      // Outside <pre>: remove newlines and collapse spaces
+      let text = node.content.replace(/\r?\n/g, ' ');
+      text = text.replace(/\s+/g, ' ');
+      return { type: 'text' as const, text };
     }
+
+    // Tag node: recurse
+    const inner = processNodes(node.children, node.tagName);
+    const closing = node.isSelfClosing ? '' : `</${node.tagName}>`;
+    return {
+      type: 'tag' as const,
+      text: `${node.raw}${inner}${closing}`,
+      tagName: node.tagName,
+    };
   });
 
-  // Smart edge trimming and sibling-aware whitespace control
+  // If we're inside <pre>, just join raw text
+  if (isPre) {
+    return processed.map((item) => item.text).join('');
+  }
+
+  // Otherwise, smart trimming around block tags
   for (let i = 0; i < processed.length; i++) {
     const item = processed[i];
+    if (item.type !== 'text') continue;
 
-    if (item.type === 'text') {
-      const prev = processed[i - 1];
-      const next = processed[i + 1];
+    const prev = processed[i - 1];
+    const next = processed[i + 1];
+    const trimEdges = parentTag ? isBlock(parentTag) : true;
 
-      // Trim leading space if preceded by a block tag
-      if (prev?.type === 'tag' && isBlock(prev.tagName)) {
-        item.text = item.text.replace(/^\s+/, '');
-      }
-
-      // Instead of removing trailing space if followed by a block tag,
-      // we now replace it with a single space.
-      if (next?.type === 'tag' && isBlock(next.tagName)) {
-        item.text = item.text.replace(/\s+$/, ' ');
-      }
-
-      // Trim leading space if first item and block parent
-      if (i === 0 && trimEdges) {
-        item.text = item.text.replace(/^\s+/, '');
-      }
-
-      // Trim trailing space if last item and block parent
-      if (i === processed.length - 1 && trimEdges) {
-        item.text = item.text.replace(/\s+$/, '');
-      }
+    if (prev?.type === 'tag' && isBlock(prev.tagName)) {
+      item.text = item.text.replace(/^\s+/, '');
+    }
+    if (next?.type === 'tag' && isBlock(next.tagName)) {
+      item.text = item.text.replace(/\s+$/, ' ');
+    }
+    if (i === 0 && trimEdges) {
+      item.text = item.text.replace(/^\s+/, '');
+    }
+    if (i === processed.length - 1 && trimEdges) {
+      item.text = item.text.replace(/\s+$/, '');
     }
   }
 
-  const output = processed
+  // Join, dropping purely-empty text nodes
+  return processed
     .map((item) => item.text)
-    .filter((text) => text.trim() !== '')
+    .filter((t) => t.trim() !== '')
     .join('');
-
-  return output;
 }
 
 export const minifyMiddleware: Middleware = async (html: string) => {
-  // 1. Remove HTML comments.
+  // 1. Strip comments
   html = html.replace(/<!--[\s\S]*?-->/g, '');
-  // 2. Replace newlines and carriage returns with a space.
-  html = html.replace(/\r?\n/g, ' ');
 
-  // 3. Build a token tree.
+  // 2. Build a token tree (no global newline removal)
   const nodes = parseHTML(html);
 
-  // 4. Recursively process nodes.
+  // 3. Minify, with <pre>-aware logic
   let result = processNodes(nodes);
 
-  // 5. Remove any remaining whitespace between tags.
+  // 4. Remove leftover whitespace between tags
   result = result.replace(/>\s+</g, '><');
 
-  // 6. Trim the overall string.
+  // 5. Trim overall
   return result.trim();
 };
