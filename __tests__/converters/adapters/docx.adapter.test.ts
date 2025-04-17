@@ -951,6 +951,8 @@ describe('Docx.adapter.convert', () => {
         type: 'table',
         rows: [
           {
+            type: 'table-row',
+            attributes: {},
             cells: [
               {
                 type: 'table-cell',
@@ -990,6 +992,8 @@ describe('Docx.adapter.convert', () => {
         type: 'table',
         rows: [
           {
+            attributes: {},
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1005,6 +1009,8 @@ describe('Docx.adapter.convert', () => {
             styles: {},
           },
           {
+            attributes: {},
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1062,6 +1068,7 @@ describe('Docx.adapter.convert', () => {
         type: 'table',
         rows: [
           {
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1076,6 +1083,7 @@ describe('Docx.adapter.convert', () => {
               },
             ],
             styles: {},
+            attributes: {},
           },
         ],
         styles: {},
@@ -1115,6 +1123,8 @@ describe('Docx.adapter.convert', () => {
         type: 'table',
         rows: [
           {
+            attributes: {},
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1131,6 +1141,8 @@ describe('Docx.adapter.convert', () => {
             styles: {},
           },
           {
+            attributes: {},
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1197,6 +1209,7 @@ describe('Docx.adapter.convert', () => {
         type: 'table',
         rows: [
           {
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1209,12 +1222,14 @@ describe('Docx.adapter.convert', () => {
             styles: {},
           },
           {
-            // Second row is empty – the adapter should insert a vertical merge placeholder.
+            type: 'table-row',
             cells: [],
             styles: {},
+            attributes: {},
           },
         ],
         styles: {},
+        attributes: {},
       };
 
       const buffer = await adapter.convert([table]);
@@ -1254,6 +1269,7 @@ describe('Docx.adapter.convert', () => {
         type: 'table',
         rows: [
           {
+            type: 'table-row',
             cells: [
               {
                 type: 'table-cell',
@@ -1262,9 +1278,11 @@ describe('Docx.adapter.convert', () => {
               },
             ],
             styles: {},
+            attributes: {},
           },
         ],
         styles: {},
+        attributes: {},
       };
 
       const buffer = await adapter.convert([table]);

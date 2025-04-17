@@ -4,8 +4,8 @@ import {
   mapBorderStyle,
   pixelsToTwips,
 } from '../utils/html.utils';
-import { StyleMapping } from './types';
-import { WidthType } from 'docx';
+import { DocumentElement, StyleMapping } from './types';
+import { ShadingType, WidthType } from 'docx';
 
 const parseWidth = (value: string) => {
   if (value.endsWith('px')) {
@@ -117,9 +117,19 @@ export class StyleMapper {
         return alignment ? { alignment } : {};
       },
       color: (v) => ({ color: colorConversion(v) }),
-      backgroundColor: (v) => ({
-        highlight: v,
-      }),
+      backgroundColor: (v, el) => {
+        if (el.type === 'table-cell') {
+          return {
+            shading: {
+              fill: colorConversion(v),
+              color: 'auto',
+              type: ShadingType.CLEAR,
+            },
+          };
+        } else {
+          return { highlight: v };
+        }
+      },
 
       // Font size
       fontSize: (v) => {
@@ -146,14 +156,6 @@ export class StyleMapper {
             line: Math.round(num * 240), // 1 = 240 twips, which is single line spacing
           },
         };
-      },
-      marginTop: (v) => {
-        const px = parseFloat(v);
-        return isNaN(px) ? {} : { spacing: { before: px * 20 } };
-      },
-      marginBottom: (v) => {
-        const px = parseFloat(v);
-        return isNaN(px) ? {} : { spacing: { after: px * 20 } };
       },
       width: (v) => {
         const parsed = parseWidth(v); // use helper above
@@ -223,48 +225,156 @@ export class StyleMapper {
                 ? { subScript: true }
                 : {},
 
-      padding: (v) => {
+      padding: (v, el) => {
         const px = parseFloat(v);
-        return isNaN(px)
-          ? {}
-          : {
-              margins: {
-                top: px,
-                bottom: px,
-                left: px,
-                right: px,
-              },
-            };
+        if (isNaN(px)) return {};
+        const space = pixelsToTwips(px);
+        if (el.type === 'table-cell')
+          return {
+            margins: {
+              top: space,
+              bottom: space,
+              left: space,
+              right: space,
+            },
+          };
+        return {
+          border: {
+            top: { space },
+            bottom: { space },
+            left: { space },
+            right: { space },
+          },
+        };
+      },
+      margin: (v: string, el: DocumentElement) => {
+        const px = parseFloat(v);
+        if (isNaN(px)) return {};
+        // vertical spacing uses twips-per-px = 20, horizontal uses your helper
+        const before = px * 20;
+        const after = px * 20;
+        const horiz = pixelsToTwips(px);
+
+        if (el.type === 'table-cell') {
+          // for table‑cells, set cell margins
+          return {
+            margins: {
+              top: horiz,
+              bottom: horiz,
+              left: horiz,
+              right: horiz,
+            },
+          };
+        }
+
+        // for paragraphs/text-runs, use spacing.before/after and indent.left/right
+        return {
+          spacing: {
+            before,
+            after,
+          },
+          indent: {
+            left: horiz,
+            right: horiz,
+          },
+        };
+      },
+      marginTop: (v: string, el: DocumentElement) => {
+        const px = parseFloat(v);
+        if (isNaN(px)) return {};
+        const twips = px * 20;
+        if (el.type === 'table-cell') {
+          return { margins: { top: twips } };
+        }
+        return { spacing: { before: twips } };
       },
 
-      // List-related
-      marginLeft: (v) => {
+      marginBottom: (v: string, el: DocumentElement) => {
         const px = parseFloat(v);
-        return isNaN(px) ? {} : { indent: { left: pixelsToTwips(px) } };
+        if (isNaN(px)) return {};
+        const twips = px * 20;
+        if (el.type === 'table-cell') {
+          return { margins: { bottom: twips } };
+        }
+        return { spacing: { after: twips } };
       },
-      paddingLeft: (v) => {
+
+      marginLeft: (v: string, el: DocumentElement) => {
         const px = parseFloat(v);
-        return isNaN(px)
-          ? {}
-          : { border: { left: { space: pixelsToTwips(px) } } };
+        if (isNaN(px)) return {};
+        const twips = pixelsToTwips(px);
+        if (el.type === 'table-cell') {
+          return { margins: { left: twips } };
+        }
+        return { indent: { left: twips } };
       },
-      paddingRight: (v) => {
+      paddingLeft: (v: string, el: DocumentElement) => {
         const px = parseFloat(v);
-        return isNaN(px)
-          ? {}
-          : { border: { right: { space: pixelsToTwips(px) } } };
+        if (isNaN(px)) return {};
+        const space = pixelsToTwips(px);
+        if (el.type === 'table-cell') {
+          return {
+            margins: {
+              left: space,
+            },
+          };
+        }
+        return {
+          border: {
+            left: { space },
+          },
+        };
       },
-      paddingTop: (v) => {
+      paddingRight: (v: string, el: DocumentElement) => {
         const px = parseFloat(v);
-        return isNaN(px)
-          ? {}
-          : { border: { top: { space: pixelsToTwips(px) } } };
+        if (isNaN(px)) return {};
+        const space = pixelsToTwips(px);
+        if (el.type === 'table-cell') {
+          return {
+            margins: {
+              right: space,
+            },
+          };
+        }
+        return {
+          border: {
+            right: { space },
+          },
+        };
       },
-      paddingBottom: (v) => {
+      paddingTop: (v: string, el: DocumentElement) => {
         const px = parseFloat(v);
-        return isNaN(px)
-          ? {}
-          : { border: { bottom: { space: pixelsToTwips(px) } } };
+        if (isNaN(px)) return {};
+        const space = pixelsToTwips(px);
+        if (el.type === 'table-cell') {
+          return {
+            margins: {
+              top: space,
+            },
+          };
+        }
+        return {
+          border: {
+            top: { space },
+          },
+        };
+      },
+      paddingBottom: (v: string, el: DocumentElement) => {
+        const px = parseFloat(v);
+        if (isNaN(px)) return {};
+        const space = pixelsToTwips(px);
+        if (el.type === 'table-cell') {
+          return {
+            margins: {
+              bottom: space,
+            },
+          };
+        }
+        return {
+          border: {
+            bottom: { space },
+          },
+        };
       },
       listStyleType: (v) =>
         v === 'decimal'
@@ -277,13 +387,14 @@ export class StyleMapper {
 
   // Method to map raw styles to a generic style object
   public mapStyles(
-    rawStyles: Partial<Record<keyof CSS.Properties, string | number>>
+    rawStyles: Partial<Record<keyof CSS.Properties, string | number>>,
+    el: DocumentElement
   ): Record<string, unknown> {
     return (Object.keys(rawStyles) as (keyof CSS.Properties)[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper) {
-          const newStyle = mapper(rawStyles[cssProp] as string) as object;
+          const newStyle = mapper(rawStyles[cssProp] as string, el) as object;
           // Deep merge the new style into the accumulator
           return deepMerge(acc, newStyle);
         }

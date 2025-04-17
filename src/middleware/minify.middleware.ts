@@ -2,7 +2,15 @@ import { Middleware } from '../core';
 
 // Define which tags are block–level and which are inline.
 const blockTags = new Set(['div', 'p', 'ol', 'ul', 'li']);
-const voidElements = new Set(['br', 'img', 'hr', 'input', 'link', 'meta']);
+const voidElements = new Set([
+  'br',
+  'img',
+  'hr',
+  'input',
+  'link',
+  'meta',
+  'col',
+]);
 
 type Node =
   | {

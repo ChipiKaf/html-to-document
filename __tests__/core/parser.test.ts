@@ -80,20 +80,12 @@ describe('Parser', () => {
       const result = parser.parse(html);
       expect(result).toEqual([
         {
-          type: 'custom',
-          content: [
-            {
-              type: 'text',
-              text: 'inside',
-              attributes: { 'data-custom': 'x' },
-              styles: { border: '1px solid #fff' },
-            },
-          ],
-          attributes: { id: 'wrapper' },
-          styles: { margin: '10px' },
+          type: 'text',
+          text: 'inside',
+          attributes: { id: 'wrapper', 'data-custom': 'x' },
+          styles: { margin: '10px', border: '1px solid #fff' },
         },
       ]);
-      expect(result[0].styles?.margin).toBe('10px');
     });
 
     it('parses parent as custom element when no handler registered for nested', () => {
@@ -101,21 +93,16 @@ describe('Parser', () => {
       const result = parser.parse(html);
       expect(result).toEqual([
         {
-          type: 'custom',
-          content: [
-            {
-              type: 'text',
-              text: 'No parent content',
-            },
-            {
-              type: 'text',
-              text: 'inside',
-              attributes: { 'data-custom': 'x' },
-              styles: { border: '1px solid #fff' },
-            },
-          ],
+          type: 'text',
+          text: 'No parent content',
           attributes: { id: 'wrapper' },
           styles: { margin: '10px' },
+        },
+        {
+          type: 'text',
+          text: 'inside',
+          attributes: { id: 'wrapper', 'data-custom': 'x' },
+          styles: { margin: '10px', border: '1px solid #fff' },
         },
       ]);
     });
@@ -665,6 +652,7 @@ describe('Parser', () => {
           type: 'table',
           rows: [
             {
+              type: 'table-row',
               cells: [
                 {
                   type: 'table-cell',
@@ -678,7 +666,7 @@ describe('Parser', () => {
                   type: 'table-cell',
                   content: [
                     {
-                      type: 'custom',
+                      type: 'text',
                       text: 'Row 1 Cell 2',
                       styles: { fontFamily: 'times-new-roman' },
                       attributes: {},
@@ -694,6 +682,7 @@ describe('Parser', () => {
               attributes: {},
             },
             {
+              type: 'table-row',
               cells: [
                 {
                   type: 'table-cell',
@@ -716,6 +705,7 @@ describe('Parser', () => {
               attributes: { 'data-row': 'x' },
             },
             {
+              type: 'table-row',
               cells: [
                 {
                   type: 'table-cell',
@@ -742,12 +732,14 @@ describe('Parser', () => {
       <th colspan="1" rowspan="1"><div style="font-family: times-new-roman">Heading 2</div></th>
       </tr>
       </table>`;
-      const result = parser.parse(html);
+      let result = parser.parse(html);
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'table',
           rows: [
             {
+              type: 'table-row',
               cells: [
                 {
                   type: 'table-cell',
@@ -769,7 +761,7 @@ describe('Parser', () => {
                   type: 'table-cell',
                   content: [
                     {
-                      type: 'custom',
+                      type: 'text',
                       text: 'Heading 2',
                       styles: {
                         fontFamily: 'times-new-roman',

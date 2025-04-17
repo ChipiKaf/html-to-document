@@ -1,5 +1,5 @@
 import { init } from 'html-to-document';
-import { startContent1 } from './utils/constants';
+import { startContent1, startContent2 } from './utils/constants';
 
 export const run: () => Promise<any> = async () => {
   const editorContainer = document.getElementById('editor');
@@ -28,7 +28,7 @@ export const run: () => Promise<any> = async () => {
           key: 'th',
           styles: {
             // Initially, we would have used textAlign: 'start',
-            // But since we changed textAlign behavior in the style mappings
+            // But since we changed textAlign behavior in the style mappings (See the adapters options)
             // We now expect docx alignment values
             textAlign: 'left',
           },
@@ -48,6 +48,9 @@ export const run: () => Promise<any> = async () => {
             },
             paragraph: {
               lineHeight: 1.5,
+            },
+            'table-cell': {
+              padding: '6.4px',
             },
           },
         },
@@ -77,7 +80,7 @@ export const run: () => Promise<any> = async () => {
     setup: (editor) => {
       editor.on('init', function () {
         console.log('TinyMCE editor is initialized');
-        editor.setContent(startContent1);
+        editor.setContent(startContent2);
 
         // Register a custom button on the toolbar named "docx".
         editor.ui.registry.addButton('docx', {

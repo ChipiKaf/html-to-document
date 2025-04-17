@@ -224,16 +224,16 @@ export class DocxAdapter implements IDocumentConverter {
           } else if (isInline(child)) {
             acc.push(
               new Paragraph({
-                run: { ...this._mapper.mapStyles(mergedStyles) },
+                run: { ...this._mapper.mapStyles(mergedStyles, el) },
                 children: Array.isArray(child) ? [...child] : [child],
-                ...this._mapper.mapStyles(mergedStyles),
+                ...this._mapper.mapStyles(mergedStyles, el),
               })
             );
           } else if (child instanceof ImageRun) {
             acc.push(
               new Paragraph({
                 children: [child],
-                ...this._mapper.mapStyles(mergedStyles),
+                ...this._mapper.mapStyles(mergedStyles, el),
               })
             );
           } else {
@@ -248,11 +248,11 @@ export class DocxAdapter implements IDocumentConverter {
     // Otherwise, if no nested children, simply create one TextRun.
     return [
       new Paragraph({
-        ...this._mapper.mapStyles(mergedStyles || {}),
+        ...this._mapper.mapStyles(mergedStyles, el),
         children: [
           new TextRun({
             text: el.text || '',
-            ...this._mapper.mapStyles(mergedStyles || {}),
+            ...this._mapper.mapStyles(mergedStyles, el),
           }),
         ],
       }),
@@ -280,7 +280,7 @@ export class DocxAdapter implements IDocumentConverter {
             space: 1, // Space between the text (if any) and the line
           },
         },
-        ...this._mapper.mapStyles(mergedStyles || {}),
+        ...this._mapper.mapStyles(mergedStyles, el),
       }),
     ];
   }
@@ -311,9 +311,9 @@ export class DocxAdapter implements IDocumentConverter {
         heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
         children,
         run: {
-          ...this._mapper.mapStyles(mergedStyles),
+          ...this._mapper.mapStyles(mergedStyles, el),
         },
-        ...this._mapper.mapStyles(mergedStyles),
+        ...this._mapper.mapStyles(mergedStyles, el),
       });
     }
 
@@ -323,10 +323,10 @@ export class DocxAdapter implements IDocumentConverter {
         new TextRun({
           text: el.text,
           color: '000000',
-          ...this._mapper.mapStyles(mergedStyles),
+          ...this._mapper.mapStyles(mergedStyles, el),
         }),
       ],
-      ...this._mapper.mapStyles(mergedStyles),
+      ...this._mapper.mapStyles(mergedStyles, el),
     });
   }
 
@@ -363,7 +363,7 @@ export class DocxAdapter implements IDocumentConverter {
           children: [
             new TextRun({
               text: el.text || '',
-              ...this._mapper.mapStyles(mergedStyles),
+              ...this._mapper.mapStyles(mergedStyles, el),
               style: 'Hyperlink',
             }),
           ],
@@ -375,7 +375,7 @@ export class DocxAdapter implements IDocumentConverter {
       new TextRun({
         text: el.text || '',
         break: (el.metadata?.break as number) || undefined,
-        ...this._mapper.mapStyles(mergedStyles),
+        ...this._mapper.mapStyles(mergedStyles, el),
       }),
     ];
   }
@@ -441,10 +441,10 @@ export class DocxAdapter implements IDocumentConverter {
                 level: el.level,
               },
               run: {
-                ...this._mapper.mapStyles(mergedStyles),
+                ...this._mapper.mapStyles(mergedStyles, el),
               },
               children: [child],
-              ...this._mapper.mapStyles(mergedStyles),
+              ...this._mapper.mapStyles(mergedStyles, el),
             })
           );
         } else {
@@ -461,12 +461,12 @@ export class DocxAdapter implements IDocumentConverter {
           level: el.level,
         },
         run: {
-          ...this._mapper.mapStyles(mergedStyles),
+          ...this._mapper.mapStyles(mergedStyles, el),
         },
         children: [
           new TextRun({
             text: el.text,
-            ...this._mapper.mapStyles(mergedStyles),
+            ...this._mapper.mapStyles(mergedStyles, el),
           }),
         ],
       }),
@@ -557,14 +557,14 @@ export class DocxAdapter implements IDocumentConverter {
         transformation: { width: 100, height: 100 },
         type: imageType,
         fallback: { data: fallback, type: 'png' },
-        ...this._mapper.mapStyles(mergedStyles),
+        ...this._mapper.mapStyles(mergedStyles, el),
       });
     }
     return new ImageRun({
       data: dataBuffer!,
       transformation: { width: 100, height: 100 },
       type: imageType,
-      ...this._mapper.mapStyles(mergedStyles),
+      ...this._mapper.mapStyles(mergedStyles, el),
     });
   }
 
@@ -574,7 +574,7 @@ export class DocxAdapter implements IDocumentConverter {
   ): Promise<Table> {
     const el = _el as TableElement;
     const mergedStyles = {
-      ...this._defaultStyles?.[el.type],
+      ...(this._defaultStyles?.[el.type] ?? {}),
       ...styles,
       ...el.styles,
     };
@@ -705,16 +705,22 @@ export class DocxAdapter implements IDocumentConverter {
                     acc.push(
                       new Paragraph({
                         run: {
-                          ...this._mapper.mapStyles({
-                            ...originalCell.styles,
-                            ...mergedStyles,
-                          }),
+                          ...this._mapper.mapStyles(
+                            {
+                              ...originalCell.styles,
+                              ...mergedStyles,
+                            },
+                            originalCell
+                          ),
                         },
                         children: Array.isArray(child) ? [...child] : [child],
-                        ...this._mapper.mapStyles({
-                          ...originalCell.styles,
-                          ...mergedStyles,
-                        }),
+                        ...this._mapper.mapStyles(
+                          {
+                            ...originalCell.styles,
+                            ...mergedStyles,
+                          },
+                          originalCell
+                        ),
                       })
                     );
                   } else {
@@ -730,7 +736,15 @@ export class DocxAdapter implements IDocumentConverter {
               columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalMerge: verticalMerge,
               verticalAlign: VerticalAlign.CENTER,
-              ...this._mapper.mapStyles(originalCell?.styles || {}),
+              ...this._mapper.mapStyles(
+                {
+                  ...(originalCell
+                    ? this._defaultStyles?.[originalCell.type]
+                    : {}),
+                  ...originalCell?.styles,
+                },
+                originalCell!
+              ),
             })
           );
           j += colSpan;
@@ -740,13 +754,20 @@ export class DocxAdapter implements IDocumentConverter {
       tableRows.push(
         new TableRow({
           children: cells,
-          ...this._mapper.mapStyles({ ...mergedStyles, ...rowStyles }),
+          ...this._mapper.mapStyles(
+            {
+              ...(this._defaultStyles?.['table-row'] ?? {}),
+              ...mergedStyles,
+              ...rowStyles,
+            },
+            el
+          ),
         })
       );
     }
     return new Table({
       rows: tableRows,
-      ...this._mapper.mapStyles({ ...mergedStyles, ...el.styles }),
+      ...this._mapper.mapStyles({ ...mergedStyles, ...el.styles }, el),
     });
   }
 }

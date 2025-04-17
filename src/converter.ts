@@ -78,7 +78,6 @@ export class Converter {
     if (typeof content === 'string') {
       parsed = await this.parse(content);
     } else parsed = content;
-
     return adapter.convert(parsed);
   }
 

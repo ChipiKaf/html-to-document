@@ -38,6 +38,9 @@ export type ElementType =
   | 'line'
   | 'list'
   | 'list-item'
+  | 'table'
+  | 'table-row'
+  | 'table-cell'
   | (string & {});
 
 /**
@@ -132,6 +135,7 @@ export type DocumentElement =
  * Represents a table, consisting of multiple rows.
  */
 export interface TableElement extends BaseElement {
+  type: 'table';
   /** The table rows */
   rows: TableRowElement[];
 }
@@ -139,7 +143,8 @@ export interface TableElement extends BaseElement {
 /**
  * Represents a row in a table, containing multiple cells.
  */
-export interface TableRowElement {
+export interface TableRowElement extends BaseElement {
+  type: 'table-row';
   /** The table cells */
   cells: TableCellElement[];
   /** Optional row-level styles */
@@ -152,6 +157,7 @@ export interface TableRowElement {
  * Represents a cell within a table row, with optional colspan and rowspan.
  */
 export interface TableCellElement extends BaseElement {
+  type: 'table-cell';
   /** Number of columns this cell spans */
   colspan?: number;
   /** Number of rows this cell spans */
@@ -290,7 +296,7 @@ export interface IConverterDependencies {
  * Maps CSS properties to transformation functions for style conversion.
  */
 export type StyleMapping = Partial<
-  Record<keyof CSS.Properties, (value: string) => unknown>
+  Record<keyof CSS.Properties, (value: string, el: DocumentElement) => unknown>
 >;
 /**
  * Constructor type for adapter providers, given converter dependencies.
