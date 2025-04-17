@@ -64,6 +64,16 @@ function deepMerge<T extends object, U extends object>(
   return result;
 }
 
+const textAlignMap: Record<string, string> = {
+  start: 'left', // CSS “start” → left in LTR
+  left: 'left',
+  end: 'right', // CSS “end” → right in LTR
+  right: 'right',
+  center: 'center',
+  justify: 'justified', // docx uses “JUSTIFIED”
+  justified: 'justified',
+};
+
 // @To-do: Consider making the conversion from px or any other size extensible
 export class StyleMapper {
   protected mappings: StyleMapping = {};
@@ -101,7 +111,11 @@ export class StyleMapper {
           : v === 'capitalize'
             ? { smallCaps: true }
             : {},
-      textAlign: (v) => ({ alignment: v }), // left, right, center, justify
+      textAlign: (v) => {
+        const key = String(v).trim().toLowerCase();
+        const alignment = textAlignMap[key];
+        return alignment ? { alignment } : {};
+      },
       color: (v) => ({ color: colorConversion(v) }),
       backgroundColor: (v) => ({
         highlight: v,

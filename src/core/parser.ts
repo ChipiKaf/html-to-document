@@ -185,12 +185,12 @@ export class Parser {
       );
       const attributes = parseAttributes(tr as HTMLElement);
       tr.querySelectorAll('td, th').forEach((cell) => {
-        const styles = parseStyles(cell as HTMLElement);
-        const attributes = parseAttributes(cell as HTMLElement);
-        const defaultAttributes = this._defaultAttributes.get(
+        const cellStyles = parseStyles(cell as HTMLElement);
+        const cellAttributes = parseAttributes(cell as HTMLElement);
+        const cellDefaultAttributes = this._defaultAttributes.get(
           cell.localName.toLowerCase() as keyof HTMLElementTagNameMap
         );
-        const defaultStyles = this._defaultStyles.get(
+        const cellDefaultStyles = this._defaultStyles.get(
           cell.localName.toLowerCase() as keyof HTMLElementTagNameMap
         );
         const content = this._parseHTML(cell.innerHTML);
@@ -201,20 +201,22 @@ export class Parser {
             cell.localName === 'th'
               ? {
                   textAlign: 'center',
-                  ...defaultStyles,
-                  ...styles,
+                  ...cellDefaultStyles,
+                  ...cellStyles,
                 }
-              : styles,
-          attributes: { ...defaultAttributes, ...attributes },
+              : { ...cellDefaultStyles, ...cellStyles },
+          attributes: { ...cellDefaultAttributes, ...cellAttributes },
           colspan: cell.getAttribute('colspan')
             ? Number(cell.getAttribute('colspan'))
-            : defaultAttributes && defaultAttributes['colspan'] !== undefined
-              ? Number(defaultAttributes['colspan'])
+            : cellDefaultAttributes &&
+                cellDefaultAttributes['colspan'] !== undefined
+              ? Number(cellDefaultAttributes['colspan'])
               : 1,
           rowspan: cell.getAttribute('rowspan')
             ? Number(cell.getAttribute('rowspan'))
-            : defaultAttributes && defaultAttributes['rowspan'] !== undefined
-              ? Number(defaultAttributes['rowspan'])
+            : cellDefaultAttributes &&
+                cellDefaultAttributes['rowspan'] !== undefined
+              ? Number(cellDefaultAttributes['rowspan'])
               : 1,
         };
         cells.push(cellElement);

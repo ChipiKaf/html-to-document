@@ -24,6 +24,15 @@ export const run: () => Promise<any> = async () => {
             marginTop: '5px',
           },
         },
+        {
+          key: 'th',
+          styles: {
+            // Initially, we would have used textAlign: 'start',
+            // But since we changed textAlign behavior in the style mappings
+            // We now expect docx alignment values
+            textAlign: 'left',
+          },
+        },
       ],
     },
     adapters: {
@@ -40,6 +49,16 @@ export const run: () => Promise<any> = async () => {
             paragraph: {
               lineHeight: 1.5,
             },
+          },
+        },
+      ],
+      styleMappings: [
+        {
+          format: 'docx',
+          handlers: {
+            // Changed the default textAlign handler from expecting the css standard ("start", "end", etc)
+            // To expecting docx alignment values ("left", "right", etc)
+            textAlign: (v) => ({ alignment: v }),
           },
         },
       ],
