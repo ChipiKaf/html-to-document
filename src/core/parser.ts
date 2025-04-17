@@ -162,15 +162,37 @@ export class Parser {
     options: TagHandlerOptions = {}
   ): DocumentElement {
     const rows: TableRowElement[] = [];
+    const defaultStyles = this._defaultStyles.get(
+      (
+        element as HTMLElement
+      ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+    );
+    const defaultAttributes = this._defaultAttributes.get(
+      (
+        element as HTMLElement
+      ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+    );
     // Query all trs (Perhaps we lose the styles of thead, tbody and tfooter so we need to fix this)
     const trElements = (element as Element).querySelectorAll('tr');
     trElements.forEach((tr) => {
       const cells: TableCellElement[] = [];
       const styles = parseStyles(tr as HTMLElement);
+      const defaultStyles = this._defaultStyles.get(
+        (tr as HTMLElement).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      );
+      const defaultAttributes = this._defaultAttributes.get(
+        (tr as HTMLElement).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      );
       const attributes = parseAttributes(tr as HTMLElement);
       tr.querySelectorAll('td, th').forEach((cell) => {
         const styles = parseStyles(cell as HTMLElement);
         const attributes = parseAttributes(cell as HTMLElement);
+        const defaultAttributes = this._defaultAttributes.get(
+          cell.localName.toLowerCase() as keyof HTMLElementTagNameMap
+        );
+        const defaultStyles = this._defaultStyles.get(
+          cell.localName.toLowerCase() as keyof HTMLElementTagNameMap
+        );
         const content = this._parseHTML(cell.innerHTML);
         const cellElement: TableCellElement = {
           type: 'table-cell',
@@ -179,27 +201,36 @@ export class Parser {
             cell.localName === 'th'
               ? {
                   textAlign: 'center',
+                  ...defaultStyles,
                   ...styles,
                 }
               : styles,
-          attributes,
+          attributes: { ...defaultAttributes, ...attributes },
           colspan: cell.getAttribute('colspan')
             ? Number(cell.getAttribute('colspan'))
-            : 1,
+            : defaultAttributes && defaultAttributes['colspan'] !== undefined
+              ? Number(defaultAttributes['colspan'])
+              : 1,
           rowspan: cell.getAttribute('rowspan')
             ? Number(cell.getAttribute('rowspan'))
-            : 1,
+            : defaultAttributes && defaultAttributes['rowspan'] !== undefined
+              ? Number(defaultAttributes['rowspan'])
+              : 1,
         };
         cells.push(cellElement);
       });
-      rows.push({ cells, styles, attributes });
+      rows.push({
+        cells,
+        styles: { ...defaultStyles, ...styles },
+        attributes: { ...defaultAttributes, ...attributes },
+      });
     });
 
     return {
       type: 'table',
       rows,
-      styles: options.styles || {},
-      attributes: options.attributes || {},
+      styles: { ...defaultStyles, ...options.styles },
+      attributes: { ...defaultAttributes, ...options.attributes },
     };
   }
 
