@@ -16,15 +16,12 @@ export const run: () => Promise<any> = async () => {
   // Get convert function from the html-to-document package.
   const converter = init({
     tags: {
-      tagHandlers: [
+      defaultStyles: [
         {
-          key: 'hgroup',
-          handler: (node, options) => {
-            return {
-              ...options,
-              type: 'heading',
-              text: node.textContent || '',
-            };
+          key: 'p',
+          styles: {
+            marginBottom: '5px',
+            marginTop: '5px',
           },
         },
       ],
