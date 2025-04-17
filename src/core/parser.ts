@@ -373,8 +373,10 @@ export class Parser {
           type: 'text',
           text,
           content: children,
+          ...options,
           styles: {
             verticalAlign: 'super',
+            ...options.styles,
           },
         };
       case 'sub':
@@ -382,8 +384,10 @@ export class Parser {
           type: 'text',
           text,
           content: children,
+          ...options,
           styles: {
             verticalAlign: 'sub',
+            ...options.styles,
           },
         };
       case 'img':

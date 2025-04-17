@@ -803,7 +803,8 @@ describe('Parser', () => {
   });
   describe('sup tag', () => {
     it('parses sup and sub tags with appropriate verticalAlign styles', () => {
-      const result = parser.parse('<p>H<sub>2</sub>O and x<sup>2</sup></p>');
+      let result = parser.parse('<p>H<sub>2</sub>O and x<sup>2</sup></p>');
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'paragraph',
@@ -813,12 +814,14 @@ describe('Parser', () => {
               type: 'text',
               text: '2',
               styles: { verticalAlign: 'sub' },
+              attributes: {},
             },
             { type: 'text', text: 'O and x' },
             {
               type: 'text',
               text: '2',
               styles: { verticalAlign: 'super' },
+              attributes: {},
             },
           ],
           styles: {},
