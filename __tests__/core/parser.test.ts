@@ -734,6 +734,7 @@ describe('Parser', () => {
       </table>`;
       let result = parser.parse(html);
       result = JSON.parse(JSON.stringify(result));
+
       expect(result).toEqual([
         {
           type: 'table',
@@ -791,6 +792,170 @@ describe('Parser', () => {
           },
         },
       ]);
+    });
+
+    it('parses table with thead, tbody, and tfoot', async () => {
+      let html = `
+        <table style="border-style: dashed" data-table="x">
+          <thead>
+            <tr><th style="color: blue">Head1</th><th>Head2</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Body1</td><td>Body2</td></tr>
+          </tbody>
+          <tfoot>
+            <tr><td>Foot1</td><td>Foot2</td></tr>
+          </tfoot>
+        </table>
+      `;
+      html = await minifyMiddleware(html);
+      const result = parser.parse(html);
+      expect(result).toEqual([
+        {
+          type: 'table',
+          rows: [
+            {
+              type: 'table-row',
+              cells: [
+                {
+                  type: 'table-cell',
+                  content: [{ type: 'text', text: 'Head1' }],
+                  styles: { color: 'blue', textAlign: 'center' },
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+                {
+                  type: 'table-cell',
+                  content: [{ type: 'text', text: 'Head2' }],
+                  styles: { textAlign: 'center' },
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+              ],
+              styles: {},
+              attributes: {},
+            },
+            {
+              type: 'table-row',
+              cells: [
+                {
+                  type: 'table-cell',
+                  content: [{ type: 'text', text: 'Body1' }],
+                  styles: {},
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+                {
+                  type: 'table-cell',
+                  content: [{ type: 'text', text: 'Body2' }],
+                  styles: {},
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+              ],
+              styles: {},
+              attributes: {},
+            },
+            {
+              type: 'table-row',
+              cells: [
+                {
+                  type: 'table-cell',
+                  content: [{ type: 'text', text: 'Foot1' }],
+                  styles: {},
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+                {
+                  type: 'table-cell',
+                  content: [{ type: 'text', text: 'Foot2' }],
+                  styles: {},
+                  attributes: {},
+                  colspan: 1,
+                  rowspan: 1,
+                },
+              ],
+              styles: {},
+              attributes: {},
+            },
+          ],
+          styles: { borderStyle: 'dashed' },
+          attributes: { 'data-table': 'x' },
+        },
+      ]);
+    });
+    it('Should add the attributes correctly', async () => {
+      let html = `<table style="border-style: dashed" data-table="x">
+      <colgroup><col style="width: 30%; background-color: #e0f7fa;">
+      <col style="width: 35%;"> <col style="width: 35%;">
+      </colgroup>
+      </table>`;
+      html = await minifyMiddleware(html);
+      let result = parser.parse(html);
+      result = JSON.parse(JSON.stringify(result));
+
+      // expect(result).toEqual([
+      //   {
+      //     type: 'table',
+      //     rows: [
+      //       {
+      //         type: 'table-row',
+      //         cells: [
+      //           {
+      //             type: 'table-cell',
+      //             content: [
+      //               {
+      //                 type: 'text',
+      //                 text: 'Heading 1',
+      //               },
+      //             ],
+      //             styles: {
+      //               textAlign: 'center',
+      //               color: 'red',
+      //             },
+      //             attributes: {},
+      //             colspan: 3,
+      //             rowspan: 3,
+      //           },
+      //           {
+      //             type: 'table-cell',
+      //             content: [
+      //               {
+      //                 type: 'text',
+      //                 text: 'Heading 2',
+      //                 styles: {
+      //                   fontFamily: 'times-new-roman',
+      //                 },
+      //                 attributes: {},
+      //               },
+      //             ],
+      //             styles: {
+      //               textAlign: 'center',
+      //             },
+      //             attributes: {},
+      //             colspan: 1,
+      //             rowspan: 1,
+      //           },
+      //         ],
+      //         styles: {
+      //           borderWidth: '3px',
+      //         },
+      //         attributes: {},
+      //       },
+      //     ],
+      //     styles: {
+      //       borderStyle: 'dashed',
+      //     },
+      //     attributes: {
+      //       'data-table': 'x',
+      //     },
+      //   },
+      // ]);
     });
   });
   describe('sup tag', () => {

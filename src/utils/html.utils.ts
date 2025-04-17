@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import colornames from 'colornames';
 
 import { BorderStyle } from 'docx';
+import { AttributeElement, DocumentElement } from '../core';
 
 export function parseStyles(
   element: HTMLElement
@@ -91,4 +93,66 @@ export function base64ToUint8Array(base64: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
+/**
+ * Walks a DocumentElement tree and “lifts” any
+ * AttributeElement nodes out of `content` into
+ * `liftedAttributes[name]`, preserving their payload
+ * (everything except `type` and `name`).
+ */
+
+export function liftAttributes(el: DocumentElement): DocumentElement {
+  if (!Array.isArray(el.content)) {
+    return el; // nothing to do
+  }
+
+  // prepare the bucket for lifted attributes
+  const lifted: Record<string, DocumentElement[]> = el.liftedAttributes || {};
+
+  const newContent: DocumentElement[] = [];
+
+  for (const child of el.content) {
+    if (child.type === 'attribute' && (child as AttributeElement).name) {
+      const name = (child as AttributeElement).name;
+      // ensure the array exists
+      lifted[name!] = lifted[name!] || [];
+
+      // pull *each* entry out of the wrapper's content
+      const wrapper = child as AttributeElement;
+      if (Array.isArray(wrapper.content)) {
+        for (const inner of wrapper.content) {
+          // if that inner is itself an attribute-wrapper of the same name,
+          // go one level deeper:
+          if (
+            inner.type === 'attribute' &&
+            (inner as AttributeElement).name === name
+          ) {
+            const deeper = inner as AttributeElement;
+            if (Array.isArray(deeper.content)) {
+              lifted[name!].push(...deeper.content);
+            }
+          } else {
+            lifted[name!].push(inner);
+          }
+        }
+      }
+      // (and we do *not* push the wrapper itself into newContent)
+    } else {
+      // normal node – keep it, and recurse
+      newContent.push(liftAttributes(child));
+    }
+  }
+
+  el.content = newContent;
+  if (Object.keys(lifted).length) {
+    el.liftedAttributes = lifted;
+  }
+  return el;
+}
+/**
+ * Apply liftAttributes to every element in a parsed DocumentElement[].
+ */
+export function liftAttributesInDoc(doc: DocumentElement[]): DocumentElement[] {
+  return doc.map(liftAttributes);
 }

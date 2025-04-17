@@ -1,4 +1,8 @@
-import { parseAttributes, parseStyles } from '../utils/html.utils';
+import {
+  liftAttributesInDoc,
+  parseAttributes,
+  parseStyles,
+} from '../utils/html.utils';
 import {
   DocumentElement,
   IDOMParser,
@@ -46,7 +50,11 @@ export class Parser {
     this._tagHandlers = new Map();
     this._defaultStyles = new Map();
     this._defaultAttributes = new Map();
-    // Add
+    // Add default handlers
+    this._tagHandlers.set('table', this._parseTable.bind(this));
+    this._tagHandlers.set('thead', this._parseTableContainers.bind(this));
+    this._tagHandlers.set('tbody', this._parseTableContainers.bind(this));
+    this._tagHandlers.set('tfoot', this._parseTableContainers.bind(this));
     if (tagHandlers && tagHandlers.length > 0) {
       tagHandlers.forEach((tHandler) => {
         this._tagHandlers.set(tHandler.key, tHandler.handler);
@@ -69,28 +77,77 @@ export class Parser {
   }
 
   parse(html: string) {
-    return this._parseHTML(html);
+    const tree = this._parseHTML(html);
+    return liftAttributesInDoc(tree);
+  }
+
+  private _parseRow(
+    tr: HTMLElement,
+    options: TagHandlerOptions = {}
+  ): TableRowElement {
+    const cells: TableCellElement[] = [];
+    const rowStyles = { ...options.styles, ...parseStyles(tr) };
+    const rowAttrs = { ...options.attributes, ...parseAttributes(tr) };
+
+    Array.from(tr.children)
+      .filter((c): c is HTMLElement =>
+        ['td', 'th'].includes(c.tagName.toLowerCase())
+      )
+      .forEach((cell) => {
+        const isHeader = cell.tagName.toLowerCase() === 'th';
+        // parse children of the cell
+        const content = Array.from(cell.childNodes).flatMap((node) => {
+          const parsed = this._parseElement(
+            node,
+            this._tagHandlers.get(node.nodeName.toLowerCase()) ??
+              this._defaultHandler
+          );
+          // flatten fragments
+          return parsed;
+        });
+
+        const cs = parseStyles(cell);
+        const ca = parseAttributes(cell);
+        const ds =
+          this._defaultStyles.get(
+            cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
+          ) || {};
+        const da =
+          this._defaultAttributes.get(
+            cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
+          ) || {};
+        const colspan = Number(
+          cell.getAttribute('colspan') || da['colspan'] || 1
+        );
+        const rowspan = Number(
+          cell.getAttribute('rowspan') || da['rowspan'] || 1
+        );
+
+        cells.push({
+          type: 'table-cell',
+          content,
+          styles: isHeader
+            ? { textAlign: 'center', ...ds, ...cs }
+            : { ...ds, ...cs },
+          attributes: { ...da, ...ca },
+          colspan,
+          rowspan,
+        });
+      });
+
+    return {
+      type: 'table-row',
+      cells,
+      styles: rowStyles,
+      attributes: rowAttrs,
+    };
   }
 
   private _parseElement(
     element: HTMLElement | ChildNode,
     handler: TagHandler,
     options: TagHandlerOptions = {}
-  ): DocumentElement | undefined {
-    // If this is a text node, return it as is
-    if (element.nodeType !== 1 && element.nodeType !== 3) {
-      return undefined;
-    }
-
-    if (
-      (element.nodeType === 1 &&
-        (element as HTMLElement).tagName.toLowerCase() === 'colgroup') ||
-      (element.nodeType === 1 &&
-        (element as HTMLElement).tagName.toLowerCase() === 'col')
-    ) {
-      return undefined;
-    }
-
+  ): DocumentElement | DocumentElement[] {
     if (element.nodeType === 3) {
       return {
         type: 'text',
@@ -124,12 +181,14 @@ export class Parser {
     };
 
     // Extract children
-    let children: DocumentElement[] | undefined = undefined;
+    let children: DocumentElement[] | undefined;
     const tagName = (element as HTMLElement).nodeName.toLowerCase();
-
-    if (
-      !(element.childNodes.length === 1 && element.childNodes[0].nodeType === 3)
-    ) {
+    const shouldWalk =
+      tagName === 'div' ||
+      !(
+        element.childNodes.length === 1 && element.childNodes[0].nodeType === 3
+      );
+    if (shouldWalk) {
       const isList = tagName === 'ul' || tagName === 'ol' || tagName === 'li';
       const newLevel =
         options &&
@@ -143,7 +202,7 @@ export class Parser {
       children = Array.from(element.childNodes)
         .map((child) => {
           const key = child.nodeName.toLowerCase();
-          const result = this._parseElement(
+          return this._parseElement(
             child,
             this._tagHandlers.get(key) ?? this._defaultHandler,
             isList
@@ -154,12 +213,8 @@ export class Parser {
                 }
               : {}
           );
-          if (result) {
-            return result;
-          }
-          return undefined;
         })
-        .filter((c): c is DocumentElement => c !== undefined);
+        .flat();
     }
     // Extract text
     const text =
@@ -168,140 +223,95 @@ export class Parser {
           ? element.textContent
           : undefined
         : undefined;
-    return handler(element as HTMLElement, {
+    const result = handler(element as HTMLElement, {
       ...options,
       styles,
       attributes,
       content: children,
       text,
     });
+    if (Array.isArray(result)) {
+      return result;
+    }
+    if (result.type === 'fragment') {
+      const wrapperStyles = result.styles || {};
+      const wrapperAttrs = result.attributes || {};
+      return (result.content || []).map((el) => ({
+        ...el,
+        styles: { ...wrapperStyles, ...el.styles },
+        attributes: { ...wrapperAttrs, ...el.attributes },
+      }));
+    }
+    return result;
+  }
+
+  private _parseTableContainers(element: HTMLElement): TableRowElement[] {
+    const rows: TableRowElement[] = [];
+    Array.from(element.children)
+      .filter((c): c is HTMLElement => c.tagName.toLowerCase() === 'tr')
+      .forEach((tr) => rows.push(this._parseRow(tr)));
+    return rows;
   }
 
   private _parseTable(
     element: HTMLElement | ChildNode,
     options: TagHandlerOptions = {}
   ): DocumentElement {
-    /* ----------------------------------------------------------
-     * 1. Capture <colgroup>/<col> information BEFORE we touch rows
-     * ---------------------------------------------------------- */
-    const colMeta: {
-      width?: string | number;
-      styles: Record<string, string | number>;
-    }[] = [];
-
-    const colgroupEl = (element as HTMLElement).querySelector('colgroup');
-    if (colgroupEl) {
-      Array.from(colgroupEl.children)
-        .filter((c): c is HTMLElement => c.tagName.toLowerCase() === 'col')
-        .forEach((col) => {
-          // 'span' lets a single <col> apply to multiple columns
-          const span = parseInt(col.getAttribute('span') || '1', 10);
-          const styles = parseStyles(col);
-          const width = col.getAttribute('width') || styles.width;
-          for (let i = 0; i < span; i++) {
-            colMeta.push({
-              width: width ? width : undefined,
-              styles,
-            });
-          }
-        });
-    }
-
     const rows: TableRowElement[] = [];
+    const content: DocumentElement[] = [];
 
-    // Fetch default table styles & attributes
-    const defaultTableStyles = this._defaultStyles.get(
-      (
-        element as HTMLElement
-      ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
-    );
-    const defaultTableAttrs = this._defaultAttributes.get(
-      (
-        element as HTMLElement
-      ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
-    );
+    // Fetch defaults
+    const defaultTableStyles =
+      this._defaultStyles.get(
+        (
+          element as HTMLElement
+        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      ) || {};
+    const defaultTableAttrs =
+      this._defaultAttributes.get(
+        (
+          element as HTMLElement
+        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      ) || {};
 
-    // Helper to parse a <tr> into TableRowElement
-    const parseRow = (tr: HTMLElement) => {
-      const cells: TableCellElement[] = [];
-      let colPtr = 0;
-      const rowStyles = {
-        ...defaultTableStyles,
-        ...parseStyles(tr),
-      };
-      const rowAttrs = {
-        ...defaultTableAttrs,
-        ...parseAttributes(tr),
-      };
-      // Only direct <td>/<th> children to avoid nested tables
-      const cellEls = Array.from(tr.children).filter((c): c is HTMLElement => {
-        const t = c.tagName.toLowerCase();
-        return t === 'td' || t === 'th';
-      });
+    // Iterate *every* direct child of <table> in source order
+    Array.from((element as HTMLElement).childNodes).forEach((node) => {
+      if (node.nodeType !== 1) return; // skip text/comments
+      const el = node as HTMLElement;
+      const tag = el.tagName.toLowerCase();
 
-      cellEls.forEach((cell) => {
-        const isHeader = cell.tagName.toLowerCase() === 'th';
-        const columnStyles = colMeta[colPtr]?.styles || {};
-        const content = this._parseHTML(cell.innerHTML);
-        const cs = parseStyles(cell);
-        const ca = parseAttributes(cell);
-        const ds =
-          this._defaultStyles.get(
-            cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
-          ) || {};
-        const da =
-          this._defaultAttributes.get(
-            cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
-          ) || {};
-        const colspan = Number(
-          cell.getAttribute('colspan') || da['colspan'] || 1
+      const result =
+        this._tagHandlers.get(tag)?.(el, options) ||
+        this._defaultHandler(el, options);
+
+      if (Array.isArray(result)) {
+        rows.push(
+          ...result.filter((c): c is TableRowElement => c.type === 'table-row')
         );
-        const rowspan = Number(
-          cell.getAttribute('rowspan') || da['rowspan'] || 1
+        content.push(
+          ...result.filter((c): c is DocumentElement => c.type !== 'table-row')
         );
-
-        cells.push({
-          type: 'table-cell',
-          content,
-          styles: isHeader
-            ? { textAlign: 'center', ...columnStyles, ...ds, ...cs }
-            : { ...columnStyles, ...ds, ...cs },
-          attributes: { ...da, ...ca },
-          colspan,
-          rowspan,
-        });
-        colPtr += colspan;
-      });
-
-      rows.push({
-        type: 'table-row',
-        cells,
-        styles: rowStyles,
-        attributes: rowAttrs,
-      });
-    };
-
-    // Parse <thead>, <tbody>, <tfoot> in semantic order
-    ['thead', 'tbody', 'tfoot'].forEach((section) => {
-      const secEl = (element as Element).querySelector(section);
-      if (secEl) {
-        Array.from(secEl.children)
-          .filter((c): c is HTMLElement => c.tagName.toLowerCase() === 'tr')
-          .forEach((tr) => parseRow(tr));
+      } else {
+        if (result.type === 'table-row') {
+          rows.push(result as TableRowElement);
+        }
+        if (result.type !== 'table-row') {
+          content.push(result as DocumentElement);
+        }
       }
     });
-
-    // Also parse any <tr> directly under <table>
-    Array.from((element as HTMLElement).children)
-      .filter((c): c is HTMLElement => c.tagName.toLowerCase() === 'tr')
-      .forEach((tr) => parseRow(tr));
-
     return {
       type: 'table',
       rows,
-      styles: { ...defaultTableStyles, ...options.styles },
-      attributes: { ...defaultTableAttrs, ...options.attributes },
-      metadata: colMeta.length > 0 ? { columns: colMeta } : undefined,
+      content: content.length > 0 ? content : undefined,
+      styles: {
+        ...defaultTableStyles,
+        ...options.styles,
+      },
+      attributes: {
+        ...defaultTableAttrs,
+        ...options.attributes,
+      },
     };
   }
 
@@ -311,40 +321,33 @@ export class Parser {
 
     doc.body.childNodes.forEach((child) => {
       // If this is a <div>, inline its children instead of wrapping
-      if (
-        child.nodeType !== 3 &&
-        ((child as HTMLElement).tagName.toLowerCase() === 'colgroup' ||
-          (child as HTMLElement).tagName.toLowerCase() === 'col')
-      ) {
-        return;
-      }
-      if (
-        child.nodeType === 1 &&
-        (child as HTMLElement).tagName.toLowerCase() === 'div'
-      ) {
-        const divEl = child as HTMLElement;
-        const wrapperStyles = parseStyles(divEl);
-        const wrapperAttrs = parseAttributes(divEl);
-        const inner = this._parseHTML(divEl.innerHTML);
-        // merge wrapper styles/attrs into each child
-        inner.forEach((childElem) => {
-          childElem.styles = { ...wrapperStyles, ...childElem.styles };
-          childElem.attributes = { ...wrapperAttrs, ...childElem.attributes };
-        });
-        content.push(...inner);
+      // if (
+      //   child.nodeType === 1 &&
+      //   (child as HTMLElement).tagName.toLowerCase() === 'div'
+      // ) {
+      //   const divEl = child as HTMLElement;
+      //   const wrapperStyles = parseStyles(divEl);
+      //   const wrapperAttrs = parseAttributes(divEl);
+      //   const inner = this._parseHTML(divEl.innerHTML);
+      //   // merge wrapper styles/attrs into each child
+      //   inner.forEach((childElem) => {
+      //     childElem.styles = { ...wrapperStyles, ...childElem.styles };
+      //     childElem.attributes = { ...wrapperAttrs, ...childElem.attributes };
+      //   });
+      //   content.push(...inner);
+      // } else {
+      const key = child.nodeName.toLowerCase();
+      const result = this._parseElement(
+        child,
+        this._tagHandlers.get(key) ?? this._defaultHandler
+      );
+      // if (result) {
+      if (Array.isArray(result)) {
+        content.push(...result);
       } else {
-        const key = child.nodeName.toLowerCase();
-        if (child.nodeType !== 3 && (key === 'colgroup' || key === 'col')) {
-          return;
-        }
-        const result = this._parseElement(
-          child,
-          this._tagHandlers.get(key) ?? this._defaultHandler
-        );
-        if (result) {
-          content.push(result);
-        }
+        content.push(result);
       }
+      // }
     });
     return content;
   }
@@ -362,9 +365,6 @@ export class Parser {
     const tag =
       (element as HTMLElement).tagName?.toLowerCase() ||
       (element as ChildNode).nodeName?.toLowerCase();
-    if (tag === 'table') {
-      return this._parseTable(element, options);
-    }
     // Now just use options.text and options.content (children)
     const text = (options.text ?? undefined) as string | undefined;
     const children = (options.content ?? undefined) as
@@ -374,9 +374,9 @@ export class Parser {
 
     switch (tag) {
       case 'p':
-      case 'div':
         return { type: 'paragraph', text, content: children, ...options };
-
+      case 'div':
+        return { type: 'fragment', text, content: children, ...options };
       case 'strong':
         return {
           type: 'text',
@@ -385,7 +385,20 @@ export class Parser {
           ...options,
           styles: { ...(options.styles || {}), fontWeight: 'bold' },
         };
-
+      case 'colgroup':
+        return {
+          type: 'attribute',
+          name: 'colgroup',
+          content: children,
+          ...options,
+        };
+      case 'col':
+        return {
+          type: 'attribute',
+          name: 'col',
+          content: children,
+          ...options,
+        };
       case 'em':
         return {
           type: 'text',

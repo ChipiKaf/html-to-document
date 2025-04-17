@@ -26,6 +26,7 @@ export interface BaseElement {
   metadata?: { [key: string]: unknown };
   /** Optional nested child elements */
   content?: DocumentElement[];
+  liftedAttributes?: Record<string, DocumentElement[]>;
 }
 /**
  * All supported element type strings for document elements.
@@ -41,6 +42,8 @@ export type ElementType =
   | 'table'
   | 'table-row'
   | 'table-cell'
+  | 'fragment'
+  | 'attribute'
   | (string & {});
 
 /**
@@ -50,6 +53,25 @@ export interface ParagraphElement extends BaseElement {
   type: 'paragraph';
   text?: string;
   content?: DocumentElement[];
+}
+
+/**
+ * Represents a fragment element, optionally containing text and/or child elements.
+ */
+export interface FragmentElement extends BaseElement {
+  type: 'fragment';
+  text?: string;
+  content?: DocumentElement[];
+}
+
+/**
+ * Represents a fragment element, optionally containing text and/or child elements.
+ */
+export interface AttributeElement extends BaseElement {
+  type: 'attribute';
+  name?: string;
+  text?: string;
+  attributes?: Record<string, string | number>;
 }
 
 /**
@@ -127,6 +149,10 @@ export type DocumentElement =
   | TableElement
   | LineElement
   | TextElement
+  | TableRowElement
+  | TableCellElement
+  | FragmentElement
+  | AttributeElement
   | (BaseElement & {
       type: ElementType;
     });
@@ -232,7 +258,7 @@ export type TagHandlerOptions = {
 export type TagHandler = (
   element: HTMLElement,
   options?: TagHandlerOptions
-) => DocumentElement;
+) => DocumentElement | DocumentElement[];
 
 /**
  * Associates an HTML tag name (or custom key) with a tag handler function.
