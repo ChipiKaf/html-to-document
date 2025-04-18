@@ -102,57 +102,84 @@ export function base64ToUint8Array(base64: string): Uint8Array {
  * (everything except `type` and `name`).
  */
 
-export function liftAttributes(el: DocumentElement): DocumentElement {
+export function liftAttributesIntoMetadata(
+  el: DocumentElement
+): DocumentElement {
+  // 1) nothing to do if there's no content
   if (!Array.isArray(el.content)) {
-    return el; // nothing to do
+    return el;
   }
 
-  // prepare the bucket for lifted attributes
-  const lifted: Record<string, DocumentElement[]> = el.liftedAttributes || {};
+  // 2) ensure metadata exists
+  el.metadata = el.metadata ?? {};
 
+  // 3) we'll collect all lifted entries here
+  const met = el.metadata as Record<string, unknown>;
   const newContent: DocumentElement[] = [];
 
   for (const child of el.content) {
     if (child.type === 'attribute' && (child as AttributeElement).name) {
-      const name = (child as AttributeElement).name;
-      // ensure the array exists
-      lifted[name!] = lifted[name!] || [];
+      const name = (child as AttributeElement).name!;
 
-      // pull *each* entry out of the wrapper's content
+      // init the bucket if needed
+      if (!Array.isArray(met[name])) {
+        met[name] = [];
+      }
+
       const wrapper = child as AttributeElement;
       if (Array.isArray(wrapper.content)) {
+        // pull each inner node into metadata[name]
         for (const inner of wrapper.content) {
-          // if that inner is itself an attribute-wrapper of the same name,
-          // go one level deeper:
           if (
             inner.type === 'attribute' &&
-            (inner as AttributeElement).name === name
+            (inner as AttributeElement).name === name &&
+            Array.isArray((inner as AttributeElement).content)
           ) {
-            const deeper = inner as AttributeElement;
-            if (Array.isArray(deeper.content)) {
-              lifted[name!].push(...deeper.content);
-            }
+            // one deeper
+            met[name] = [
+              ...(met[name] as DocumentElement[]),
+              ...(inner as AttributeElement).content!,
+            ];
           } else {
-            lifted[name!].push(inner);
+            met[name] = [...(met[name] as DocumentElement[]), inner];
           }
         }
       }
-      // (and we do *not* push the wrapper itself into newContent)
+      // note: we do NOT push wrapper itself into newContent
     } else {
-      // normal node – keep it, and recurse
-      newContent.push(liftAttributes(child));
+      // keep non-attribute children, and recurse
+      newContent.push(liftAttributesIntoMetadata(child));
     }
   }
 
   el.content = newContent;
-  if (Object.keys(lifted).length) {
-    el.liftedAttributes = lifted;
+
+  // if metadata[name] is empty, you can choose to delete it:
+  for (const key of Object.keys(met)) {
+    if (
+      Array.isArray(met[key]) &&
+      (met[key] as DocumentElement[]).length === 0
+    ) {
+      delete met[key];
+    }
   }
+
+  // if metadata became empty, you can drop it entirely:
+  if (Object.keys(met).length === 0) {
+    delete el.metadata;
+  }
+
   return el;
+}
+
+export function liftAttributesInDocToMetadata(
+  doc: DocumentElement[]
+): DocumentElement[] {
+  return doc.map(liftAttributesIntoMetadata);
 }
 /**
  * Apply liftAttributes to every element in a parsed DocumentElement[].
  */
 export function liftAttributesInDoc(doc: DocumentElement[]): DocumentElement[] {
-  return doc.map(liftAttributes);
+  return doc.map(liftAttributesIntoMetadata);
 }

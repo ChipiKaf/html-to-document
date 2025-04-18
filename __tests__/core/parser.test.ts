@@ -899,63 +899,51 @@ describe('Parser', () => {
       let result = parser.parse(html);
       result = JSON.parse(JSON.stringify(result));
 
-      // expect(result).toEqual([
-      //   {
-      //     type: 'table',
-      //     rows: [
-      //       {
-      //         type: 'table-row',
-      //         cells: [
-      //           {
-      //             type: 'table-cell',
-      //             content: [
-      //               {
-      //                 type: 'text',
-      //                 text: 'Heading 1',
-      //               },
-      //             ],
-      //             styles: {
-      //               textAlign: 'center',
-      //               color: 'red',
-      //             },
-      //             attributes: {},
-      //             colspan: 3,
-      //             rowspan: 3,
-      //           },
-      //           {
-      //             type: 'table-cell',
-      //             content: [
-      //               {
-      //                 type: 'text',
-      //                 text: 'Heading 2',
-      //                 styles: {
-      //                   fontFamily: 'times-new-roman',
-      //                 },
-      //                 attributes: {},
-      //               },
-      //             ],
-      //             styles: {
-      //               textAlign: 'center',
-      //             },
-      //             attributes: {},
-      //             colspan: 1,
-      //             rowspan: 1,
-      //           },
-      //         ],
-      //         styles: {
-      //           borderWidth: '3px',
-      //         },
-      //         attributes: {},
-      //       },
-      //     ],
-      //     styles: {
-      //       borderStyle: 'dashed',
-      //     },
-      //     attributes: {
-      //       'data-table': 'x',
-      //     },
-      //   },
-      // ]);
+      expect(result).toEqual([
+        {
+          type: 'table',
+          rows: [],
+          content: [],
+          styles: {
+            borderStyle: 'dashed',
+          },
+          attributes: {
+            'data-table': 'x',
+          },
+          metadata: {
+            colgroup: [
+              {
+                type: 'attribute',
+                name: 'col',
+                content: [],
+                styles: {
+                  width: '30%',
+                  backgroundColor: '#e0f7fa',
+                },
+                attributes: {},
+              },
+              {
+                type: 'attribute',
+                name: 'col',
+                content: [],
+                styles: {
+                  width: '35%',
+                },
+                attributes: {},
+              },
+              {
+                type: 'attribute',
+                name: 'col',
+                content: [],
+                styles: {
+                  width: '35%',
+                },
+                attributes: {},
+              },
+            ],
+          },
+        },
+      ]);
     });
   });
   describe('sup tag', () => {

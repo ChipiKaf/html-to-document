@@ -26,7 +26,6 @@ export interface BaseElement {
   metadata?: { [key: string]: unknown };
   /** Optional nested child elements */
   content?: DocumentElement[];
-  liftedAttributes?: Record<string, DocumentElement[]>;
 }
 /**
  * All supported element type strings for document elements.
