@@ -8,11 +8,13 @@ import {
   Table,
   TableRow,
   TableCell,
+  WidthType,
   ExternalHyperlink,
   VerticalAlign,
   BorderStyle,
   IImageOptions,
 } from 'docx';
+import type { ITableWidthProperties } from 'docx';
 import {
   DocumentElement,
   GridCell,
@@ -163,7 +165,10 @@ export class DocxAdapter implements IDocumentConverter {
   ): Promise<(Paragraph | Table)[]> {
     switch (el.type) {
       case 'paragraph':
-        return [...(await this.convertParagraph(el as ParagraphElement))];
+        const paragraphs = [
+          ...(await this.convertParagraph(el as ParagraphElement)).flat(),
+        ];
+        return paragraphs;
 
       case 'heading':
         return [await this.convertHeading(el as HeadingElement)];
@@ -185,7 +190,9 @@ export class DocxAdapter implements IDocumentConverter {
         return [await this.convertTable(el as TableElement)];
 
       default:
-        return [...(await this.convertParagraph(el as ParagraphElement))];
+        return [
+          ...(await this.convertParagraph(el as ParagraphElement)).flat(),
+        ];
     }
   }
 
@@ -224,7 +231,7 @@ export class DocxAdapter implements IDocumentConverter {
           } else if (isInline(child)) {
             acc.push(
               new Paragraph({
-                run: { ...this._mapper.mapStyles(mergedStyles, el) },
+                // run: { ...this._mapper.mapStyles(mergedStyles, el) },
                 children: Array.isArray(child) ? [...child] : [child],
                 ...this._mapper.mapStyles(mergedStyles, el),
               })
@@ -578,6 +585,31 @@ export class DocxAdapter implements IDocumentConverter {
       ...styles,
       ...el.styles,
     };
+    // --- begin colgroup support ---
+    let widths: ITableWidthProperties[] = [];
+    if (Array.isArray(el.metadata?.colgroup)) {
+      const colgroupMeta = el.metadata.colgroup as Array<{
+        styles?: Record<string, string | number>;
+      }>;
+      widths = colgroupMeta.reduce((acc, col) => {
+        const w = col.styles?.width;
+        if (typeof w === 'string') {
+          if (w.endsWith('%')) {
+            acc.push({
+              size: Math.round(parseFloat(w)),
+              type: WidthType.PERCENTAGE,
+            });
+          } else if (w.endsWith('px')) {
+            acc.push({
+              size: Math.round(parseFloat(w) * 15),
+              type: WidthType.DXA,
+            });
+          }
+        }
+        return acc;
+      }, [] as ITableWidthProperties[]);
+    }
+    // --- end colgroup support ---
 
     const numRows = el.rows.length;
 
@@ -647,6 +679,7 @@ export class DocxAdapter implements IDocumentConverter {
           cells.push(
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
+              ...(widths[j] ? { width: widths[j] } : {}),
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: '' })],
@@ -736,6 +769,7 @@ export class DocxAdapter implements IDocumentConverter {
               columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalMerge: verticalMerge,
               verticalAlign: VerticalAlign.CENTER,
+              ...(widths[j] ? { width: widths[j] } : {}),
               ...this._mapper.mapStyles(
                 {
                   ...(originalCell
@@ -765,9 +799,16 @@ export class DocxAdapter implements IDocumentConverter {
         })
       );
     }
+    // Pull style props, but omit any `rows` key it might include
+    const rawStyles = this._mapper.mapStyles(
+      { ...mergedStyles, ...el.styles },
+      el
+    ) as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { rows: _ignore, ...tableStyles } = rawStyles;
     return new Table({
+      ...tableStyles,
       rows: tableRows,
-      ...this._mapper.mapStyles({ ...mergedStyles, ...el.styles }, el),
     });
   }
 }

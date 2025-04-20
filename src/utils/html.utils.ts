@@ -95,91 +95,77 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Walks a DocumentElement tree and “lifts” any
- * AttributeElement nodes out of `content` into
- * `liftedAttributes[name]`, preserving their payload
- * (everything except `type` and `name`).
- */
+interface SimpleAttr {
+  name: string;
+  styles?: Record<string, string | number>;
+  attributes?: Record<string, string | number>;
+  content?: DocumentElement[];
+}
 
-export function liftAttributesIntoMetadata(
+/**
+ * Hoist every direct `type==='attribute'` child of `el` into
+ * `el.metadata[thatName]`, removing them from `el.content`.
+ * - If the wrapper itself contains attribute‑children, flatten
+ *   *those* instead (one level deep).
+ * - Otherwise serialize the wrapper itself.
+ */
+export function extractAttributesToMetadata(
   el: DocumentElement
 ): DocumentElement {
-  // 1) nothing to do if there's no content
-  if (!Array.isArray(el.content)) {
-    return el;
-  }
+  if (!Array.isArray(el.content)) return el;
 
-  // 2) ensure metadata exists
-  el.metadata = el.metadata ?? {};
-
-  // 3) we'll collect all lifted entries here
-  const met = el.metadata as Record<string, unknown>;
   const newContent: DocumentElement[] = [];
+  el.metadata = el.metadata ?? {};
 
   for (const child of el.content) {
     if (child.type === 'attribute' && (child as AttributeElement).name) {
-      const name = (child as AttributeElement).name!;
-
-      // init the bucket if needed
-      if (!Array.isArray(met[name])) {
-        met[name] = [];
-      }
-
       const wrapper = child as AttributeElement;
-      if (Array.isArray(wrapper.content)) {
-        // pull each inner node into metadata[name]
-        for (const inner of wrapper.content) {
-          if (
-            inner.type === 'attribute' &&
-            (inner as AttributeElement).name === name &&
-            Array.isArray((inner as AttributeElement).content)
-          ) {
-            // one deeper
-            met[name] = [
-              ...(met[name] as DocumentElement[]),
-              ...(inner as AttributeElement).content!,
-            ];
-          } else {
-            met[name] = [...(met[name] as DocumentElement[]), inner];
-          }
+      const key = wrapper.name!;
+
+      // ensure the array exists
+      const bucket = (el.metadata[key] as SimpleAttr[] | undefined) ?? [];
+      el.metadata[key] = bucket;
+
+      // look for nested <attribute> children
+      const nested = (wrapper.content || []).filter(
+        (c): c is AttributeElement =>
+          c.type === 'attribute' && !!(c as AttributeElement).name
+      );
+
+      if (nested.length > 0) {
+        // flatten those nested wrappers
+        for (const inner of nested) {
+          bucket.push({
+            name: inner.name!,
+            styles: inner.styles,
+            attributes: inner.attributes,
+            content: inner.content,
+          });
         }
+      } else {
+        // serialize the wrapper itself
+        bucket.push({
+          name: wrapper.name!,
+          styles: wrapper.styles,
+          attributes: wrapper.attributes,
+          content: wrapper.content, // if you want to preserve non‐attribute children
+        });
       }
-      // note: we do NOT push wrapper itself into newContent
     } else {
-      // keep non-attribute children, and recurse
-      newContent.push(liftAttributesIntoMetadata(child));
+      // keep everything else
+      newContent.push(extractAttributesToMetadata(child));
     }
   }
 
   el.content = newContent;
-
-  // if metadata[name] is empty, you can choose to delete it:
-  for (const key of Object.keys(met)) {
-    if (
-      Array.isArray(met[key]) &&
-      (met[key] as DocumentElement[]).length === 0
-    ) {
-      delete met[key];
-    }
-  }
-
-  // if metadata became empty, you can drop it entirely:
-  if (Object.keys(met).length === 0) {
-    delete el.metadata;
-  }
-
   return el;
 }
 
-export function liftAttributesInDocToMetadata(
+/**
+ * Run the above over an entire document tree.
+ */
+export function extractAllAttributes(
   doc: DocumentElement[]
 ): DocumentElement[] {
-  return doc.map(liftAttributesIntoMetadata);
-}
-/**
- * Apply liftAttributes to every element in a parsed DocumentElement[].
- */
-export function liftAttributesInDoc(doc: DocumentElement[]): DocumentElement[] {
-  return doc.map(liftAttributesIntoMetadata);
+  return doc.map(extractAttributesToMetadata);
 }

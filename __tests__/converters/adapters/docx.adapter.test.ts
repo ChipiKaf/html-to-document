@@ -356,7 +356,9 @@ describe('Docx.adapter.convert', () => {
 
       // NOTE: depends on how your adapter maps backgroundColor
       // May need to map hex -> "yellow" or similar
-      expect(para['w:r']['w:rPr']).toHaveProperty('w:highlight');
+      // expect(para['w:r']['w:rPr']['w:shd']).toHaveProperty('w:color');
+      expect(para['w:r']['w:rPr']['w:shd']).toHaveProperty('@_w:fill');
+      expect(para['w:r']['w:rPr']['w:shd']).toHaveProperty('@_w:val');
       expect(para['w:r']['w:t']['#text']).toBe('Highlighted text');
     });
 
@@ -451,6 +453,110 @@ describe('Docx.adapter.convert', () => {
 
       // Check superscript run
       expect(runs[3]['w:rPr']['w:vertAlign']['@_w:val']).toBe('superscript');
+    });
+  });
+  describe('Complex styled paragraph', () => {
+    it('should apply paragraph-level styles (justify, shading, spacing, indent)', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Here is a ' },
+            {
+              type: 'text',
+              text: ' combined decoration ',
+              styles: { textDecoration: 'line-through underline' },
+              attributes: {},
+            },
+            {
+              type: 'text',
+              text: ' example with both strike‑through and underline.',
+            },
+          ],
+          styles: {
+            margin: '20px',
+            padding: '15px',
+            backgroundColor: '#f9f9f9',
+            marginBottom: '5px',
+            marginTop: '5px',
+            textAlign: 'justify',
+          },
+          attributes: {},
+          metadata: {},
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const json = await parseDocxDocument(buffer);
+      const para = json['w:document']['w:body']['w:p'];
+
+      // 1A) Justification
+      expect(para['w:pPr']['w:jc']['@_w:val']).toBe('both');
+
+      // 1B) Shading (backgroundColor)
+      const shd = para['w:pPr']['w:shd'];
+      expect(shd['@_w:fill']).toBe('F9F9F9');
+      expect(shd['@_w:val']).toBe('clear');
+
+      // 1C) Spacing: marginTop=5px→5*20=100, marginBottom=5px→100
+      const spacing = para['w:pPr']['w:spacing'];
+      expect(Number(spacing['@_w:before'])).toBe(100);
+      expect(Number(spacing['@_w:after'])).toBe(100);
+
+      // 1D) Indent: padding 15px→15*15=225 twips on left/right
+      const ind = para['w:pPr']['w:ind'];
+      expect(Number(ind['@_w:left'])).toBe(225);
+      expect(Number(ind['@_w:right'])).toBe(225);
+    });
+
+    it('should render three runs and combine line‑through + underline on the second run', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Here is a ' },
+            {
+              type: 'text',
+              text: ' combined decoration ',
+              styles: { textDecoration: 'line-through underline' },
+              attributes: {},
+            },
+            {
+              type: 'text',
+              text: ' example with both strike‑through and underline.',
+            },
+          ],
+          styles: {},
+          attributes: {},
+          metadata: {},
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const json = await parseDocxDocument(buffer);
+      const p = json['w:document']['w:body']['w:p'];
+      const runs = Array.isArray(p['w:r']) ? p['w:r'] : [p['w:r']];
+
+      // Expect exactly three runs
+      expect(runs).toHaveLength(3);
+
+      // Run 1: plain
+      expect(runs[0]['w:t']['#text']).toBe('Here is a');
+      expect(runs[0]['w:rPr']).toBeUndefined(); // no decoration
+
+      // Run 2: combined decoration
+      expect(runs[1]['w:t']['#text']).toBe('combined decoration');
+      const decoProps = runs[1]['w:rPr'];
+      // strike-through
+      expect(decoProps).toHaveProperty('w:strike');
+      // underline (single)
+      expect(decoProps['w:u']['@_w:val']).toBe('single');
+
+      // Run 3: plain tail
+      expect(runs[2]['w:t']['#text']).toBe(
+        'example with both strike‑through and underline.'
+      );
+      expect(runs[2]['w:rPr']).toBeUndefined();
     });
   });
   describe('Links', () => {
@@ -985,6 +1091,43 @@ describe('Docx.adapter.convert', () => {
         ? para['w:r'][0]['w:t']['#text']
         : para['w:r']['w:t']['#text'];
       expect(cellText).toBe('Cell A');
+    });
+
+    it('should render a table with 50% width', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        styles: { width: '50%' },
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Foo' }],
+                styles: {},
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      // Extract the <w:tblPr> properties
+      const tblPr = tbl['w:tblPr'];
+      expect(tblPr).toBeDefined();
+      expect(tblPr).toHaveProperty('w:tblW');
+
+      const tblW = tblPr['w:tblW'];
+      // 50% should be serialized as 2500 (i.e. 50% × 50 = 2500 fiftieths of a percent)
+      expect(tblW['@_w:w']).toBe('50%');
+      expect(tblW['@_w:type']).toBe('pct');
     });
 
     it('should convert a table with multiple rows and columns', async () => {

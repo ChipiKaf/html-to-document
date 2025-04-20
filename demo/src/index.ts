@@ -30,7 +30,7 @@ export const run: () => Promise<any> = async () => {
             // Initially, we would have used textAlign: 'start',
             // But since we changed textAlign behavior in the style mappings (See the adapters options)
             // We now expect docx alignment values
-            textAlign: 'left',
+            // textAlign: 'left',
           },
         },
       ],
@@ -61,7 +61,7 @@ export const run: () => Promise<any> = async () => {
           handlers: {
             // Changed the default textAlign handler from expecting the css standard ("start", "end", etc)
             // To expecting docx alignment values ("left", "right", etc)
-            textAlign: (v) => ({ alignment: v }),
+            // textAlign: (v) => ({ alignment: v }),
           },
         },
       ],
@@ -93,10 +93,9 @@ export const run: () => Promise<any> = async () => {
 
             try {
               // 2. Convert HTML to DOCX format (returns a Promise<Buffer>).
-              const docxBuffer = '';
-              const parsed = await converter.parse(htmlContent);
-              console.log(parsed);
-              return;
+              const parsedContent = await converter.parse(htmlContent);
+              // console.log(parsedContent[2]);
+              const docxBuffer = await converter.convert(parsedContent, 'docx');
 
               // 3. Create a Blob from the buffer.
               // If using a Node Buffer in a browser context, it can usually be passed directly.

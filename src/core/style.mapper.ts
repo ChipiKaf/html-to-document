@@ -70,8 +70,8 @@ const textAlignMap: Record<string, string> = {
   end: 'right', // CSS “end” → right in LTR
   right: 'right',
   center: 'center',
-  justify: 'justified', // docx uses “JUSTIFIED”
-  justified: 'justified',
+  justify: 'both', // docx uses “JUSTIFIED”
+  justified: 'both',
 };
 
 // @To-do: Consider making the conversion from px or any other size extensible
@@ -85,6 +85,8 @@ export class StyleMapper {
   // Central place for all default mappings
   protected initializeDefaultMappings(): void {
     this.mappings = {
+      borderCollapse: () => ({}),
+      borderSpacing: () => ({}),
       // Text-related styles
       fontFamily: (v: string) => {
         if (!v) return {};
@@ -99,36 +101,45 @@ export class StyleMapper {
         return v === 'bold' ? { bold: true } : {};
       },
       fontStyle: (v) => (v === 'italic' ? { italics: true } : {}),
-      textDecoration: (v) =>
-        v === 'underline'
-          ? { underline: {} }
-          : v === 'line-through'
-            ? { strike: true }
-            : {},
+      textDecoration: (v: string) => {
+        const decorations = String(v)
+          .split(/\s+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+
+        const style: Record<string, unknown> = {};
+        if (decorations.includes('underline')) {
+          style.underline = {};
+        }
+        if (decorations.includes('line-through')) {
+          style.strike = true;
+        }
+        return style;
+      },
       textTransform: (v) =>
         v === 'uppercase'
           ? { allCaps: true }
           : v === 'capitalize'
             ? { smallCaps: true }
             : {},
-      textAlign: (v) => {
+      textAlign: (v, el) => {
+        if (el.type === 'table') return {};
         const key = String(v).trim().toLowerCase();
         const alignment = textAlignMap[key];
         return alignment ? { alignment } : {};
       },
       color: (v) => ({ color: colorConversion(v) }),
-      backgroundColor: (v, el) => {
-        if (el.type === 'table-cell') {
-          return {
-            shading: {
-              fill: colorConversion(v),
-              color: 'auto',
-              type: ShadingType.CLEAR,
-            },
-          };
-        } else {
-          return { highlight: v };
-        }
+      backgroundColor: (v) => {
+        // strip “#” and turn CSS names → hex
+        const fill = colorConversion(v);
+
+        return {
+          shading: {
+            type: ShadingType.CLEAR,
+            fill, // e.g. "F9F9F9"
+            color: 'auto', // text color fallback
+          },
+        };
       },
 
       // Font size
@@ -226,28 +237,31 @@ export class StyleMapper {
                 : {},
 
       padding: (v, el) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
-        const space = pixelsToTwips(px);
-        if (el.type === 'table-cell')
+        const twips = pixelsToTwips(px);
+
+        if (el.type === 'table-cell') {
           return {
-            margins: {
-              top: space,
-              bottom: space,
-              left: space,
-              right: space,
-            },
+            margins: { top: twips, bottom: twips, left: twips, right: twips },
           };
+        }
+
+        // treat padding on paragraphs as extra spacing + indentation
         return {
-          border: {
-            top: { space },
-            bottom: { space },
-            left: { space },
-            right: { space },
+          spacing: {
+            before: twips,
+            after: twips,
+          },
+          indent: {
+            left: twips,
+            right: twips,
           },
         };
       },
       margin: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         // vertical spacing uses twips-per-px = 20, horizontal uses your helper

@@ -1,5 +1,5 @@
 import {
-  liftAttributesInDoc,
+  extractAllAttributes,
   parseAttributes,
   parseStyles,
 } from '../utils/html.utils';
@@ -78,7 +78,7 @@ export class Parser {
 
   parse(html: string) {
     const tree = this._parseHTML(html);
-    return liftAttributesInDoc(tree);
+    return extractAllAttributes(tree);
   }
 
   private _parseRow(
@@ -406,6 +406,14 @@ export class Parser {
           content: children,
           ...options,
           styles: { ...(options.styles || {}), fontStyle: 'italic' },
+        };
+      case 'small':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          styles: { ...(options.styles || {}), fontSize: '8px' },
         };
 
       case 'u':

@@ -126,8 +126,7 @@ describe('Parser', () => {
         <span style="color: green;">Green World</span>
       </span>World</p>`;
       html = await minifyMiddleware(html);
-      const result = parser.parse(html);
-
+      let result = parser.parse(html);
       expect(result).toEqual([
         {
           type: 'paragraph',
@@ -152,6 +151,7 @@ describe('Parser', () => {
                 color: 'red',
               },
               attributes: {},
+              metadata: {},
             },
             {
               type: 'text',
@@ -164,13 +164,15 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
+          metadata: {},
         },
       ]);
     });
     it('parses a paragraph with strong children', () => {
-      const result = parser.parse(
+      let result = parser.parse(
         '<p>He<strong>llo</strong>w<strong>or</strong>ld</p>'
       );
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'paragraph',
@@ -204,6 +206,7 @@ describe('Parser', () => {
               text: 'ld',
             },
           ],
+          metadata: {},
           styles: {},
           attributes: {},
         },
@@ -211,9 +214,10 @@ describe('Parser', () => {
     });
 
     it('parses a single paragraph element with children content when no handler is registered', () => {
-      const result = parser.parse(
+      let result = parser.parse(
         `<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>`
       );
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'paragraph',
@@ -231,6 +235,7 @@ describe('Parser', () => {
               text: 'World',
             },
           ],
+          metadata: {},
           styles: {
             fontWeight: 'bold',
           },
@@ -244,9 +249,10 @@ describe('Parser', () => {
 
   describe('heading', () => {
     it('parses a single heading element with children content when no handler is registered', () => {
-      const result = parser.parse(
+      let result = parser.parse(
         `<h1 style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</h1>`
       );
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'heading',
@@ -271,6 +277,7 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
+          metadata: {},
         },
       ]);
     });
@@ -279,8 +286,8 @@ describe('Parser', () => {
   describe('anchor', () => {
     it('parses anchor tags as text elements with href attribute', () => {
       const html = `<p>This is a <a href="https://example.com" style="color: blue;">link</a> inside a paragraph.</p>`;
-      const result = parser.parse(html);
-
+      let result = parser.parse(html);
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'paragraph',
@@ -302,6 +309,7 @@ describe('Parser', () => {
           ],
           styles: {},
           attributes: {},
+          metadata: {},
         },
       ]);
     });
@@ -898,7 +906,6 @@ describe('Parser', () => {
       html = await minifyMiddleware(html);
       let result = parser.parse(html);
       result = JSON.parse(JSON.stringify(result));
-
       expect(result).toEqual([
         {
           type: 'table',
@@ -913,32 +920,39 @@ describe('Parser', () => {
           metadata: {
             colgroup: [
               {
-                type: 'attribute',
-                name: 'col',
-                content: [],
-                styles: {
-                  width: '30%',
-                  backgroundColor: '#e0f7fa',
-                },
+                name: 'colgroup',
+                styles: {},
                 attributes: {},
-              },
-              {
-                type: 'attribute',
-                name: 'col',
-                content: [],
-                styles: {
-                  width: '35%',
-                },
-                attributes: {},
-              },
-              {
-                type: 'attribute',
-                name: 'col',
-                content: [],
-                styles: {
-                  width: '35%',
-                },
-                attributes: {},
+                content: [
+                  {
+                    type: 'attribute',
+                    name: 'col',
+                    content: [],
+                    styles: {
+                      width: '30%',
+                      backgroundColor: '#e0f7fa',
+                    },
+                    attributes: {},
+                  },
+                  {
+                    type: 'attribute',
+                    name: 'col',
+                    content: [],
+                    styles: {
+                      width: '35%',
+                    },
+                    attributes: {},
+                  },
+                  {
+                    type: 'attribute',
+                    name: 'col',
+                    content: [],
+                    styles: {
+                      width: '35%',
+                    },
+                    attributes: {},
+                  },
+                ],
               },
             ],
           },
@@ -970,6 +984,7 @@ describe('Parser', () => {
             },
           ],
           styles: {},
+          metadata: {},
           attributes: {},
         },
       ]);
@@ -977,7 +992,8 @@ describe('Parser', () => {
   });
   describe('line-break', () => {
     it('parses br tags as text elements with break metadata', () => {
-      const result = parser.parse('<p>Hello<br>World</p>');
+      let result = parser.parse('<p>Hello<br>World</p>');
+      result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
         {
           type: 'paragraph',
@@ -1001,6 +1017,7 @@ describe('Parser', () => {
               text: 'World',
             },
           ],
+          metadata: {},
           styles: {},
           attributes: {},
         },
