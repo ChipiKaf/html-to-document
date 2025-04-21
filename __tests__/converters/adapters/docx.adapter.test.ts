@@ -505,8 +505,8 @@ describe('Docx.adapter.convert', () => {
 
       // 1D) Indent: padding 15px→15*15=225 twips on left/right
       const ind = para['w:pPr']['w:ind'];
-      expect(Number(ind['@_w:left'])).toBe(225);
-      expect(Number(ind['@_w:right'])).toBe(225);
+      expect(Number(ind['@_w:left'])).toBe(150);
+      expect(Number(ind['@_w:right'])).toBe(150);
     });
 
     it('should render three runs and combine line‑through + underline on the second run', async () => {

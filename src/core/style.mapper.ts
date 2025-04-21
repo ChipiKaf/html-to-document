@@ -5,7 +5,7 @@ import {
   pixelsToTwips,
 } from '../utils/html.utils';
 import { DocumentElement, StyleMapping } from './types';
-import { ShadingType, WidthType } from 'docx';
+import { BorderStyle, ShadingType, WidthType } from 'docx';
 
 const parseWidth = (value: string) => {
   if (value.endsWith('px')) {
@@ -85,8 +85,23 @@ export class StyleMapper {
   // Central place for all default mappings
   protected initializeDefaultMappings(): void {
     this.mappings = {
-      borderCollapse: () => ({}),
-      borderSpacing: () => ({}),
+      borderSpacing: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') {
+          // CSS border-spacing accepts one or two values (horizontal [vertical])
+          // const parts = v.trim().split(/\s+/);
+          const px = parseFloat(v);
+          if (!isNaN(px)) {
+            // docx only supports uniform spacing, so use the horizontal value
+            return {
+              cellSpacing: {
+                value: pixelsToTwips(px),
+                type: 'dxa',
+              },
+            };
+          }
+        }
+        return {};
+      },
       // Text-related styles
       fontFamily: (v: string) => {
         if (!v) return {};
@@ -129,10 +144,10 @@ export class StyleMapper {
         return alignment ? { alignment } : {};
       },
       color: (v) => ({ color: colorConversion(v) }),
-      backgroundColor: (v) => {
+      backgroundColor: (v, el) => {
+        if (el.type === 'table') return {};
         // strip “#” and turn CSS names → hex
         const fill = colorConversion(v);
-
         return {
           shading: {
             type: ShadingType.CLEAR,
@@ -177,6 +192,19 @@ export class StyleMapper {
         const px = parseFloat(v);
         return !isNaN(px) ? { characterSpacing: Math.round(px * 10) } : {};
       },
+      border: (v: string, el) => {
+        if (el.type === 'table-cell' && (v === 'none' || v === '0')) {
+          return {
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.NONE },
+              left: { style: BorderStyle.NONE },
+              right: { style: BorderStyle.NONE },
+            },
+          };
+        }
+        return {};
+      },
 
       // // Table-related
       // border: (v) => ({
@@ -198,18 +226,39 @@ export class StyleMapper {
           right: { style: mapBorderStyle(v) },
         },
       }),
-      borderWidth: (v) => {
+      borderWidth: (v, el) => {
         const w = parseFloat(v);
         return isNaN(w)
           ? {}
-          : {
-              border: {
-                top: { size: w * 8 },
-                bottom: { size: w * 8 },
-                left: { size: w * 8 },
-                right: { size: w * 8 },
-              },
-            };
+          : el.type === 'table'
+            ? {
+                borders: {
+                  top: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                  bottom: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                  left: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                  right: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                },
+              }
+            : {
+                border: {
+                  top: { size: w * 8 },
+                  bottom: { size: w * 8 },
+                  left: { size: w * 8 },
+                  right: { size: w * 8 },
+                },
+              };
       },
       borderLeftColor: (v) => ({
         border: { left: { color: colorConversion(v) } },
@@ -217,13 +266,22 @@ export class StyleMapper {
       borderLeftStyle: (v) => ({
         border: { left: { style: mapBorderStyle(v) } },
       }),
-      borderLeftWidth: (v) => {
+      borderLeftWidth: (v, el) => {
         const w = parseFloat(v);
         return isNaN(w)
           ? {}
-          : {
-              border: { left: { size: w * 8 } },
-            };
+          : el.type === 'table'
+            ? {
+                borders: {
+                  left: {
+                    style: BorderStyle.SINGLE,
+                    size: 8 * w,
+                  },
+                },
+              }
+            : {
+                border: { left: { size: w * 8 } },
+              };
       },
       verticalAlign: (v) =>
         v === 'middle'
@@ -294,6 +352,7 @@ export class StyleMapper {
         };
       },
       marginTop: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const twips = px * 20;
@@ -304,6 +363,7 @@ export class StyleMapper {
       },
 
       marginBottom: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const twips = px * 20;
@@ -314,6 +374,7 @@ export class StyleMapper {
       },
 
       marginLeft: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const twips = pixelsToTwips(px);
@@ -323,6 +384,7 @@ export class StyleMapper {
         return { indent: { left: twips } };
       },
       paddingLeft: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const space = pixelsToTwips(px);
@@ -340,6 +402,7 @@ export class StyleMapper {
         };
       },
       paddingRight: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const space = pixelsToTwips(px);
@@ -357,6 +420,7 @@ export class StyleMapper {
         };
       },
       paddingTop: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const space = pixelsToTwips(px);
@@ -374,6 +438,7 @@ export class StyleMapper {
         };
       },
       paddingBottom: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
         const px = parseFloat(v);
         if (isNaN(px)) return {};
         const space = pixelsToTwips(px);

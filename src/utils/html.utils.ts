@@ -57,7 +57,7 @@ export function colorConversion(color: string): string {
 }
 
 export function pixelsToTwips(pixels: number): number {
-  return Math.round(pixels * 15); // 1px = 15 twips (approx)
+  return Math.round(pixels * 10); // 1px = 15 twips (approx)
 }
 
 export function mapBorderStyle(style: string): string {

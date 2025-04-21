@@ -94,7 +94,6 @@ export const run: () => Promise<any> = async () => {
             try {
               // 2. Convert HTML to DOCX format (returns a Promise<Buffer>).
               const parsedContent = await converter.parse(htmlContent);
-              // console.log(parsedContent[2]);
               const docxBuffer = await converter.convert(parsedContent, 'docx');
 
               // 3. Create a Blob from the buffer.

@@ -41,7 +41,7 @@ export class DocxAdapter implements IDocumentConverter {
 
   constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
     this._mapper = styleMapper;
-    this._defaultStyles = defaultStyles || {};
+    this._defaultStyles = { ...defaultStyles };
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -741,7 +741,7 @@ export class DocxAdapter implements IDocumentConverter {
                           ...this._mapper.mapStyles(
                             {
                               ...originalCell.styles,
-                              ...mergedStyles,
+                              // ...mergedStyles,
                             },
                             originalCell
                           ),
@@ -750,7 +750,7 @@ export class DocxAdapter implements IDocumentConverter {
                         ...this._mapper.mapStyles(
                           {
                             ...originalCell.styles,
-                            ...mergedStyles,
+                            // ...mergedStyles,
                           },
                           originalCell
                         ),
@@ -791,7 +791,7 @@ export class DocxAdapter implements IDocumentConverter {
           ...this._mapper.mapStyles(
             {
               ...(this._defaultStyles?.['table-row'] ?? {}),
-              ...mergedStyles,
+              // ...mergedStyles,
               ...rowStyles,
             },
             el
@@ -799,15 +799,13 @@ export class DocxAdapter implements IDocumentConverter {
         })
       );
     }
-    // Pull style props, but omit any `rows` key it might include
     const rawStyles = this._mapper.mapStyles(
       { ...mergedStyles, ...el.styles },
       el
-    ) as Record<string, unknown>;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { rows: _ignore, ...tableStyles } = rawStyles;
+    );
+
     return new Table({
-      ...tableStyles,
+      ...rawStyles,
       rows: tableRows,
     });
   }

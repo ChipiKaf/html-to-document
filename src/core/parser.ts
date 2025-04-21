@@ -308,6 +308,10 @@ export class Parser {
         ...defaultTableStyles,
         ...options.styles,
       },
+      metadata: {
+        ...options.metadata,
+        nested: element.parentElement?.tagName.toLowerCase() === 'td',
+      },
       attributes: {
         ...defaultTableAttrs,
         ...options.attributes,

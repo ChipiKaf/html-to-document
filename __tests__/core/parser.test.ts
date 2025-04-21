@@ -730,6 +730,7 @@ describe('Parser', () => {
           ],
           styles: { borderStyle: 'dashed' },
           attributes: { 'data-table': 'x' },
+          metadata: { nested: false },
         },
       ]);
     });
@@ -797,6 +798,9 @@ describe('Parser', () => {
           },
           attributes: {
             'data-table': 'x',
+          },
+          metadata: {
+            nested: false,
           },
         },
       ]);
@@ -894,6 +898,7 @@ describe('Parser', () => {
           ],
           styles: { borderStyle: 'dashed' },
           attributes: { 'data-table': 'x' },
+          metadata: { nested: false },
         },
       ]);
     });
@@ -955,6 +960,7 @@ describe('Parser', () => {
                 ],
               },
             ],
+            nested: false,
           },
         },
       ]);
