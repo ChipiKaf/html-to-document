@@ -547,9 +547,21 @@ export class Parser {
         };
 
       case 'figcaption':
-      case 'caption':
         return {
           type: 'paragraph',
+          text,
+          content: children,
+          ...options,
+          styles: {
+            fontStyle: 'italic',
+            textAlign: 'center',
+            ...(options.styles || {}),
+          },
+        };
+      case 'caption':
+        return {
+          type: 'attribute',
+          name: 'caption',
           text,
           content: children,
           ...options,

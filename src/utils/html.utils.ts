@@ -113,51 +113,27 @@ export function extractAttributesToMetadata(
   el: DocumentElement
 ): DocumentElement {
   if (!Array.isArray(el.content)) return el;
-
-  const newContent: DocumentElement[] = [];
+  const attributes = el.content.filter((c) => c.type === 'attribute');
+  const content = el.content.filter((c) => c.type !== 'attribute');
+  if (!attributes.length) return el;
   el.metadata = el.metadata ?? {};
-
-  for (const child of el.content) {
-    if (child.type === 'attribute' && (child as AttributeElement).name) {
-      const wrapper = child as AttributeElement;
-      const key = wrapper.name!;
-
-      // ensure the array exists
-      const bucket = (el.metadata[key] as SimpleAttr[] | undefined) ?? [];
-      el.metadata[key] = bucket;
-
-      // look for nested <attribute> children
-      const nested = (wrapper.content || []).filter(
-        (c): c is AttributeElement =>
-          c.type === 'attribute' && !!(c as AttributeElement).name
-      );
-
-      if (nested.length > 0) {
-        // flatten those nested wrappers
-        for (const inner of nested) {
-          bucket.push({
-            name: inner.name!,
-            styles: inner.styles,
-            attributes: inner.attributes,
-            content: inner.content,
-          });
-        }
-      } else {
-        // serialize the wrapper itself
-        bucket.push({
-          name: wrapper.name!,
-          styles: wrapper.styles,
-          attributes: wrapper.attributes,
-          content: wrapper.content, // if you want to preserve non‐attribute children
-        });
-      }
-    } else {
-      // keep everything else
-      newContent.push(extractAttributesToMetadata(child));
-    }
+  const newObjects: Record<string, unknown> = {};
+  for (const attr of attributes) {
+    const wrapper = attr as AttributeElement;
+    newObjects[wrapper.name || ''] = wrapper.content
+      ?.filter(
+        (c: DocumentElement) => (c as AttributeElement).name === wrapper.name
+      )
+      .map((val) => {
+        const { type, name, ...otherContent } = val as AttributeElement;
+        return otherContent;
+      });
   }
-
-  el.content = newContent;
+  el.content = content.length > 0 ? content : undefined;
+  el.metadata = {
+    ...el.metadata,
+    ...newObjects,
+  };
   return el;
 }
 

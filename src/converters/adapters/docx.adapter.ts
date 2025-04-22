@@ -8,14 +8,13 @@ import {
   Table,
   TableRow,
   TableCell,
-  WidthType,
   ExternalHyperlink,
   VerticalAlign,
   BorderStyle,
   IImageOptions,
 } from 'docx';
-import type { ITableWidthProperties } from 'docx';
 import {
+  AttributeElement,
   DocumentElement,
   GridCell,
   HeadingElement,
@@ -187,7 +186,7 @@ export class DocxAdapter implements IDocumentConverter {
         ];
 
       case 'table':
-        return [await this.convertTable(el as TableElement)];
+        return [...(await this.convertTable(el as TableElement))];
 
       default:
         return [
@@ -578,7 +577,8 @@ export class DocxAdapter implements IDocumentConverter {
   private async convertTable(
     _el: DocumentElement,
     styles: Styles = {}
-  ): Promise<Table> {
+  ): Promise<(Table | Paragraph)[]> {
+    const captions: { side: string; paragraph: Paragraph }[] = [];
     const el = _el as TableElement;
     const mergedStyles = {
       ...(this._defaultStyles?.[el.type] ?? {}),
@@ -586,31 +586,34 @@ export class DocxAdapter implements IDocumentConverter {
       ...el.styles,
     };
     // --- begin colgroup support ---
-    let widths: ITableWidthProperties[] = [];
+    // let widths: ITableWidthProperties[] = [];
+    let stylesCol: Record<string, unknown>[] = [];
     if (Array.isArray(el.metadata?.colgroup)) {
-      const colgroupMeta = el.metadata.colgroup as Array<{
-        styles?: Record<string, string | number>;
-      }>;
-      widths = colgroupMeta.reduce((acc, col) => {
-        const w = col.styles?.width;
-        if (typeof w === 'string') {
-          if (w.endsWith('%')) {
-            acc.push({
-              size: Math.round(parseFloat(w)),
-              type: WidthType.PERCENTAGE,
-            });
-          } else if (w.endsWith('px')) {
-            acc.push({
-              size: Math.round(parseFloat(w) * 15),
-              type: WidthType.DXA,
-            });
-          }
-        }
-        return acc;
-      }, [] as ITableWidthProperties[]);
+      const colgroupMeta = el.metadata.colgroup as AttributeElement[];
+      stylesCol =
+        colgroupMeta[0].content?.map((col) => {
+          return this._mapper.mapStyles(col.styles || {}, col);
+        }) ?? [];
+    }
+
+    if (Array.isArray(el.metadata?.caption)) {
+      const caption = el.metadata.caption as AttributeElement[];
+      captions.push(
+        ...caption.map((c) => ({
+          side: (c.styles?.captionSide || 'top') as string,
+          paragraph: new Paragraph({
+            children: [
+              new TextRun({
+                text: c.text,
+                ...this._mapper.mapStyles(c.styles || {}, c),
+              }),
+            ],
+            ...this._mapper.mapStyles(c.styles || {}, c),
+          }),
+        }))
+      );
     }
     // --- end colgroup support ---
-
     const numRows = el.rows.length;
 
     let numCols = 0;
@@ -679,7 +682,7 @@ export class DocxAdapter implements IDocumentConverter {
           cells.push(
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              ...(widths[j] ? { width: widths[j] } : {}),
+              ...stylesCol[j],
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: '' })],
@@ -769,7 +772,7 @@ export class DocxAdapter implements IDocumentConverter {
               columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalMerge: verticalMerge,
               verticalAlign: VerticalAlign.CENTER,
-              ...(widths[j] ? { width: widths[j] } : {}),
+              ...stylesCol[j],
               ...this._mapper.mapStyles(
                 {
                   ...(originalCell
@@ -804,9 +807,13 @@ export class DocxAdapter implements IDocumentConverter {
       el
     );
 
-    return new Table({
-      ...rawStyles,
-      rows: tableRows,
-    });
+    return [
+      ...captions.filter((c) => c.side === 'top').map((c) => c.paragraph),
+      new Table({
+        ...rawStyles,
+        rows: tableRows,
+      }),
+      ...captions.filter((c) => c.side === 'bottom').map((c) => c.paragraph),
+    ];
   }
 }

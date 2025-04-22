@@ -151,7 +151,6 @@ describe('Parser', () => {
                 color: 'red',
               },
               attributes: {},
-              metadata: {},
             },
             {
               type: 'text',
@@ -164,7 +163,6 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
-          metadata: {},
         },
       ]);
     });
@@ -206,7 +204,6 @@ describe('Parser', () => {
               text: 'ld',
             },
           ],
-          metadata: {},
           styles: {},
           attributes: {},
         },
@@ -235,7 +232,6 @@ describe('Parser', () => {
               text: 'World',
             },
           ],
-          metadata: {},
           styles: {
             fontWeight: 'bold',
           },
@@ -277,7 +273,6 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
-          metadata: {},
         },
       ]);
     });
@@ -309,7 +304,6 @@ describe('Parser', () => {
           ],
           styles: {},
           attributes: {},
-          metadata: {},
         },
       ]);
     });
@@ -904,6 +898,7 @@ describe('Parser', () => {
     });
     it('Should add the attributes correctly', async () => {
       let html = `<table style="border-style: dashed" data-table="x">
+      <caption style="caption-side: bottom; font-style: italic;">Sales Report Q1</caption>
       <colgroup><col style="width: 30%; background-color: #e0f7fa;">
       <col style="width: 35%;"> <col style="width: 35%;">
       </colgroup>
@@ -915,19 +910,24 @@ describe('Parser', () => {
         {
           type: 'table',
           rows: [],
-          content: [],
           styles: {
             borderStyle: 'dashed',
           },
-          attributes: {
-            'data-table': 'x',
-          },
           metadata: {
+            nested: false,
+            caption: [
+              {
+                text: 'Sales Report Q1',
+                styles: {
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                  captionSide: 'bottom',
+                },
+                attributes: {},
+              },
+            ],
             colgroup: [
               {
-                name: 'colgroup',
-                styles: {},
-                attributes: {},
                 content: [
                   {
                     type: 'attribute',
@@ -958,9 +958,13 @@ describe('Parser', () => {
                     attributes: {},
                   },
                 ],
+                styles: {},
+                attributes: {},
               },
             ],
-            nested: false,
+          },
+          attributes: {
+            'data-table': 'x',
           },
         },
       ]);
@@ -990,7 +994,6 @@ describe('Parser', () => {
             },
           ],
           styles: {},
-          metadata: {},
           attributes: {},
         },
       ]);
@@ -1023,7 +1026,6 @@ describe('Parser', () => {
               text: 'World',
             },
           ],
-          metadata: {},
           styles: {},
           attributes: {},
         },
