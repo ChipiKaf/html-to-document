@@ -928,38 +928,31 @@ describe('Parser', () => {
             ],
             colgroup: [
               {
-                content: [
-                  {
-                    type: 'attribute',
-                    name: 'col',
-                    content: [],
-                    styles: {
-                      width: '30%',
-                      backgroundColor: '#e0f7fa',
-                    },
-                    attributes: {},
-                  },
-                  {
-                    type: 'attribute',
-                    name: 'col',
-                    content: [],
-                    styles: {
-                      width: '35%',
-                    },
-                    attributes: {},
-                  },
-                  {
-                    type: 'attribute',
-                    name: 'col',
-                    content: [],
-                    styles: {
-                      width: '35%',
-                    },
-                    attributes: {},
-                  },
-                ],
                 styles: {},
                 attributes: {},
+                metadata: {
+                  col: [
+                    {
+                      styles: {
+                        width: '30%',
+                        backgroundColor: '#e0f7fa',
+                      },
+                      attributes: {},
+                    },
+                    {
+                      styles: {
+                        width: '35%',
+                      },
+                      attributes: {},
+                    },
+                    {
+                      styles: {
+                        width: '35%',
+                      },
+                      attributes: {},
+                    },
+                  ],
+                },
               },
             ],
           },

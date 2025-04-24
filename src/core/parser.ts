@@ -22,6 +22,20 @@ class NativeParser implements IDOMParser {
   }
 }
 
+const getListLevel = (tagName: string, options: TagHandlerOptions) => {
+  const isList = tagName === 'ul' || tagName === 'ol' || tagName === 'li';
+  const newLevel =
+    options &&
+    options.metadata &&
+    typeof options.metadata.level !== 'undefined' &&
+    typeof options.metadata.level === 'string'
+      ? tagName === 'li'
+        ? (parseInt(options.metadata.level || '0') + 1).toString()
+        : options.metadata.level
+      : '0';
+  return { isList, newLevel };
+};
+
 // @ToDo: Handle passing of options for tag handlers and maybe Middleware
 export class Parser {
   private _tagHandlers: Map<string, TagHandler>;
@@ -78,7 +92,7 @@ export class Parser {
 
   parse(html: string) {
     const tree = this._parseHTML(html);
-    return extractAllAttributes(tree);
+    return tree;
   }
 
   private _parseRow(
@@ -189,16 +203,8 @@ export class Parser {
         element.childNodes.length === 1 && element.childNodes[0].nodeType === 3
       );
     if (shouldWalk) {
-      const isList = tagName === 'ul' || tagName === 'ol' || tagName === 'li';
-      const newLevel =
-        options &&
-        options.metadata &&
-        typeof options.metadata.level !== 'undefined' &&
-        typeof options.metadata.level === 'string'
-          ? tagName === 'li'
-            ? (parseInt(options.metadata.level || '0') + 1).toString()
-            : options.metadata.level
-          : '0';
+      const { isList, newLevel } = getListLevel(tagName, options);
+
       children = Array.from(element.childNodes)
         .map((child) => {
           const key = child.nodeName.toLowerCase();
@@ -231,7 +237,7 @@ export class Parser {
       text,
     });
     if (Array.isArray(result)) {
-      return result;
+      return extractAllAttributes(result);
     }
     if (result.type === 'fragment') {
       const wrapperStyles = result.styles || {};
@@ -242,7 +248,7 @@ export class Parser {
         attributes: { ...wrapperAttrs, ...el.attributes },
       }));
     }
-    return result;
+    return extractAllAttributes([result]);
   }
 
   private _parseTableContainers(element: HTMLElement): TableRowElement[] {
@@ -280,9 +286,10 @@ export class Parser {
       const el = node as HTMLElement;
       const tag = el.tagName.toLowerCase();
 
-      const result =
-        this._tagHandlers.get(tag)?.(el, options) ||
-        this._defaultHandler(el, options);
+      const result = this._parseElement(
+        el,
+        this._tagHandlers.get(tag) ?? this._defaultHandler
+      );
 
       if (Array.isArray(result)) {
         rows.push(

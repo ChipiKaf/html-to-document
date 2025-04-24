@@ -589,11 +589,13 @@ export class DocxAdapter implements IDocumentConverter {
     // let widths: ITableWidthProperties[] = [];
     let stylesCol: Record<string, unknown>[] = [];
     if (Array.isArray(el.metadata?.colgroup)) {
-      const colgroupMeta = el.metadata.colgroup as AttributeElement[];
+      const [colgroupMeta] = el.metadata.colgroup as AttributeElement[];
       stylesCol =
-        colgroupMeta[0].content?.map((col) => {
-          return this._mapper.mapStyles(col.styles || {}, col);
-        }) ?? [];
+        (colgroupMeta?.metadata as { col: DocumentElement[] })?.col.map(
+          (col) => {
+            return this._mapper.mapStyles(col.styles || {}, col);
+          }
+        ) ?? [];
     }
 
     if (Array.isArray(el.metadata?.caption)) {
@@ -682,7 +684,7 @@ export class DocxAdapter implements IDocumentConverter {
           cells.push(
             new TableCell({
               verticalAlign: VerticalAlign.CENTER,
-              ...stylesCol[j],
+              ...(stylesCol[j] || {}),
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: '' })],

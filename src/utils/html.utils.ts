@@ -117,17 +117,18 @@ export function extractAttributesToMetadata(
   const content = el.content.filter((c) => c.type !== 'attribute');
   if (!attributes.length) return el;
   el.metadata = el.metadata ?? {};
-  const newObjects: Record<string, unknown> = {};
+  const newObjects: Record<string, Partial<DocumentElement>[]> = {};
   for (const attr of attributes) {
     const wrapper = attr as AttributeElement;
-    newObjects[wrapper.name || ''] = wrapper.content
-      ?.filter(
-        (c: DocumentElement) => (c as AttributeElement).name === wrapper.name
-      )
-      .map((val) => {
-        const { type, name, ...otherContent } = val as AttributeElement;
-        return otherContent;
-      });
+    if (!newObjects[wrapper.name || '']) newObjects[wrapper.name || ''] = [];
+    const { type, name, ...otherContent } = wrapper;
+    newObjects[wrapper.name || ''].push({
+      ...otherContent,
+      content:
+        otherContent.content && otherContent.content?.length > 0
+          ? otherContent.content
+          : undefined,
+    });
   }
   el.content = content.length > 0 ? content : undefined;
   el.metadata = {
