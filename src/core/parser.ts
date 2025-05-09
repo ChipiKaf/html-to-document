@@ -74,6 +74,21 @@ export class Parser {
         this._tagHandlers.set(tHandler.key, tHandler.handler);
       });
     }
+    // Built-in default styles for headings (lowest priority, user overrides by defaultStyles param or inline styles)
+    [
+      ['h1', { fontSize: '32px', fontWeight: 'bold' }],
+      ['h2', { fontSize: '24px', fontWeight: 'bold' }],
+      ['h3', { fontWeight: 'bold' }],
+      ['h4', { fontWeight: 'bold' }],
+      ['h5', { fontWeight: 'bold' }],
+      ['h6', { fontWeight: 'bold' }],
+    ].forEach(([tag, styles]) => {
+      this._defaultStyles.set(
+        tag as keyof HTMLElementTagNameMap,
+        styles as Record<keyof CSS.Properties, string | number>
+      );
+    });
+    // Apply any user-provided defaultStyles (override built-in headings)
     defaultStyles.forEach((style) => {
       this._defaultStyles.set(style.key, style.styles);
     });
@@ -577,6 +592,29 @@ export class Parser {
             textAlign: 'center',
             ...(options.styles || {}),
           },
+        };
+      // Description list container
+      case 'dl':
+        return { type: 'fragment', text, content: children, ...options };
+      // Description term
+      case 'dt':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          ...options,
+          // default term style: bold
+          styles: { ...(options.styles || {}) },
+        };
+      // Description definition: indented
+      case 'dd':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          ...options,
+          // default indent for definitions
+          styles: { marginLeft: '40px', ...(options.styles || {}) },
         };
 
       default:

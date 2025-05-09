@@ -33,6 +33,7 @@ import { StyleMapper } from '../../core/style.mapper';
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { handleChildren, isInline, toBinaryBuffer } from './docx.util';
+import sizeOf from 'image-size';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
@@ -552,6 +553,16 @@ export class DocxAdapter implements IDocumentConverter {
       dataBuffer = new Uint8Array(dataBuffer) as Buffer;
     }
 
+    // Determine original image dimensions (use default 100x100 if unable to detect)
+    let width = 100;
+    let height = 100;
+    try {
+      const dimensions = sizeOf(dataBuffer as Buffer);
+      width = (dimensions.width || 100) * 0.7;
+      height = (dimensions.height || 100) * 0.7;
+    } catch {
+      // Unable to determine size, using default
+    }
     // Add fallback for SVGs
     if (imageType === 'svg') {
       // 1x1 transparent PNG fallback
@@ -560,7 +571,7 @@ export class DocxAdapter implements IDocumentConverter {
       const fallback = toBinaryBuffer(fallbackBase64, 'base64');
       return new ImageRun({
         data: dataBuffer!,
-        transformation: { width: 100, height: 100 },
+        transformation: { width, height },
         type: imageType,
         fallback: { data: fallback, type: 'png' },
         ...this._mapper.mapStyles(mergedStyles, el),
@@ -568,7 +579,7 @@ export class DocxAdapter implements IDocumentConverter {
     }
     return new ImageRun({
       data: dataBuffer!,
-      transformation: { width: 100, height: 100 },
+      transformation: { width, height },
       type: imageType,
       ...this._mapper.mapStyles(mergedStyles, el),
     });

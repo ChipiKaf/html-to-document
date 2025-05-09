@@ -5,7 +5,18 @@ import {
   pixelsToTwips,
 } from '../utils/html.utils';
 import { DocumentElement, StyleMapping } from './types';
-import { BorderStyle, ShadingType, WidthType } from 'docx';
+import {
+  BorderStyle,
+  ShadingType,
+  WidthType,
+  // Floating image positioning and wrapping enums
+  HorizontalPositionAlign,
+  HorizontalPositionRelativeFrom,
+  VerticalPositionAlign,
+  VerticalPositionRelativeFrom,
+  TextWrappingType,
+  TextWrappingSide,
+} from 'docx';
 
 const parseWidth = (value: string) => {
   if (value.endsWith('px')) {
@@ -102,6 +113,39 @@ export class StyleMapper {
         }
         return {};
       },
+      float: (v: string, el: DocumentElement) => {
+        const floatValue = v.trim().toLowerCase();
+        if (floatValue === 'left' || floatValue === 'right') {
+          if (el.type === 'image') {
+            // produce a floating image spec for text wrapping
+            return {
+              floating: {
+                horizontalPosition: {
+                  relative: HorizontalPositionRelativeFrom.MARGIN,
+                  align:
+                    floatValue === 'left'
+                      ? HorizontalPositionAlign.LEFT
+                      : HorizontalPositionAlign.RIGHT,
+                },
+                verticalPosition: {
+                  relative: VerticalPositionRelativeFrom.PARAGRAPH,
+                  align: VerticalPositionAlign.TOP,
+                },
+                wrap: {
+                  type: TextWrappingType.SQUARE,
+                  side:
+                    floatValue === 'left'
+                      ? TextWrappingSide.RIGHT
+                      : TextWrappingSide.LEFT,
+                },
+              },
+            };
+          }
+          // fallback: paragraph alignment for non-images
+          return { align: floatValue };
+        }
+        return {};
+      },
       // Text-related styles
       fontFamily: (v: string) => {
         if (!v) return {};
@@ -193,7 +237,33 @@ export class StyleMapper {
         return !isNaN(px) ? { characterSpacing: Math.round(px * 10) } : {};
       },
       border: (v: string, el) => {
-        if (el.type === 'table-cell' && (v === 'none' || v === '0')) {
+        const raw = v.trim();
+        // For images, map CSS border shorthand to an outline around the picture
+        if (el.type === 'image') {
+          // expect format: "<width> <style> <color>" (e.g. "2px dashed #333")
+          const parts = raw.split(/\s+/);
+          // parse width (px assumed)
+          const widthPart = parts[0] || '';
+          const px = parseFloat(widthPart);
+          if (!isNaN(px) && parts.length >= 2) {
+            // parse color as last part
+            const colorPart = parts.slice(2).join(' ') || parts[1];
+            const color = colorConversion(colorPart);
+            return {
+              outline: {
+                // width in eighths of a point (approx px * 8)
+                width: Math.round(px * 8),
+                // solid fill stroke of outline
+                type: 'solidFill',
+                solidFillType: 'rgb',
+                value: color,
+              },
+            };
+          }
+          return {};
+        }
+        // Table-cell: remove borders if none
+        if (el.type === 'table-cell' && (raw === 'none' || raw === '0')) {
           return {
             borders: {
               top: { style: BorderStyle.NONE },
@@ -319,42 +389,55 @@ export class StyleMapper {
         };
       },
       margin: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const px = parseFloat(v);
+        const raw = String(v).trim();
+        const px = parseFloat(raw);
         if (isNaN(px)) return {};
-        // vertical spacing uses twips-per-px = 20, horizontal uses your helper
-        const before = px * 20;
-        const after = px * 20;
-        const horiz = pixelsToTwips(px);
-
-        if (el.type === 'table-cell') {
-          // for table‑cells, set cell margins
+        // Only apply wrap margins if image is floated
+        const floatDir = (el.styles as { float: string })?.float;
+        if (
+          el.type === 'image' &&
+          (floatDir === 'left' || floatDir === 'right')
+        ) {
+          const dist = pixelsToTwips(px);
           return {
-            margins: {
-              top: horiz,
-              bottom: horiz,
-              left: horiz,
-              right: horiz,
+            floating: {
+              wrap: {
+                margins: { distL: dist, distR: dist, distT: dist, distB: dist },
+              },
             },
           };
         }
-
-        // for paragraphs/text-runs, use spacing.before/after and indent.left/right
+        // Tables: ignore
+        if (el.type === 'table') return {};
+        // Table cells: direct cell margins
+        if (el.type === 'table-cell') {
+          const space = pixelsToTwips(px);
+          return {
+            margins: { top: space, bottom: space, left: space, right: space },
+          };
+        }
+        // Paragraphs: spacing + indent
+        const before = px * 20;
+        const after = px * 20;
+        const horiz = pixelsToTwips(px);
         return {
-          spacing: {
-            before,
-            after,
-          },
-          indent: {
-            left: horiz,
-            right: horiz,
-          },
+          spacing: { before, after },
+          indent: { left: horiz, right: horiz },
         };
       },
       marginTop: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const px = parseFloat(v);
+        const px = parseFloat(String(v).trim());
         if (isNaN(px)) return {};
+        // Only apply top wrap margin if image is floated
+        const floatDir = (el.styles as { float: string })?.float;
+        if (
+          el.type === 'image' &&
+          (floatDir === 'left' || floatDir === 'right')
+        ) {
+          const distT = pixelsToTwips(px);
+          return { floating: { wrap: { margins: { distT } } } };
+        }
+        if (el.type === 'table') return {};
         const twips = px * 20;
         if (el.type === 'table-cell') {
           return { margins: { top: twips } };
@@ -363,9 +446,18 @@ export class StyleMapper {
       },
 
       marginBottom: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const px = parseFloat(v);
+        const px = parseFloat(String(v).trim());
         if (isNaN(px)) return {};
+        // Only apply bottom wrap margin if image is floated
+        const floatDir = (el.styles as { float: string })?.float;
+        if (
+          el.type === 'image' &&
+          (floatDir === 'left' || floatDir === 'right')
+        ) {
+          const distB = pixelsToTwips(px);
+          return { floating: { wrap: { margins: { distB } } } };
+        }
+        if (el.type === 'table') return {};
         const twips = px * 20;
         if (el.type === 'table-cell') {
           return { margins: { bottom: twips } };
@@ -374,9 +466,18 @@ export class StyleMapper {
       },
 
       marginLeft: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const px = parseFloat(v);
+        const px = parseFloat(String(v).trim());
         if (isNaN(px)) return {};
+        // Only apply left wrap margin if image is floated
+        const floatDir = (el.styles as { float: string })?.float;
+        if (
+          el.type === 'image' &&
+          (floatDir === 'left' || floatDir === 'right')
+        ) {
+          const distL = pixelsToTwips(px);
+          return { floating: { wrap: { margins: { distL } } } };
+        }
+        if (el.type === 'table') return {};
         const twips = pixelsToTwips(px);
         if (el.type === 'table-cell') {
           return { margins: { left: twips } };
