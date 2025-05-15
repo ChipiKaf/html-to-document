@@ -1,7 +1,7 @@
 ---
 id: converters
 title: Custom Converters
-sidebar_position: 4
+sidebar_position: 6
 ---
 
 # Custom Converters
@@ -10,7 +10,7 @@ You can register custom adapter implementations to handle new output formats by 
 
 ## Adapter Constructor & Dependencies
 
-For detailed definitions of the types used here (such as `IDocumentConverter`, `DocumentElement`, and `IConverterDependencies`), see the [Types Reference](./types).
+For detailed definitions of the types used here (such as [`IDocumentConverter`](./types), [`DocumentElement`](./types), and [`IConverterDependencies`](./types)), see the [Types Reference](./types).
 
 
 Custom adapter classes must implement:
@@ -38,7 +38,7 @@ export class MyAdapter implements IDocumentConverter {
 
 ### Quickstart Guide: Writing a Minimal Custom Adapter
 
-Here's a barebones adapter that outputs plain text from paragraphs and headings. This helps you understand how to traverse and transform `DocumentElement` nodes.
+Here's a barebones adapter that outputs plain text from paragraphs and headings. This helps you understand how to traverse and transform [`DocumentElement`](./types) nodes.
 
 ```ts
 import { IDocumentConverter, DocumentElement, IConverterDependencies } from 'html-to-document';

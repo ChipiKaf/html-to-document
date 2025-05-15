@@ -1,7 +1,7 @@
 ---
 id: types
 title: Types Reference
-sidebar_position: 5
+sidebar_position: 7
 ---
 
 # Types Reference

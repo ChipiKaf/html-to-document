@@ -1,7 +1,7 @@
 ---
 id: tags
 title: Custom Tag Handlers
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # 🏷 Custom Tag Handlers & Default Element Behavior
@@ -16,7 +16,7 @@ This is extremely powerful for adapting to different HTML inputs — whether you
 
 You can provide your own tag handlers using the `tags.tagHandlers` array when initializing the converter via [`init`](./html-to-document).
 
-Each handler implements the `TagHandlerObject` interface, specifying a `key` (HTML tag name) and a `handler` function.
+Each handler implements the [`TagHandlerObject`](./types) interface, specifying a `key` (HTML tag name) and a `handler` function.
 
 ```ts
 import { TagHandlerObject, init } from 'html-to-document';
@@ -116,7 +116,7 @@ Useful for dynamic extension or plugin behavior.
 | `tagHandlers`            | Override how specific HTML tags are parsed |
 | `defaultStyles`          | Set base styles for HTML tags |
 | `defaultAttributes`      | Set base attributes (like `width` for `img`) |
-| `TagHandlerObject`       | Defines a `key` (tag) and a `handler` function |
+| [`TagHandlerObject`](./types)       | Defines a `key` (tag) and a `handler` function |
 | `handler()` return       | Must return a `DocumentElement` or array thereof |
 | `registerTagHandler()`   | Add handlers dynamically after init |
 

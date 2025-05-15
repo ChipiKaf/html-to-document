@@ -1,7 +1,7 @@
 ---
-id: adapters
+id: style-mappings
 title: Style Mappings & Default Styles
-sidebar_position: 3
+sidebar_position: 5
 ---
 
 # 🎨 Style Mappings & Default Styles
@@ -89,7 +89,7 @@ Each `styles` object uses the internal `ElementType` keys, such as:
 
 ## 🧠 About the Built-in StyleMapper
 
-Internally, each adapter uses a `StyleMapper` instance to apply mappings. The `docx` adapter includes comprehensive mappings for:
+Internally, each adapter uses a [`StyleMapper`](./types) instance to apply mappings. The `docx` adapter includes comprehensive mappings for:
 
 | CSS Property         | Mapped To (docx)                 |
 |----------------------|----------------------------------|
@@ -158,7 +158,7 @@ This flexibility makes `StyleMapper` a powerful mechanism for fine-tuning how la
 
 ## 🧱 Advanced: Replace or Extend StyleMapper
 
-You can also instantiate a `StyleMapper` manually and pass it into your adapter:
+You can also instantiate a [`StyleMapper`](./types) manually and pass it into your adapter:
 
 ```ts
 import { StyleMapper } from 'html-to-document';
@@ -180,7 +180,7 @@ converter.registerConverter('docx', adapter);
 |---------------------|------------------------------------------------|
 | `styleMappings`     | Maps CSS styles → document format properties   |
 | `defaultStyles`     | Applies fallback styles for missing styles     |
-| `StyleMapper`       | Built-in logic engine for mapping styles       |
+| [`StyleMapper`](./types)       | Built-in logic engine for mapping styles       |
 | `.addMapping()`     | Extend or override the behavior dynamically    |
 
 Want more detail? Explore the [StyleMapper source](https://github.com/ChipiKaf/html-to-document/blob/main/src/core/style.mapper.ts) for complete coverage.
