@@ -99,7 +99,7 @@ export const run: () => Promise<any> = async () => {
               // 3. Create a Blob from the buffer.
               // If using a Node Buffer in a browser context, it can usually be passed directly.
               // Otherwise, you might need to convert the Buffer to an ArrayBuffer or Uint8Array.
-              const blob = new Blob([docxBuffer], {
+              const blob = new Blob([docxBuffer as Blob], {
                 type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
               });
 

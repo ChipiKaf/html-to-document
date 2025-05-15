@@ -6,7 +6,8 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -16,8 +17,26 @@
     "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
-  "author": "Chipili Kafwilo",
+  "author": {
+    "name": "Chipili Kafwilo",
+    "email": "ckafwilo@gmail.com",
+    "url": "https://chipilidev.com"
+  },
+  "bugs": {
+  "url": "https://github.com/ChipiKaf/html-to-document/issues"
+},
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChipiKaf/html-to-document.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ChipiKaf/html-to-document/issues"
+  },
+  "homepage": "https://github.com/ChipiKaf/html-to-document#readme",
+  "engines": {
+    "node": ">=14"
+  },
   "keywords": [
     "html",
     "docx",
