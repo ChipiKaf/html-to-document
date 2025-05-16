@@ -77,7 +77,7 @@ const converter = init({
 });
 ```
 
-Each `styles` object uses the internal `ElementType` keys, such as:
+Each `styles` object uses the internal [`ElementType`](./types#document-elements) keys, such as:
 - `paragraph`
 - `heading`
 - `text`

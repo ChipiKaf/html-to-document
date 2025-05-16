@@ -44,6 +44,7 @@ Here's a barebones adapter that outputs plain text from paragraphs and headings.
 import { IDocumentConverter, DocumentElement, IConverterDependencies } from 'html-to-document';
 
 export class PlainTextAdapter implements IDocumentConverter {
+  private mapper: StyleMapper;
   constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
     this.mapper = styleMapper;
     this.defaults = defaultStyles ?? {};
@@ -52,13 +53,14 @@ export class PlainTextAdapter implements IDocumentConverter {
   async convert(elements: DocumentElement[]): Promise<Blob> {
     const text = elements.map(el => {
       const styles = { ...this.defaults[el.type], ...el.styles };
+      const props = this.mapper.mapStyles(styles, el);
       switch (el.type) {
         case 'paragraph':
           return (el.text ?? '') + '\n\n';
         case 'heading':
           return '#'.repeat(el.level || 1) + ' ' + (el.text ?? '') + '\n\n';
         case 'text':
-          return el.text ?? '';
+          return props.bold ? '**' + (el.text ?? '') + '**' : (el.text ?? '');
         default:
           return '';
       }
