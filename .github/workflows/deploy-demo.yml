@@ -1,0 +1,16 @@
+name: Deploy Docs
+on:
+  push:
+    branches: [main]
+    paths: ['demo/**', 'package.json']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: 'npm'}
+      - run: npm ci
+      - run: npm run build      # outputs docs/build
+      - run: npx vercel deploy --prod --yes --cwd demo --token ${{ secrets.VERCEL_TOKEN }}

@@ -4,57 +4,81 @@
 [![License: ISC](https://img.shields.io/npm/l/html-to-document.svg)](LICENSE)
 <!-- prettier-ignore-end -->
 
-# html-to-document
+# html‑to‑document
 
-A modular, open source library for converting HTML content into professional document formats. Initially focused on HTML-to-DOCX conversion, with planned support for PDF, XLSX, and more.
+> **Convert any HTML into production‑ready documents — DOCX today, PDF/XLSX tomorrow.**
 
-> Built with TypeScript, it features a core HTML parsing engine and separate format-specific adapters, offering a unified API for seamless integration.
+`html‑to‑document` parses HTML into an intermediate, format‑agnostic tree and then feeds that tree to **adapters** (e.g. DOCX, PDF).  
+Write HTML → get Word, PDFs, spreadsheets, and more — all with one unified TypeScript API.
 
-## Features
+---
 
-- Parse HTML into an intermediate, document-agnostic format
-- Convert to DOCX (default) via [`docx`](https://www.npmjs.com/package/docx)
-- Middleware support (e.g. minification, custom transformations)
-- Extensible adapter registry for additional formats
+## ✨ Key Features
+| Feature | Description |
+|---------|-------------|
+| **Format‑agnostic core** | Converts HTML into a reusable `DocumentElement[]` structure |
+| **DOCX adapter (built‑in)** | Powered by [`docx`](https://npmjs.com/package/docx) with rich style support |
+| **Pluggable adapters** | Add your own adapter for PDF, XLSX, Markdown, etc. |
+| **Style mapping engine** | Map CSS → document styles and set per‑format defaults |
+| **Custom tag handlers** | Override or extend how any HTML tag is parsed |
+| **Middleware pipeline** | Transform or sanitise HTML before parsing |
 
-## Installation
+---
 
+## 📦 Installation
 ```bash
 npm install html-to-document
 ```
 
-## Usage
+---
 
+## 🚀 Quick Start
 ```ts
 import { init } from 'html-to-document';
 import fs from 'fs';
 
-(async () => {
-  // Initialize with default adapters and middleware
-  const converter = init();
+const converter = init();                // default DOCX adapter & middleware
+const html = '<h1>Hello World</h1>';
 
-  // Convert HTML string to DOCX buffer
-  const buffer = await converter.convert('<h1>Hello World</h1>', 'docx');
-  fs.writeFileSync('output.docx', buffer);
-
-  // Or just parse into DocumentElement[]
-  const elements = await converter.parse('<p>Some HTML</p>');
-  console.log(elements);
-})();
+const buffer = await converter.convert(html, 'docx');   // ↩️ Buffer in Node / Blob in browser
+fs.writeFileSync('output.docx', buffer);
 ```
 
-## API
+Need just the parsed structure?
+```ts
+const elements = await converter.parse('<p>Some HTML</p>');
+console.log(elements); // => DocumentElement[]
+```
 
-See [TypeScript definitions](dist/index.d.ts) for full API documentation.
+---
 
-## Contributing
+## 📚 Documentation & Demo
+| Resource | Link |
+|----------|------|
+| **Full Docs** | https://chipikaf.github.io/html-to-document/ |
+| **Live Demo (TinyMCE)** | https://html-to-document-demo.vercel.app |
 
-Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
+---
 
-## Changelog
+## 🛠 Extending
+- **Style mappings:** fine‑tune CSS → DOCX/PDF with `StyleMapper`
+- **Tag handlers:** intercept `<custom-tag>` → your own `DocumentElement`
+- **Custom adapters:** implement `IDocumentConverter` to target new formats
 
+See the [Extensibility Guide](https://chipikaf.github.io/html-to-document/docs/extensibility).
+
+---
+
+## 🧑‍💻 Contributing
+Contributions are welcome!  
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+---
+
+## 📝 Changelog
 All notable changes are documented in [CHANGELOG.md](CHANGELOG.md).
 
-## License
+---
 
-This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.
+## 📄 License
+[ISC](LICENSE) — a permissive, MIT‑style license that allows free use, modification, and distribution without requiring permission.
