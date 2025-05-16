@@ -6,7 +6,7 @@
 
 # html‑to‑document
 
-> **Convert any HTML into production‑ready documents — DOCX today, PDF/XLSX tomorrow.**
+> **Convert any HTML into production‑ready documents — DOCX today, PDF/XLSX.**
 
 `html‑to‑document` parses HTML into an intermediate, format‑agnostic tree and then feeds that tree to **adapters** (e.g. DOCX, PDF).  
 Write HTML → get Word, PDFs, spreadsheets, and more — all with one unified TypeScript API.
@@ -55,7 +55,7 @@ console.log(elements); // => DocumentElement[]
 ## 📚 Documentation & Demo
 | Resource | Link |
 |----------|------|
-| **Full Docs** | https://chipikaf.github.io/html-to-document/ |
+| **Full Docs** | https://html-to-document.vercel.app/ |
 | **Live Demo (TinyMCE)** | https://html-to-document-demo.vercel.app |
 
 ---
@@ -65,7 +65,7 @@ console.log(elements); // => DocumentElement[]
 - **Tag handlers:** intercept `<custom-tag>` → your own `DocumentElement`
 - **Custom adapters:** implement `IDocumentConverter` to target new formats
 
-See the [Extensibility Guide](https://chipikaf.github.io/html-to-document/docs/extensibility).
+See the [Extensibility Guide](https://html-to-document.vercel.app/docs/extensibility).
 
 ---
 
