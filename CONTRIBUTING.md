@@ -85,3 +85,100 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 ---
 
 Happy hacking! ✨
+# Contributing to **html‑to‑document**
+
+First off, **thank you** for taking the time to contribute!  
+Whether you’re fixing a bug, adding a feature, or improving docs, your help makes this project better for everyone.
+
+---
+
+## 🛠 Local Development Workflow
+
+The repo has three top‑level folders that matter when contributing:
+
+| Folder | Purpose |
+|--------|---------|
+| `src/` | Source code of the library that gets published to npm (`dist/` is generated from this) |
+| `demo/` | Vite demo app used to manually test changes |
+| `docs/` | Docusaurus documentation |
+
+Follow the steps below to develop and test locally.
+
+1. **Fork & Clone**
+
+   ```bash
+   git clone https://github.com/your‑username/html-to-document.git
+   cd html-to-document
+   ```
+
+2. **Install root dependencies**
+
+   ```bash
+   npm ci            # clean, reproducible install
+   ```
+
+3. **Develop the library**
+
+   ```bash
+   # From repo root
+   npm run dev       # or `npm run build:watch` if you have that script
+   ```
+
+   This watches `src/` and emits fresh code into `dist/` on every save.
+
+4. **Test your changes in the live demo**
+
+   ```bash
+   cd demo
+   npm install       # pulls the freshly‑built library from the root
+   npm run dev       # opens the demo at http://localhost:5173
+   ```
+
+   > **Do not edit `src/index.ts` in the demo directly.**  
+   > Create an `_index.ts` alongside it (ignored by git) to experiment without affecting the repo:
+   >
+   > ```bash
+   > cp src/index.ts src/_index.ts
+   > # hack on _index.ts as you wish
+   > ```
+
+5. **Run tests & lint**
+
+   ```bash
+   # back to repo root
+   npm test          # runs Jest tests in __tests__/
+   npm run lint
+   ```
+
+6. **Commit & Push**
+
+   ```bash
+   git checkout -b my-feature
+   git add .
+   git commit -m "feat: awesome new thing"
+   git push origin my-feature
+   ```
+
+7. **Open a Pull Request**  
+   Describe **what** you changed and **why**. If it fixes an issue, reference it (e.g., `Fixes #123`).
+
+---
+
+## 📐 Coding Standards
+
+- **TypeScript** only—avoid `any` unless absolutely unavoidable.
+- Keep functions small & focused.
+- Add or extend **unit tests** for every new feature or bug fix (`__tests__/`).
+- Run `npm run lint` and ensure no ESLint errors.
+
+---
+
+## 🐞 Reporting Issues
+
+1. Use the **Bug Report** or **Feature Request** template.
+2. **Reproduce in the live demo** (or provide a CodeSandbox).
+3. Include **expected vs. actual** behaviour and full error logs.
+
+---
+
+Happy hacking! ✨
