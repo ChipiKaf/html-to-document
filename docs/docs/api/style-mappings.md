@@ -4,13 +4,13 @@ title: Style Mappings & Default Styles
 sidebar_position: 5
 ---
 
-# 🎨 Style Mappings & Default Styles
+# Style Mappings & Default Styles
 
 Adapters convert the intermediate [`DocumentElement[]`](./types) into a specific output format (e.g., DOCX, PDF). One of the most powerful features of [`html-to-document`](./html-to-document) is that you can **fully control how CSS styles are interpreted** by those adapters — or provide defaults when HTML styles are missing.
 
 ---
 
-## 🔧 What Are Style Mappings?
+## What Are Style Mappings?
 
 A **style mapping** defines how HTML/CSS styles like `font-weight`, `text-align`, or `padding` should be transformed into document-native properties (e.g., for DOCX: `{ bold: true }` or `{ spacing: { line: 240 } }`).
 
@@ -18,7 +18,7 @@ You can register these mappings per format using the `adapters.styleMappings` ar
 
 ---
 
-## ✅ Example: Custom Style Mapping for DOCX
+## Example: Custom Style Mapping for DOCX
 
 For type definitions like `StyleMapping`, see the [Types Reference](./types).
 
@@ -47,7 +47,7 @@ Now, any HTML content like `<p style="font-weight: bold">Bold text</p>` will be 
 
 ---
 
-## 💡 When Would You Use This?
+## When Would You Use This?
 
 - To override default interpretation of CSS
 - To convert inline styles into well-formed document formatting
@@ -56,7 +56,7 @@ Now, any HTML content like `<p style="font-weight: bold">Bold text</p>` will be 
 
 ---
 
-## 🖌️ Default Styles for Adapters
+## Default Styles for Adapters
 
 You can define **fallback styles** for specific element types using `adapters.defaultStyles`. These are applied when the HTML element does not explicitly define any style.
 
@@ -87,7 +87,7 @@ Each `styles` object uses the internal [`ElementType`](./types#document-elements
 
 ---
 
-## 🧠 About the Built-in StyleMapper
+## About the Built-in StyleMapper
 
 Internally, each adapter uses a [`StyleMapper`](./types) instance to apply mappings. The `docx` adapter includes comprehensive mappings for:
 
@@ -156,7 +156,7 @@ This flexibility makes `StyleMapper` a powerful mechanism for fine-tuning how la
 
 ---
 
-## 🧱 Advanced: Replace or Extend StyleMapper
+## Advanced: Replace or Extend StyleMapper
 
 You can also instantiate a [`StyleMapper`](./types) manually and pass it into your adapter:
 
@@ -174,7 +174,7 @@ converter.registerConverter('docx', adapter);
 
 ---
 
-## 📝 Summary
+## Summary
 
 | Feature             | Purpose                                        |
 |---------------------|------------------------------------------------|

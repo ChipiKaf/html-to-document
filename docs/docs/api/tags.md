@@ -4,7 +4,7 @@ title: Custom Tag Handlers
 sidebar_position: 3
 ---
 
-# 🏷 Custom Tag Handlers & Default Element Behavior
+# Custom Tag Handlers & Default Element Behavior
 
 The parser in [`html-to-document`](./html-to-document) allows you to **intercept or override** how specific HTML tags are transformed into intermediate [`DocumentElement`](./types) nodes.
 
@@ -12,7 +12,7 @@ This is extremely powerful for adapting to different HTML inputs — whether you
 
 ---
 
-## 🧩 Tag Handlers
+## Tag Handlers
 
 You can provide your own tag handlers using the `tags.tagHandlers` array when initializing the converter via [`init`](./html-to-document).
 
@@ -57,7 +57,7 @@ The handler must return either:
 
 ---
 
-## 🧰 Built-in Tag Support
+## Built-in Tag Support
 
 The parser includes internal support for many tags:
 
@@ -73,7 +73,7 @@ You can override any of these by providing your own handler for that tag.
 
 ---
 
-## 🧾 Default Styles and Attributes
+## Default Styles and Attributes
 
 In addition to tag handlers, you can also specify **default styles** and **attributes** that apply *before* parsing:
 
@@ -97,7 +97,7 @@ These apply *in addition to* inline styles or attributes in the HTML.
 
 ---
 
-## 🔁 Runtime Handler Registration
+## Runtime Handler Registration
 
 You can also register handlers after initialization:
 
@@ -109,7 +109,7 @@ Useful for dynamic extension or plugin behavior.
 
 ---
 
-## 🧠 Summary
+## Summary
 
 | Feature                  | Description |
 |--------------------------|-------------|
