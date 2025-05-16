@@ -37,6 +37,6 @@ Explore how to customize the conversion process:
 
 - [Tag Handlers & Parsing Logic](/docs/api/tags)
 - [Style Mappings](/docs/api/style-mappings)
-- [Custom Adapters](/docs/converters)
+- [Custom Adapters](/docs/api/converters)
 
 Or dive into the [API Reference](/docs/api/html-to-document) for full method documentation.

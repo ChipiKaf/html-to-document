@@ -46,10 +46,10 @@ Middleware lets you transform or sanitize HTML before parsing—e.g., stripping 
 - **Example:**
   ```ts
   import { init } from 'html-to-document';
-  import { customMiddleware } from './middleware';
+  import { customMiddleware1, customMiddleware2 } from './middleware';
 
   const converter = init({
-    middleware: [customMiddleware],
+    middleware: [customMiddleware1, customMiddleware2],
   });
   ```
 

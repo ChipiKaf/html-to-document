@@ -73,7 +73,7 @@ const docx = await converter.convert(parsed, 'docx');`}
           <div className={styles.buttons}>
             <Link
               className="button button--primary button--lg"
-              to="/docs/api/html-to-document"
+              to="/docs/intro"
             >
               Get Started →
             </Link>
