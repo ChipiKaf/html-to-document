@@ -122,5 +122,10 @@ export const run: () => Promise<any> = async () => {
   });
   const app = document.getElementById('app');
   if (!app) return;
-  app.innerHTML = `<p>Remember to run build in root and run install in /demo when you make changes to the html-to-document package`;
+
+  if (process.env.USE_NPM_LATEST !== 'true') {
+    app.innerHTML = `<p>Remember to run build in root and run install in /demo when you make changes to the html-to-document package</p>`;
+  } else {
+    app.innerHTML = `<p>Test with the export DOCX button</p>`;
+  }
 };
