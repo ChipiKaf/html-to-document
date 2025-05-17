@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "preinstall": "node ./set-html-to-document-dep.cjs",
     "dev": "vite --config vite.config.ts",
     "build": "tsc && vite build",
     "preview": "vite preview"
