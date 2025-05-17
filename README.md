@@ -56,7 +56,7 @@ console.log(elements); // => DocumentElement[]
 | Resource | Link |
 |----------|------|
 | **Full Docs** | https://html-to-document.vercel.app/ |
-<!-- | **Live Demo (TinyMCE)** | https://html-to-document-demo.vercel.app | -->
+| **Live Demo (TinyMCE)** | https://html-to-document-demo.vercel.app |
 
 ---
 
