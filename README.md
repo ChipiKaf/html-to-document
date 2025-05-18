@@ -96,7 +96,7 @@ console.log(elements); // => DocumentElement[]
 - **Tag handlers:** intercept `<custom-tag>` → your own `DocumentElement`
 - **Custom adapters:** implement `IDocumentConverter` to target new formats
 
-See the [Extensibility Guide](https://html-to-document.vercel.app/docs/extensibility).
+See the [Extensibility Guide](https://html-to-document.vercel.app/docs/api/converters).
 
 ---
 
