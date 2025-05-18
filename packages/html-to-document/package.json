@@ -34,6 +34,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
+    "copy-docs": "cp ../../README.md README.md && cp ../../CHANGELOG.md CHANGELOG.md",
+    "prepack": "npm run copy-docs && npm run build",
     "build": "tsc -p tsconfig.json",
     "test": "echo \"no tests\""
   },
