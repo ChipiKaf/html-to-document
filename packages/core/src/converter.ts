@@ -17,7 +17,7 @@ export class Converter {
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
-    const { tags, adapters, domParser, registerAdapters } = options;
+    const { tags, domParser, registerAdapters } = options;
     this._registry = new ConverterRegistry();
     this._middlewareManager = new MiddlewareManager();
     this._parser = new Parser(
