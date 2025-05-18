@@ -34,15 +34,46 @@ npm install html-to-document
 
 ## 🚀 Quick Start
 ```ts
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 import fs from 'fs';
 
-const converter = init();                // default DOCX adapter & middleware
-const html = '<h1>Hello World</h1>';
+const converter = init({
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
+});
 
+const html = '<h1>Hello World</h1>';
 const buffer = await converter.convert(html, 'docx');   // ↩️ Buffer in Node / Blob in browser
 fs.writeFileSync('output.docx', buffer);
 ```
+
+### Registering adapters manually  
+
+```ts
+import { init } from 'html-to-document';
+import { DocxAdapter } from 'html-to-document-adapter-docx';
+
+const converter = init({
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
+});
+```
+
+> **Tip:** you can bundle multiple adapters:
+> ```ts
+> register: [
+>   { format: 'docx', adapter: DocxAdapter },
+>   { format: 'pdf',  adapter: PdfAdapter },
+> ]
+> ```
+
+The rest of the API stays the same—`convert(html, 'docx')`, `convert(html, 'pdf')`, etc.
 
 Need just the parsed structure?
 ```ts
