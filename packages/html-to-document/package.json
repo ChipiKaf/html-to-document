@@ -1,6 +1,6 @@
 {
   "name": "html-to-document",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A modular, open source library for converting HTML content into professional document formats. Initially focused on HTML-to-DOCX conversion, with planned support for PDF and XLSX. Built with TypeScript, it features a core HTML parsing engine and separate format-specific modules, offering a unified API for seamless integration.",
   "keywords": [
     "html",
@@ -8,6 +8,7 @@
     "converter",
     "typescript",
     "document",
+    "html-to-document",
     "html-to-docx",
     "html-to-pdf",
     "bidirectional"
@@ -22,21 +23,25 @@
   "bugs": {
     "url": "https://github.com/ChipiKaf/html-to-document/issues"
   },
-  "publishConfig": { "access": "public" },
-
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "README.md", "CHANGELOG.md"],
-
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "echo \"no tests\""
   },
-
   "dependencies": {
     "html-to-document-core": "^0.2.0",
     "html-to-document-adapter-docx": "^0.2.0"
   },
-
-  "engines": { "node": ">=14" }
+  "engines": {
+    "node": ">=14"
+  }
 }
