@@ -1,8 +1,8 @@
 import { Converter } from '../src/converter';
-import { IDocumentConverter } from '../src/converters/IDocumentConverter';
+import { IDocumentConverter } from '../src';
 import { JSDOMParser } from './utils/parser.helper';
-import { init } from '../src/converter';
-import { IDOMParser } from '../src/core/types';
+import { init } from '../src';
+import { IDOMParser } from '../src';
 
 class DummyConverter implements IDocumentConverter {
   public parsed?: any;

@@ -1,4 +1,4 @@
-import { minifyMiddleware } from '../../src/middleware/minify.middleware';
+import { minifyMiddleware } from '../src';
 
 describe('minifyMiddleware', () => {
   it('removes HTML comments', async () => {

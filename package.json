@@ -9,8 +9,8 @@
   "scripts": {
     "build": "npm run -ws build",
     "clean": "rimraf dist node_modules packages/**/dist packages/**/node_modules demo/**/dist demo/**/node_modules package-lock.json yarn.lock",
-    "test": "npm run -ws test",
-    "test:silent": "jest --silent",
+    "test": "jest --runInBand",
+    "test:silent": "jest --runInBand --silent",
     "lint": "eslint 'packages/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
     "format": "prettier --write 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
@@ -44,7 +44,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "jszip": "^3.10.1",
-    "ts-jest": "^29.2.6",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.3.4"
   }
 }

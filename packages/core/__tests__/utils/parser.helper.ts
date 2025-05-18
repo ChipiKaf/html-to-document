@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import JSZip from 'jszip';
-import { IDOMParser } from '../../src/core';
+import { IDOMParser } from '../../src';
 import { JSDOM } from 'jsdom';
 
 /**

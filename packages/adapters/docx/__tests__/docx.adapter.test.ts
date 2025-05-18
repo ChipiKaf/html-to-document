@@ -1,9 +1,12 @@
-import { DocxAdapter } from '../../../src/converters';
-import { DocumentElement } from '../../../src/core';
-import { minifyMiddleware } from '../../../src/middleware/minify.middleware';
-import { Parser } from '../../../src/core/parser';
-import { StyleMapper } from '../../../src/core/style.mapper';
-import { JSDOMParser, parseDocxDocument } from '../../utils/parser.helper';
+import { DocxAdapter } from '../src/docx.adapter';
+import { DocumentElement } from '@html-to-document/core';
+import { minifyMiddleware } from '@html-to-document/core';
+import { Parser } from '@html-to-document/core';
+import { StyleMapper } from '@html-to-document/core';
+import {
+  JSDOMParser,
+  parseDocxDocument,
+} from '../../../core/__tests__/utils/parser.helper';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
