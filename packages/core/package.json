@@ -1,6 +1,6 @@
 {
   "name": "html-to-document-core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Core engine that parses HTML into an intermediate DocumentElement tree and exposes a plugin registry so external adapters can convert that tree into DOCX, PDF, XLSX, Markdown and more.",
   "keywords": [
     "html-to-document",

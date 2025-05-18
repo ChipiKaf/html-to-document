@@ -1,6 +1,11 @@
 
 
 # Changelog
+## [0.2.2] - 2025-05-18
+### Changed
+- Added a `prepack` step in the wrapper to copy root `README.md` and `CHANGELOG.md` into the published npm package  
+- Refactored `tsconfig.*.json` to share a base config and per-package overrides  
+- Expanded ESLint and Jest configs to run against each workspace  
 
 ## [0.2.1] - 2025-05-18
 
