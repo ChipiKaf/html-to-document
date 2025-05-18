@@ -1,9 +1,8 @@
-name: Release & Publish
-
+name: Release & Publish (monorepo)
 on:
   push:
     tags:
-      - 'v*.*.*' # e.g. v0.1.0
+      - 'v*.*.*' # e.g. v0.2.0
 
 jobs:
   release:
@@ -11,21 +10,35 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org/'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (all workspaces)
+        run: npm install
 
-      - name: Build package
+      - name: Build all workspaces
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --access public
+      # Publish core first
+      - name: Publish @html-to-document/core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace packages/core --access public --provenance
+
+      # Publish default DOCX adapter
+      - name: Publish html-to-document-adapter-docx
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace packages/adapters/docx --access public --provenance
+
+      # Publish wrapper last
+      - name: Publish html-to-document (wrapper)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace packages/html-to-document --access public --provenance

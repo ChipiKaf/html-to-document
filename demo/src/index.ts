@@ -1,4 +1,4 @@
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 import { startContent1 } from './utils/constants';
 
 export const run: () => Promise<any> = async () => {
@@ -36,6 +36,12 @@ export const run: () => Promise<any> = async () => {
       ],
     },
     adapters: {
+      register: [
+        {
+          format: 'docx',
+          adapter: DocxAdapter,
+        },
+      ],
       defaultStyles: [
         {
           format: 'docx',
