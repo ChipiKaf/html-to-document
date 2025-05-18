@@ -20,7 +20,7 @@ module.exports = {
 
   // Resolve workspace names inside tests
   moduleNameMapper: {
-    '^@html-to-document/core$': '<rootDir>/packages/core/src',
+    '^html-to-document-core$': '<rootDir>/packages/core/src',
     '^html-to-document-adapter-docx$':
       '<rootDir>/packages/adapters/docx/src',
   },

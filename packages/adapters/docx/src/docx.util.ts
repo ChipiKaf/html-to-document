@@ -6,7 +6,7 @@ import {
   Table,
   ExternalHyperlink,
 } from 'docx';
-import { DocumentElement, Styles } from '@html-to-document/core';
+import { DocumentElement, Styles } from 'html-to-document-core';
 import { DocxElement } from './docx.types';
 
 // --- Utility Functions ---

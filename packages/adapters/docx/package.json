@@ -3,7 +3,7 @@
 {
   "name": "html-to-document-adapter-docx",
   "version": "0.2.0",
-  "description": "DOCX adapter for @html-to-document/core — converts a DocumentElement tree into a .docx Buffer using the docx library.",
+  "description": "DOCX adapter for html-to-document-core — converts a DocumentElement tree into a .docx Buffer using the docx library.",
   "keywords": [
     "html-to-document",
     "docx",
@@ -37,7 +37,7 @@
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "peerDependencies": {
-    "@html-to-document/core": "^0.2.0"
+    "html-to-document-core": "^0.2.0"
   },
   "dependencies": {
     "docx": "^9.4.0",

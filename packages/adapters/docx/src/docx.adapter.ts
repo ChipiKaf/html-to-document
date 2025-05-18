@@ -29,7 +29,7 @@ import {
   IConverterDependencies,
   StyleMapper,
   IDocumentConverter,
-} from '@html-to-document/core';
+} from 'html-to-document-core';
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { handleChildren, isInline, toBinaryBuffer } from './docx.util';

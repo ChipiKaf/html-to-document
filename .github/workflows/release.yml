@@ -30,7 +30,7 @@ jobs:
         run: npm run build
 
       # Publish core first
-      - name: Publish @html-to-document/core
+      - name: Publish html-to-document-core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/core --access public --provenance

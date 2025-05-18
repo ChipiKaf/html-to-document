@@ -1,8 +1,8 @@
 import { DocxAdapter } from '../src/docx.adapter';
-import { DocumentElement } from '@html-to-document/core';
-import { minifyMiddleware } from '@html-to-document/core';
-import { Parser } from '@html-to-document/core';
-import { StyleMapper } from '@html-to-document/core';
+import { DocumentElement } from 'html-to-document-core';
+import { minifyMiddleware } from 'html-to-document-core';
+import { Parser } from 'html-to-document-core';
+import { StyleMapper } from 'html-to-document-core';
 import {
   JSDOMParser,
   parseDocxDocument,
