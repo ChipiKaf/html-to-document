@@ -24,10 +24,15 @@ import { init, Converter } from 'html-to-document';
 ## Quick Start
 
 ```ts
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 
 const converter = init({
-  // optional: configure adapters, middleware, tags...
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
+  // Other configuration
 });
 
 // Convert HTML string to DOCX buffer
