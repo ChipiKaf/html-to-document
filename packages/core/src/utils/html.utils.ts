@@ -2,7 +2,7 @@
 import colornames from 'colornames';
 
 import { BorderStyle } from 'docx';
-import { AttributeElement, DocumentElement } from '../core';
+import { AttributeElement, DocumentElement } from '../types';
 
 export function parseStyles(
   element: HTMLElement
@@ -82,18 +82,6 @@ export function mapBorderStyle(style: string): string {
       return BorderStyle.SINGLE;
   }
 }
-export function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString =
-    typeof atob === 'function'
-      ? atob(base64)
-      : Buffer.from(base64, 'base64').toString('binary');
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
 
 interface SimpleAttr {
   name: string;
@@ -113,8 +101,12 @@ export function extractAttributesToMetadata(
   el: DocumentElement
 ): DocumentElement {
   if (!Array.isArray(el.content)) return el;
-  const attributes = el.content.filter((c) => c.type === 'attribute');
-  const content = el.content.filter((c) => c.type !== 'attribute');
+  const attributes = el.content.filter(
+    (c: DocumentElement) => c.type === 'attribute'
+  );
+  const content = el.content.filter(
+    (c: DocumentElement) => c.type !== 'attribute'
+  );
   if (!attributes.length) return el;
   el.metadata = el.metadata ?? {};
   const newObjects: Record<string, Partial<DocumentElement>[]> = {};

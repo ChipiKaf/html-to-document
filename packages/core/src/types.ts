@@ -1,5 +1,4 @@
 import * as CSS from 'csstype';
-import { IDocumentConverter } from '../converters';
 import { StyleMapper } from './style.mapper';
 
 /**
@@ -496,3 +495,7 @@ export type ConverterOptions = Omit<
     styleMapper: StyleMapper;
   }[];
 };
+
+export interface IDocumentConverter {
+  convert(elements: DocumentElement[]): Promise<Buffer | Blob>;
+}

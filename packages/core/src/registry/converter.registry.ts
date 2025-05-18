@@ -1,4 +1,4 @@
-import { IDocumentConverter } from '../converters/IDocumentConverter';
+import { IDocumentConverter } from '../types';
 
 export class ConverterRegistry {
   private _converters: Map<string, IDocumentConverter>;

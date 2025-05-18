@@ -1,4 +1,4 @@
-import { Middleware } from '../core/types';
+import { Middleware } from '../types';
 
 export class MiddlewareManager {
   private _middleware: Middleware[] = [];

@@ -3,7 +3,7 @@ import {
   colorConversion,
   mapBorderStyle,
   pixelsToTwips,
-} from '../utils/html.utils';
+} from './utils/html.utils';
 import { DocumentElement, StyleMapping } from './types';
 import {
   BorderStyle,

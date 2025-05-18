@@ -1,4 +1,4 @@
-import { StyleMapper } from '../core/style.mapper';
+import { StyleMapper } from '../style.mapper';
 
 export class StyleMapperRegistry {
   private _mapper: Map<string, StyleMapper>;

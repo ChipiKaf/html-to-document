@@ -1,13 +1,12 @@
-import { DocxAdapter } from './converters';
-import { IDocumentConverter } from './converters/IDocumentConverter';
+import { IDocumentConverter } from './types';
 import {
   ConverterOptions,
   DocumentElement,
   InitOptions,
   Middleware,
-} from './core';
-import { Parser } from './core/parser';
-import { StyleMapper } from './core/style.mapper';
+} from './types';
+import { Parser } from './parser';
+import { StyleMapper } from './style.mapper';
 import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
@@ -27,16 +26,6 @@ export class Converter {
       tags?.defaultStyles,
       tags?.defaultAttributes
     );
-
-    // Register default Adapters
-    const docxAdapter = new DocxAdapter({
-      styleMapper:
-        registerAdapters?.find((adapter) => adapter.format === 'docx')
-          ?.styleMapper || new StyleMapper(),
-      defaultStyles:
-        adapters?.defaultStyles?.find((s) => s.format === 'docx')?.styles || {},
-    });
-    this.registerConverter('docx', docxAdapter);
 
     // Register custom adapters
     if (registerAdapters && registerAdapters.length > 0) {

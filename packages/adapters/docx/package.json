@@ -1,0 +1,49 @@
+
+
+{
+  "name": "html-to-document-adapter-docx",
+  "version": "0.2.0",
+  "description": "DOCX adapter for @html-to-document/core — converts a DocumentElement tree into a .docx Buffer using the docx library.",
+  "keywords": [
+    "html-to-document",
+    "docx",
+    "adapter",
+    "docx-converter"
+  ],
+  "license": "ISC",
+  "homepage": "https://github.com/ChipiKaf/html-to-document#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChipiKaf/html-to-document.git",
+    "directory": "packages/adapters/docx"
+  },
+  "bugs": {
+    "url": "https://github.com/ChipiKaf/html-to-document/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
+    "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
+  },
+  "peerDependencies": {
+    "@html-to-document/core": "^0.2.0"
+  },
+  "dependencies": {
+    "docx": "^9.4.0",
+    "jszip": "^3.10.1"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

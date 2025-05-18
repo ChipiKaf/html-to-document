@@ -18,7 +18,6 @@ import {
   DocumentElement,
   GridCell,
   HeadingElement,
-  IConverterDependencies,
   ImageElement,
   LineElement,
   ListElement,
@@ -27,9 +26,10 @@ import {
   Styles,
   TableElement,
   TextElement,
-} from '../../core/types';
-import { IDocumentConverter } from '../IDocumentConverter';
-import { StyleMapper } from '../../core/style.mapper';
+  IConverterDependencies,
+  StyleMapper,
+  IDocumentConverter,
+} from '@html-to-document/core';
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { handleChildren, isInline, toBinaryBuffer } from './docx.util';
@@ -529,15 +529,14 @@ export class DocxAdapter implements IDocumentConverter {
     } else if (typeof window === 'undefined') {
       // Assume it's a local file path.
       // This code path is only supported in Node environments.
-      const fs = import('fs');
-      const path = import('path');
-      if (!(await fs).default.existsSync(src)) {
+      const fsMod = await import('fs');
+      const pathMod = await import('path');
+      if (!fsMod.existsSync(src)) {
         throw new Error(`File not found: ${src}`);
       }
-      dataBuffer = (await fs).default.readFileSync(src);
+      dataBuffer = fsMod.readFileSync(src);
       imageType =
-        ((await path).default.extname(src).slice(1) as IImageOptions['type']) ||
-        'png';
+        (pathMod.extname(src).slice(1) as IImageOptions['type']) || 'png';
     }
 
     if (!dataBuffer) {

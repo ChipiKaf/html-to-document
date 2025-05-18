@@ -2,7 +2,7 @@ import {
   extractAllAttributes,
   parseAttributes,
   parseStyles,
-} from '../utils/html.utils';
+} from './utils/html.utils';
 import {
   DocumentElement,
   IDOMParser,

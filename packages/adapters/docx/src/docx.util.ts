@@ -6,13 +6,25 @@ import {
   Table,
   ExternalHyperlink,
 } from 'docx';
-import { DocumentElement, Styles } from '../../core';
-import { base64ToUint8Array } from '../../utils/html.utils';
+import { DocumentElement, Styles } from '@html-to-document/core';
 import { DocxElement } from './docx.types';
 
 // --- Utility Functions ---
 export function mergeStyles(...sources: Styles[]): Styles {
   return Object.assign({}, ...sources.filter(Boolean));
+}
+
+export function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString =
+    typeof atob === 'function'
+      ? atob(base64)
+      : Buffer.from(base64, 'base64').toString('binary');
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 }
 
 // Types for possible docx elements returned by handlers

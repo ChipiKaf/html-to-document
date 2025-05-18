@@ -1,4 +1,4 @@
-import { Middleware } from '../core';
+import { Middleware } from '../types';
 
 // Define which tags are block–level and which are inline.
 const blockTags = new Set(['div', 'p', 'ol', 'ul', 'li']);
