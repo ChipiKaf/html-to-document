@@ -62,9 +62,15 @@ export default function Home(): ReactNode {
           <CodeBlock language="ts">
             {`npm install html-to-document
 
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 
-const converter = init();
+const converter = init({
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
+});
 
 const parsed = await converter.parse('<h1>Hello</h1>');
 const docx = await converter.convert(parsed, 'docx');`}
