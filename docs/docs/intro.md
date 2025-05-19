@@ -39,6 +39,19 @@ fs.writeFileSync('output.docx', buffer);
 
 This will return a `Buffer` (in Node.js) or a `Blob` (in browsers) representing the DOCX file.
 
+## How It Works
+
+Below is a high-level overview of the conversion pipeline. The library processes the HTML input through optional middleware steps, parses it into a structured intermediate representation, and then delegates to an adapter to generate the desired output format.
+
+![Conversion Pipeline Diagram](/img/conversion-pipeline.png)
+
+The stages are:
+
+- **Input**: Raw HTML input as a string.  
+- **Middleware**: One or more middleware functions can inspect or transform the HTML string before parsing (e.g., sanitization, custom tags).  
+- **Parser**: Converts the (possibly modified) HTML string into an array of `DocumentElement` objects, representing a structured AST.  
+- **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format (e.g., DOCX, PDF, Markdown) via a registered adapter.
+
 ## Learn More
 
 Explore how to customize the conversion process:
