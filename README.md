@@ -26,13 +26,16 @@ The stages are:
 - **Parser**: Converts the (possibly modified) HTML string into an array of `DocumentElement` objects, representing a structured AST.  
 - **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format (e.g., DOCX, PDF, Markdown) via a registered adapter.
 
+---
+
+
 ## ✨ Key Features
 | Feature | Description |
 |---------|-------------|
 | **Format‑agnostic core** | Converts HTML into a reusable `DocumentElement[]` structure |
 | **DOCX adapter (built‑in)** | Powered by [`docx`](https://npmjs.com/package/docx) with rich style support |
-| **Pluggable adapters** | Add your own adapter for PDF, XLSX, Markdown, etc. |
-| **Style mapping engine** | Map CSS → document styles and set per‑format defaults |
+| **Pluggable adapters** | Create and add your own adapter for PDF, XLSX, Markdown, etc. |
+| **Style mapping engine** | Define your own css mappings for the adapters and set per‑format defaults |
 | **Custom tag handlers** | Override or extend how any HTML tag is parsed |
 | **Middleware pipeline** | Transform or sanitise HTML before parsing |
 
