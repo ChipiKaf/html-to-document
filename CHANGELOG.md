@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.2.3] - 2025-05-19
+### Changed
+- Updated documentation to give more details of how the package works
+
 ## [0.2.2] - 2025-05-18
 ### Changed
 - Added a `prepack` step in the wrapper to copy root `README.md` and `CHANGELOG.md` into the published npm package  
