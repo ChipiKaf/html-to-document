@@ -47,6 +47,26 @@ const parseWidth = (value: string) => {
   return undefined;
 };
 
+// Helper: convert common CSS length values to pixel count for ImageRun transformations
+const parseImageSizePx = (value: string): number | undefined => {
+  const val = value.trim().toLowerCase();
+  if (val.endsWith('px')) {
+    const px = parseFloat(val);
+    return isNaN(px) ? undefined : px;
+  }
+  if (val.endsWith('in')) {
+    const inches = parseFloat(val);
+    return isNaN(inches) ? undefined : inches * 96; // 96 px per inch
+  }
+  if (val.endsWith('cm')) {
+    const cm = parseFloat(val);
+    return isNaN(cm) ? undefined : (cm / 2.54) * 96; // cm → inch → px
+  }
+  // If the value is a bare number, assume pixels
+  const num = parseFloat(val);
+  return isNaN(num) ? undefined : num;
+};
+
 function deepMerge<T extends object, U extends object>(
   target: T,
   source: U
@@ -227,9 +247,30 @@ export class StyleMapper {
           },
         };
       },
-      width: (v) => {
-        const parsed = parseWidth(v); // use helper above
+      width: (v, el) => {
+        // For images, map CSS width → ImageRun transformation width
+        if (el.type === 'image') {
+          const px = parseImageSizePx(String(v));
+          return typeof px === 'number'
+            ? { transformation: { width: Math.round(px) } }
+            : {};
+        }
+
+        // All other elements keep using table/paragraph width logic
+        const parsed = parseWidth(v);
         return parsed ? { width: parsed } : {};
+      },
+      height: (v, el) => {
+        // For images, map CSS height → ImageRun transformation height
+        if (el.type === 'image') {
+          const px = parseImageSizePx(String(v));
+          return typeof px === 'number'
+            ? { transformation: { height: Math.round(px) } }
+            : {};
+        }
+        // No height handling for non‑image elements at the moment
+        const parsed = parseWidth(v);
+        return parsed ? { heigth: parsed } : {};
       },
 
       letterSpacing: (v) => {

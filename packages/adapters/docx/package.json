@@ -39,9 +39,13 @@
   },
   "dependencies": {
     "docx": "^9.4.0",
+    "image-size": "^2.0.2",
     "jszip": "^3.10.1"
   },
   "engines": {
     "node": ">=14"
+  },
+  "devDependencies": {
+    "@types/probe-image-size": "^7.2.5"
   }
 }

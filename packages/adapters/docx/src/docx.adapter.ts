@@ -33,7 +33,6 @@ import {
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { handleChildren, isInline, toBinaryBuffer } from './docx.util';
-import sizeOf from 'image-size';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
@@ -555,14 +554,35 @@ export class DocxAdapter implements IDocumentConverter {
     // Determine original image dimensions (use default 100x100 if unable to detect)
     let width = 100;
     let height = 100;
+
     try {
-      const dimensions = sizeOf(dataBuffer as Buffer);
-      width = (dimensions.width || 100) * 0.7;
-      height = (dimensions.height || 100) * 0.7;
+      if (typeof window === 'undefined') {
+        // Dynamically load 'image-size' (Node‑only) so browser bundles stay clean
+        const mod = 'image-size';
+        const sizeOf = await import(mod);
+        const { width: w = 100, height: h = 100 } = sizeOf.imageSize(
+          dataBuffer as Buffer
+        );
+        width = w * 0.7;
+        height = h * 0.7;
+      } else {
+        // Browser: attempt to read natural dimensions from an <img>
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            width = (img.naturalWidth || 100) * 0.7;
+            height = (img.naturalHeight || 100) * 0.7;
+            resolve();
+          };
+          img.onerror = () => resolve(); // fall back to default on error
+          img.src = src;
+        });
+      }
     } catch {
-      // Unable to determine size, using default
+      // Unable to determine size, using default 100×100
     }
     // Add fallback for SVGs
+    const mappedStyles = this._mapper.mapStyles(mergedStyles, el);
     if (imageType === 'svg') {
       // 1x1 transparent PNG fallback
       const fallbackBase64 =
@@ -570,17 +590,25 @@ export class DocxAdapter implements IDocumentConverter {
       const fallback = toBinaryBuffer(fallbackBase64, 'base64');
       return new ImageRun({
         data: dataBuffer!,
-        transformation: { width, height },
         type: imageType,
         fallback: { data: fallback, type: 'png' },
-        ...this._mapper.mapStyles(mergedStyles, el),
+        ...mappedStyles,
+        transformation: {
+          width,
+          height,
+          ...(mappedStyles?.transformation || {}),
+        },
       });
     }
     return new ImageRun({
       data: dataBuffer!,
-      transformation: { width, height },
-      type: imageType,
       ...this._mapper.mapStyles(mergedStyles, el),
+      transformation: {
+        width,
+        height,
+        ...(mappedStyles?.transformation || {}),
+      },
+      type: imageType,
     });
   }
 
