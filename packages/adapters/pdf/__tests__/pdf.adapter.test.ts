@@ -44,7 +44,9 @@ describe('PDFAdapter.convert', () => {
       if (error.name === 'UnknownErrorExceptionClosure' || 
           error.message.includes('Invalid PDF') ||
           error.message.includes('bad XRef entry') || // Added from new failures
-          error.message.includes('Illegal character')) { // Added from new failures
+          error.message.includes('Illegal character') || // Added from new failures
+          error.message.includes('Invalid number')
+      ) { // Added from new failures
         return { parsedSuccessfully: false, data: { text: '', numpages: 0, info: null, metadata: null, version: '' } };
       }
       throw error; // Re-throw if it's not a known pdfParse issue

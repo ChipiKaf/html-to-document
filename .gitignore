@@ -3,3 +3,5 @@ dist
 _index.ts
 .DS_Store
 /coverage
+.jest-cache
+tsconfig.tsbuildinfo

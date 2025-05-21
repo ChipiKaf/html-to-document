@@ -3,7 +3,8 @@
     "baseUrl": ".",
     "paths": {
       "html-to-document-core": ["packages/core/src"],
-      "html-to-document-core/*": ["packages/core/src/*"]
+      "html-to-document-core/*": ["packages/core/src/*"],
+      "html-to-document-adapter-*": ["packages/adapters/*/src"]
     },
     "target": "ES2024",
     "module": "ESNext",
