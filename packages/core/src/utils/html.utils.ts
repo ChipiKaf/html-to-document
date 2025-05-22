@@ -47,7 +47,11 @@ export function colorConversion(color: string): string {
   }
 
   // 2) Ask colornames() for it (this covers all CSS keyword names)
-  const hex = colornames(v); // e.g. "#D3D3D3" for "lightgray"
+  let hex = colornames(v); // e.g. "#D3D3D3" for "lightgray"
+  if (!hex && v.endsWith('gray')) {
+    // Support American/British spelling variants
+    hex = colornames(v.replace(/gray$/, 'grey'));
+  }
   if (hex) {
     return hex.replace('#', '').toUpperCase();
   }
@@ -112,15 +116,14 @@ export function extractAttributesToMetadata(
   const newObjects: Record<string, Partial<DocumentElement>[]> = {};
   for (const attr of attributes) {
     const wrapper = attr as AttributeElement;
-    if (!newObjects[wrapper.name || '']) newObjects[wrapper.name || ''] = [];
+    const key = wrapper.name || '';
+    if (!newObjects[key]) newObjects[key] = [];
     const { type, name, ...otherContent } = wrapper;
-    newObjects[wrapper.name || ''].push({
-      ...otherContent,
-      content:
-        otherContent.content && otherContent.content?.length > 0
-          ? otherContent.content
-          : undefined,
-    });
+    const entry: Partial<DocumentElement> = { ...otherContent };
+    if (wrapper.content && wrapper.content.length > 0) {
+      entry.content = wrapper.content;
+    }
+    newObjects[key].push(entry);
   }
   el.content = content.length > 0 ? content : undefined;
   el.metadata = {
@@ -136,5 +139,22 @@ export function extractAttributesToMetadata(
 export function extractAllAttributes(
   doc: DocumentElement[]
 ): DocumentElement[] {
-  return doc.map(extractAttributesToMetadata);
+  return doc.map((el) => {
+    if (el.type === 'attribute') {
+      const wrapper = el as AttributeElement;
+      const { type, name, ...otherContent } = wrapper;
+      const entry: Partial<DocumentElement> = { ...otherContent };
+      if (wrapper.content && wrapper.content.length > 0) {
+        entry.content = wrapper.content;
+      }
+      return {
+        ...wrapper,
+        metadata: {
+          [name || '']: [entry],
+        },
+        content: undefined,
+      } as DocumentElement;
+    }
+    return extractAttributesToMetadata(el);
+  });
 }

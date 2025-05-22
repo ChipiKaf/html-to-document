@@ -15,9 +15,8 @@ export async function handleChildren(
 ): Promise<any[]> {
   const results = [];
   for (const el of elements) {
-    const handler = handlers[el.type] || handlers['text']; // Default to text handler
+    const handler = handlers[el.type];
     if (handler) {
-      // Pass relevant document/pdfkit instance if handlers directly manipulate the doc
       results.push(await handler(el, { ...parentStyles, ...el.styles }));
     }
   }

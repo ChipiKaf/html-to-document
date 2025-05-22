@@ -24,4 +24,6 @@ module.exports = {
 
   collectCoverage: true,
   coverageDirectory: '<rootDir>/coverage',
+  // Use project-local cache directory to avoid OS temp permission issues
+  cacheDirectory: '<rootDir>/.jest-cache',
 };

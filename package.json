@@ -7,7 +7,7 @@
     "packages/html-to-document"
   ],
   "scripts": {
-    "build": "npm run -ws build",
+    "build": "npm run build --workspaces",
     "clean": "rimraf dist node_modules packages/**/dist packages/**/node_modules demo/**/dist demo/**/node_modules package-lock.json yarn.lock",
     "test": "jest --runInBand",
     "prepare": "husky",

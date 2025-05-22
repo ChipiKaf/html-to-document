@@ -938,15 +938,18 @@ describe('Parser', () => {
                         width: '30%',
                         backgroundColor: '#e0f7fa',
                       },
+                      content: [],
                       attributes: {},
                     },
                     {
+                      content: [],
                       styles: {
                         width: '35%',
                       },
                       attributes: {},
                     },
                     {
+                      content: [],
                       styles: {
                         width: '35%',
                       },

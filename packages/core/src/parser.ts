@@ -1,5 +1,6 @@
 import {
   extractAllAttributes,
+  extractAttributesToMetadata,
   parseAttributes,
   parseStyles,
 } from './utils/html.utils';
@@ -252,7 +253,7 @@ export class Parser {
       text,
     });
     if (Array.isArray(result)) {
-      return extractAllAttributes(result);
+      return result.map(extractAttributesToMetadata);
     }
     if (result.type === 'fragment') {
       const wrapperStyles = result.styles || {};
@@ -263,7 +264,7 @@ export class Parser {
         attributes: { ...wrapperAttrs, ...el.attributes },
       }));
     }
-    return extractAllAttributes([result]);
+    return extractAttributesToMetadata(result);
   }
 
   private _parseTableContainers(element: HTMLElement): TableRowElement[] {

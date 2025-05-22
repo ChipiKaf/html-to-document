@@ -1,4 +1,5 @@
 import { init, DocxAdapter } from 'html-to-document';
+import { PDFAdapter } from 'html-to-document-adapter-pdf';
 import { startContent1 } from './utils/constants';
 
 export const run: () => Promise<any> = async () => {
@@ -41,10 +42,31 @@ export const run: () => Promise<any> = async () => {
           format: 'docx',
           adapter: DocxAdapter,
         },
+        {
+          format: 'pdf',
+          adapter: PDFAdapter,
+        },
       ],
       defaultStyles: [
         {
           format: 'docx',
+          styles: {
+            heading: {
+              color: 'black',
+              fontFamily: 'Aptos Display',
+              marginTop: '10px',
+              marginBottom: '10px',
+            },
+            paragraph: {
+              lineHeight: 1.5,
+            },
+            'table-cell': {
+              padding: '6.4px',
+            },
+          },
+        },
+        {
+          format: 'pdf',
           styles: {
             heading: {
               color: 'black',

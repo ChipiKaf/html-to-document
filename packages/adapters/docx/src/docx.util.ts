@@ -15,10 +15,14 @@ export function mergeStyles(...sources: Styles[]): Styles {
 }
 
 export function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString =
-    typeof atob === 'function'
-      ? atob(base64)
-      : Buffer.from(base64, 'base64').toString('binary');
+  let binaryString: string;
+  if (typeof Buffer !== 'undefined') {
+    binaryString = Buffer.from(base64, 'base64').toString('binary');
+  } else if (typeof atob === 'function') {
+    binaryString = atob(base64);
+  } else {
+    throw new Error('Unable to decode base64 string');
+  }
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -56,19 +60,18 @@ export function toBinaryBuffer(
   input: string | ArrayBuffer,
   encoding: BufferEncoding = 'base64'
 ): Buffer | Uint8Array {
-  if (typeof Buffer !== 'undefined') {
-    if (typeof input === 'string') {
+  if (typeof input === 'string') {
+    if (typeof Buffer !== 'undefined') {
       return Buffer.from(input, encoding);
-    } else {
-      return Buffer.from(input);
     }
-  } else {
-    if (typeof input === 'string') {
+    try {
       return base64ToUint8Array(input);
-    } else {
-      return new Uint8Array(input);
+    } catch {
+      return new Uint8Array();
     }
   }
+  // For ArrayBuffer input, always return a Uint8Array
+  return new Uint8Array(input);
 }
 
 export const isInline = (
