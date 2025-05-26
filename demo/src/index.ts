@@ -104,7 +104,7 @@ export const run: () => Promise<any> = async () => {
     base_url: 'https://cdn.tiny.cloud/1/no-api-key/tinymce/7',
     plugins: 'lists link paste table code',
     toolbar:
-      'undo redo | formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link | table | code | docx',
+      'undo redo | formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link | table | code | docx pdf',
     setup: (editor) => {
       editor.on('init', function () {
         console.log('TinyMCE editor is initialized');
@@ -145,15 +145,49 @@ export const run: () => Promise<any> = async () => {
             }
           },
         });
+
+        // Register a custom button on the toolbar named "pdf".
+        editor.ui.registry.addButton('pdf', {
+          icon: 'export',
+          text: 'Export PDF',
+          tooltip: 'Generate PDF from Editor Content',
+          onAction: async () => {
+            // 1. Retrieve HTML content.
+            const htmlContent = editor.getContent();
+
+            try {
+              // 2. Convert HTML to PDF format (returns a Promise<Buffer>).
+              const parsedContent = await converter.parse(htmlContent);
+              const pdfBuffer = await converter.convert(parsedContent, 'pdf');
+
+              // 3. Create a Blob from the buffer.
+              const blob = new Blob([pdfBuffer as Blob], {
+                type: 'application/pdf',
+              });
+
+              // 4. Create an object URL and trigger the download.
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'document.pdf'; // File name for the download.
+              a.click();
+
+              // Clean up the object URL after download.
+              URL.revokeObjectURL(url);
+            } catch (error) {
+              console.error('PDF conversion failed:', error);
+            }
+          },
+        });
       });
     },
   });
   const app = document.getElementById('app');
   if (!app) return;
 
-  if (process.env.USE_NPM_LATEST !== 'true') {
-    app.innerHTML = `<p>Remember to run build in root and run install in /demo when you make changes to the html-to-document package</p>`;
-  } else {
-    app.innerHTML = `<p>Test with the <b>Export Word</b> button</p>`;
-  }
+  // if (process.env.USE_NPM_LATEST !== 'true') {
+  //   app.innerHTML = `<p>Remember to run build in root and run install in /demo when you make changes to the html-to-document package</p>`;
+  // } else {
+  //   app.innerHTML = `<p>Test with the <b>Export Word</b> and <b>Export PDF</b> buttons</p>`;
+  // }
 };

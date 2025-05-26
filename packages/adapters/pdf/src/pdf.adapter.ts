@@ -18,12 +18,14 @@ import {
   ListElement,
   ListItemElement,
   TableElement,
+  TableCellElement,
   LineElement,
   Styles,
   IConverterDependencies,
   StyleMapper,
   IDocumentConverter,
 } from 'html-to-document-core';
+// import { colorConversion } from 'html-to-document-core/utils/html.utils'; // NEW
 // Utility functions are available if needed later
 import fs from 'fs';
 import path from 'path';
@@ -54,92 +56,47 @@ type PDFStyleOptions = {
   padding?: { top: number; right: number; bottom: number; left: number };
 };
 
-// Helper function to convert hex color to RGB
-const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (result) {
-    return {
-      r: parseInt(result[1], 16) / 255,
-      g: parseInt(result[2], 16) / 255,
-      b: parseInt(result[3], 16) / 255,
-    };
-  }
-  return { r: 0, g: 0, b: 0 }; // Default to black
-};
-
-// Helper function to convert named colors to RGB
-const namedColorToRgb = (
-  color: string
-): { r: number; g: number; b: number } => {
-  const colors: Record<string, { r: number; g: number; b: number }> = {
-    black: { r: 0, g: 0, b: 0 },
-    white: { r: 1, g: 1, b: 1 },
-    red: { r: 1, g: 0, b: 0 },
-    green: { r: 0, g: 1, b: 0 },
-    blue: { r: 0, g: 0, b: 1 },
-    // Add more as needed
+// Helper function to sanitize text for WinAnsi encoding compatibility
+const sanitizeTextForPDF = (text: string): string => {
+  // Replace specific problematic Unicode characters that cause WinAnsi encoding errors
+  const unicodeReplacements: Record<string, string> = {
+    '…': '...', // Ellipsis
+    '–': '-', // En dash
+    '—': '-', // Em dash
+    '→': '->', // Right arrow
+    '←': '<-', // Left arrow
+    '↑': '^', // Up arrow
+    '↓': 'v', // Down arrow
+    '©': '(c)', // Copyright
+    '®': '(R)', // Registered trademark
+    '™': '(TM)', // Trademark
+    '€': 'EUR', // Euro sign
+    '£': 'GBP', // Pound sign
+    '¥': 'YEN', // Yen sign
+    // '✔': 'v', // Checkmark -> v (removed to preserve check-mark)
+    // '✓': 'v', // Check mark -> v (removed to preserve check-mark)
+    '✗': 'x', // Cross mark -> x
+    '✘': 'x', // Heavy ballot x -> x
+    // Remove problematic list markers (handled separately by getListMarker)
+    '•': '*', // Bullet point
+    '◦': '-', // White circle
+    '■': '+', // Black square
   };
-  return colors[color.toLowerCase()] || { r: 0, g: 0, b: 0 };
-};
 
-// Helper function to parse color values
-const parseColor = (value: string): { r: number; g: number; b: number } => {
-  if (value.startsWith('#')) {
-    return hexToRgb(value);
-  } else if (value.startsWith('rgb')) {
-    // Parse rgb(r, g, b) format
-    const match = value.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (match) {
-      return {
-        r: parseInt(match[1]) / 255,
-        g: parseInt(match[2]) / 255,
-        b: parseInt(match[3]) / 255,
-      };
-    }
+  // Handle smart quotes separately to avoid syntax issues
+  const singleQuote = String.fromCharCode(39); // Single quote character
+  let sanitized = text
+    .replace(/[""]/g, '"') // Smart double quotes
+    .replace(/['']/g, singleQuote); // Smart single quotes
+
+  for (const [unicode, replacement] of Object.entries(unicodeReplacements)) {
+    sanitized = sanitized.replace(new RegExp(unicode, 'g'), replacement);
   }
-  return namedColorToRgb(value);
+
+  return sanitized;
 };
 
-// Define a simple style mapping structure for pdf-lib
-const defaultPDFStyleMap: Record<
-  string,
-  (value: unknown) => Partial<PDFStyleOptions>
-> = {
-  color: (value) => ({ fillColor: parseColor(String(value)) }),
-  'background-color': (value) => ({
-    backgroundColor: parseColor(String(value)),
-  }),
-  'font-size': (value) => ({ fontSize: parseFloat(String(value)) }),
-  'font-family': () => ({
-    font: StandardFonts.Helvetica, // Default to Helvetica, can be enhanced
-  }),
-  'font-weight': (value) => ({
-    bold: value === 'bold' || Number(value) >= 700,
-  }),
-  'font-style': (value) => ({ italic: value === 'italic' }),
-  'text-decoration': (value) => {
-    const decoration = String(value);
-    return {
-      underline: decoration.includes('underline'),
-      strike: decoration.includes('line-through'),
-    };
-  },
-  'text-align': (value) => {
-    const alignMap: Record<string, TextAlignment> = {
-      left: TextAlignment.Left,
-      center: TextAlignment.Center,
-      right: TextAlignment.Right,
-      justify: TextAlignment.Center, // pdf-lib doesn't have Justified, use Center as fallback
-    };
-    return { align: alignMap[String(value)] || TextAlignment.Left };
-  },
-  'margin-left': () => ({
-    /* Need to handle margins at block level */
-  }),
-  'padding-left': () => ({
-    /* Need to handle padding */
-  }),
-};
+// PDF-specific style options interface
 
 export class PDFAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
@@ -164,97 +121,261 @@ export class PDFAdapter implements IDocumentConverter {
       align: TextAlignment.Left,
     };
 
-    // Use the core StyleMapper first if it can produce generic style objects
+    // Use the core StyleMapper to get comprehensive style mappings
     const genericStyles = this._mapper.mapStyles(styles, element);
 
-    for (const key in genericStyles) {
-      if (defaultPDFStyleMap[key]) {
-        Object.assign(pdfOptions, defaultPDFStyleMap[key](genericStyles[key]));
+    // Map core StyleMapper output to PDF-specific options
+    this.mapGenericStylesToPDF(genericStyles, pdfOptions);
+
+    // Also process raw CSS styles directly
+    this.mapRawStylesToPDF(styles, pdfOptions);
+
+    // Update font based on bold/italic combination
+    this.updateFontBasedOnStyle(pdfOptions);
+
+    return pdfOptions;
+  }
+
+  private mapGenericStylesToPDF(
+    genericStyles: Record<string, unknown>,
+    pdfOptions: PDFStyleOptions
+  ): void {
+    // Map color (from core mapper output)
+    if (genericStyles.color) {
+      const color = genericStyles.color as string;
+      pdfOptions.fillColor = this.hexToRgb(color);
+    }
+
+    // Map font properties
+    if (genericStyles.font) {
+      // Note: pdf-lib uses standard fonts, so we map common fonts to StandardFonts
+      const fontName = (genericStyles.font as string).toLowerCase();
+      if (fontName.includes('times')) {
+        pdfOptions.font = StandardFonts.TimesRoman;
+      } else if (fontName.includes('courier')) {
+        pdfOptions.font = StandardFonts.Courier;
       } else {
-        // Handle direct properties or complex ones
-        switch (key) {
-          case 'bold':
-            pdfOptions.bold = genericStyles[key] as boolean;
-            break;
-          case 'italic':
-            pdfOptions.italic = genericStyles[key] as boolean;
-            break;
-        }
+        pdfOptions.font = StandardFonts.Helvetica; // Default
       }
     }
 
-    // Apply element-specific styles
-    for (const styleKey in styles) {
-      if (defaultPDFStyleMap[styleKey]) {
-        Object.assign(
-          pdfOptions,
-          defaultPDFStyleMap[styleKey](styles[styleKey])
-        );
-      } else {
-        switch (styleKey) {
-          case 'fontWeight':
-            pdfOptions.bold =
-              styles[styleKey] === 'bold' || Number(styles[styleKey]) >= 700;
-            break;
-          case 'fontStyle':
-            pdfOptions.italic = styles[styleKey] === 'italic';
-            break;
-          case 'fontSize':
-            pdfOptions.fontSize = parseFloat(styles[styleKey] as string);
-            break;
-          case 'color':
-            pdfOptions.fillColor = parseColor(styles[styleKey] as string);
-            break;
-          case 'textAlign':
-            const alignMap: Record<string, TextAlignment> = {
-              left: TextAlignment.Left,
-              center: TextAlignment.Center,
-              right: TextAlignment.Right,
-              justify: TextAlignment.Center, // pdf-lib doesn't have Justified, use Center as fallback
-            };
-            pdfOptions.align =
-              alignMap[styles[styleKey] as string] || TextAlignment.Left;
-            break;
-          case 'textDecoration':
-            const decoration = styles[styleKey] as string;
-            pdfOptions.underline = decoration.includes('underline');
-            pdfOptions.strike = decoration.includes('line-through');
-            break;
-          case 'backgroundColor':
-            pdfOptions.backgroundColor = parseColor(styles[styleKey] as string);
-            break;
-          case 'verticalAlign':
-            const vertAlign = styles[styleKey] as string;
-            pdfOptions.subscript = vertAlign === 'sub';
-            pdfOptions.superscript = vertAlign === 'super';
-            break;
-          case 'marginTop':
-          case 'marginBottom':
-          case 'marginLeft':
-          case 'marginRight':
-            if (!pdfOptions.margins) {
-              pdfOptions.margins = { top: 0, right: 0, bottom: 0, left: 0 };
-            }
-            const marginValue = parseFloat(styles[styleKey] as string) || 0;
-            switch (styleKey) {
-              case 'marginTop':
-                pdfOptions.margins.top = marginValue;
-                break;
-              case 'marginBottom':
-                pdfOptions.margins.bottom = marginValue;
-                break;
-              case 'marginLeft':
-                pdfOptions.margins.left = marginValue;
-                break;
-              case 'marginRight':
-                pdfOptions.margins.right = marginValue;
-                break;
-            }
-            break;
-        }
+    // Map size (from core mapper - comes as half-point units, convert to points)
+    if (genericStyles.size) {
+      pdfOptions.fontSize = (genericStyles.size as number) / 2;
+    }
+
+    // Map bold and italic
+    if (genericStyles.bold) {
+      pdfOptions.bold = genericStyles.bold as boolean;
+    }
+    if (genericStyles.italics) {
+      pdfOptions.italic = genericStyles.italics as boolean;
+    }
+
+    // Map text decoration
+    if (genericStyles.underline) {
+      pdfOptions.underline = true;
+    }
+    if (genericStyles.strike) {
+      pdfOptions.strike = genericStyles.strike as boolean;
+    }
+
+    // Map superscript/subscript
+    if (genericStyles.superScript) {
+      pdfOptions.superscript = genericStyles.superScript as boolean;
+    }
+    if (genericStyles.subScript) {
+      pdfOptions.subscript = genericStyles.subScript as boolean;
+    }
+
+    // Map alignment (from core mapper)
+    if (genericStyles.alignment) {
+      const alignMap: Record<string, TextAlignment> = {
+        left: TextAlignment.Left,
+        center: TextAlignment.Center,
+        right: TextAlignment.Right,
+        both: TextAlignment.Center, // pdf-lib doesn't have justified, use center
+        justified: TextAlignment.Center,
+      };
+      pdfOptions.align =
+        alignMap[genericStyles.alignment as string] || TextAlignment.Left;
+    }
+
+    // Map background color/shading
+    if (genericStyles.shading && typeof genericStyles.shading === 'object') {
+      const shading = genericStyles.shading as { fill?: string };
+      if (shading.fill) {
+        pdfOptions.backgroundColor = this.hexToRgb(shading.fill);
       }
     }
 
+    // Map margins (from core mapper spacing/indent)
+    if (genericStyles.spacing && typeof genericStyles.spacing === 'object') {
+      const spacing = genericStyles.spacing as {
+        before?: number;
+        after?: number;
+      };
+      if (!pdfOptions.margins) {
+        pdfOptions.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
+      if (spacing.before) {
+        pdfOptions.margins.top = spacing.before / 20; // Convert twips to points
+      }
+      if (spacing.after) {
+        pdfOptions.margins.bottom = spacing.after / 20;
+      }
+    }
+
+    if (genericStyles.indent && typeof genericStyles.indent === 'object') {
+      const indent = genericStyles.indent as { left?: number; right?: number };
+      if (!pdfOptions.margins) {
+        pdfOptions.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
+      if (indent.left) {
+        pdfOptions.margins.left = indent.left / 20; // Convert twips to points
+      }
+      if (indent.right) {
+        pdfOptions.margins.right = indent.right / 20;
+      }
+    }
+  }
+
+  private mapRawStylesToPDF(styles: Styles, pdfOptions: PDFStyleOptions): void {
+    // Handle any styles that might not be covered by the core mapper
+    for (const [key, value] of Object.entries(styles)) {
+      switch (key) {
+        case 'fontWeight':
+          if (value === 'bold' || Number(value) >= 700) {
+            pdfOptions.bold = true;
+          }
+          break;
+        case 'fontStyle':
+          if (value === 'italic') {
+            pdfOptions.italic = true;
+          }
+          break;
+        case 'textDecoration':
+          const decoration = value as string;
+          if (decoration.includes('underline')) {
+            pdfOptions.underline = true;
+          }
+          if (decoration.includes('line-through')) {
+            pdfOptions.strike = true;
+          }
+          break;
+        case 'verticalAlign':
+          const vertAlign = value as string;
+          if (vertAlign === 'sub') {
+            pdfOptions.subscript = true;
+          } else if (vertAlign === 'super') {
+            pdfOptions.superscript = true;
+          }
+          break;
+      }
+    }
+  }
+
+  private hexToRgb(hex: string): { r: number; g: number; b: number } {
+    // Remove # if present
+    const cleanHex = hex.replace('#', '');
+
+    // Handle 3-digit hex
+    if (cleanHex.length === 3) {
+      const r = parseInt(cleanHex[0] + cleanHex[0], 16) / 255;
+      const g = parseInt(cleanHex[1] + cleanHex[1], 16) / 255;
+      const b = parseInt(cleanHex[2] + cleanHex[2], 16) / 255;
+      return { r, g, b };
+    }
+
+    // Handle 6-digit hex
+    if (cleanHex.length === 6) {
+      const r = parseInt(cleanHex.substr(0, 2), 16) / 255;
+      const g = parseInt(cleanHex.substr(2, 2), 16) / 255;
+      const b = parseInt(cleanHex.substr(4, 2), 16) / 255;
+      return { r, g, b };
+    }
+
+    // Default to black
+    return { r: 0, g: 0, b: 0 };
+  }
+
+  /**
+   * Splits a long string into multiple lines that fit within the given width when rendered
+   * with the supplied font and size.
+   */
+  private wrapText(
+    text: string,
+    font: PDFFont,
+    fontSize: number,
+    maxWidth: number
+  ): string[] {
+    const words = sanitizeTextForPDF(text).split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const tentative = currentLine ? `${currentLine} ${word}` : word;
+      const width = this.measureTextWidth(font, fontSize, tentative);
+      if (width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = tentative;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    return lines;
+  }
+
+  /**
+   * Computes text width but ignores ✓/✔ segments which we draw manually as vector glyphs.
+   */
+  private measureTextWidth(
+    font: PDFFont,
+    fontSize: number,
+    text: string
+  ): number {
+    const parts = text.split(/(✓|✔)/);
+    let width = 0;
+    for (const part of parts) {
+      if (!part) continue;
+      if (part === '✓' || part === '✔') {
+        width += fontSize; // approximate same width we reserve when drawing
+      } else {
+        width += font.widthOfTextAtSize(sanitizeTextForPDF(part), fontSize);
+      }
+    }
+    return width;
+  }
+
+  /**
+   * Draws a simple check‑mark symbol using two stroked line segments.
+   * Returns the approximate width consumed so the caller can advance X.
+   */
+  private drawCheckMark(x: number, y: number, size: number) {
+    if (!this.page) return 0;
+    const thickness = Math.max(1, size * 0.1);
+    const left = x;
+    const midX = x + size * 0.35;
+    const midY = y - size * 0.2;
+    const right = x + size;
+    const topY = y + size * 0.4;
+    this.page.drawLine({
+      start: { x: left, y: midY },
+      end: { x: midX, y: y - size * 0.5 },
+      thickness,
+      color: rgb(0, 0, 0),
+    });
+    this.page.drawLine({
+      start: { x: midX, y: y - size * 0.5 },
+      end: { x: right, y: topY },
+      thickness,
+      color: rgb(0, 0, 0),
+    });
+    return size; // approximate width
+  }
+
+  private updateFontBasedOnStyle(pdfOptions: PDFStyleOptions): void {
     // Determine font based on bold and italic
     if (pdfOptions.bold && pdfOptions.italic) {
       pdfOptions.font = StandardFonts.HelveticaBoldOblique;
@@ -265,8 +386,6 @@ export class PDFAdapter implements IDocumentConverter {
     } else {
       pdfOptions.font = StandardFonts.Helvetica;
     }
-
-    return pdfOptions;
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -364,6 +483,32 @@ export class PDFAdapter implements IDocumentConverter {
   ): Promise<void> {
     if (!this.doc || !this.page) return;
 
+    // Extract block‑quote like styles (border‑left, padding‑left, margin‑left)
+    const raw = el.styles || {};
+    const borderLeftWidthPx = raw.borderLeftWidth
+      ? parseFloat(String(raw.borderLeftWidth))
+      : 0;
+    // const borderLeftColorCss = (raw.borderLeftColor as string) || 'lightGray';
+    // const borderLeftColor = this.hexToRgb(colorConversion(borderLeftColorCss));
+    const paddingLeftPx = raw.paddingLeft
+      ? parseFloat(String(raw.paddingLeft))
+      : 0;
+    const marginLeftPx = raw.marginLeft
+      ? parseFloat(String(raw.marginLeft))
+      : 0;
+
+    // Convert to PDF points
+    const borderLeftWidthPt = borderLeftWidthPx; // 1 px ≈ 1 pt for our simple screen use‑case
+    const paddingLeftPt = paddingLeftPx;
+    const marginLeftPt = marginLeftPx;
+
+    // Shift the starting X of the paragraph to honour margin + padding + border
+    let blockOffsetX =
+      this.pageMargin +
+      marginLeftPt +
+      paddingLeftPt +
+      (borderLeftWidthPt > 0 ? borderLeftWidthPt + 4 : 0);
+
     this.checkPageSpace(this.lineHeight * 2);
 
     // Apply margins if specified
@@ -373,7 +518,7 @@ export class PDFAdapter implements IDocumentConverter {
 
     if (el.content && el.content.length > 0) {
       // Handle multiple text runs with different styles
-      let currentX = this.pageMargin;
+      let currentX = blockOffsetX;
       if (pdfStyles.margins?.left) {
         currentX += pdfStyles.margins.left;
       }
@@ -407,7 +552,7 @@ export class PDFAdapter implements IDocumentConverter {
           }
 
           const textWidth = font.widthOfTextAtSize(
-            (contentElement as TextElement).text,
+            sanitizeTextForPDF((contentElement as TextElement).text),
             actualFontSize
           );
           currentX += textWidth;
@@ -418,8 +563,20 @@ export class PDFAdapter implements IDocumentConverter {
         }
       }
     } else if (el.text) {
-      const textX = this.pageMargin + (pdfStyles.margins?.left || 0);
+      const textX = blockOffsetX + (pdfStyles.margins?.left || 0);
       await this.renderTextRun(el.text, textX, this.currentY, pdfStyles);
+    }
+
+    // Draw block‑quote left border after text has occupied its height
+    if (borderLeftWidthPt > 0) {
+      this.page.drawRectangle({
+        x: this.pageMargin + marginLeftPt,
+        y: this.currentY + 5, // top of the vertical bar
+        width: borderLeftWidthPt,
+        height: this.lineHeight, // bar height matches one paragraph line
+        color: rgb(0, 0, 0),
+        borderWidth: 0,
+      });
     }
 
     // Apply bottom margin and default spacing
@@ -449,34 +606,61 @@ export class PDFAdapter implements IDocumentConverter {
       adjustedY += fontSize * 0.3;
     }
 
-    // Draw background if specified
-    if (styles.backgroundColor) {
-      const textWidth = font.widthOfTextAtSize(text, fontSize);
-      this.page.drawRectangle({
-        x: x - 2,
-        y: adjustedY - fontSize * 0.2,
-        width: textWidth + 4,
-        height: fontSize * 1.2,
+    // Sanitize but keep ✓ ✔ for special handling
+    const segments = text.split(/(✓|✔)/);
+
+    let cursorX = x;
+    for (const seg of segments) {
+      if (!seg) continue;
+      if (seg === '✓' || seg === '✔') {
+        // draw vector check‑mark
+        const advance = this.drawCheckMark(
+          cursorX,
+          adjustedY + fontSize * 0.25,
+          fontSize
+        );
+        cursorX += advance;
+        continue;
+      }
+
+      const sanitized = sanitizeTextForPDF(seg);
+
+      // Draw background if specified
+      if (styles.backgroundColor && sanitized.trim() !== '') {
+        const textWidth = font.widthOfTextAtSize(sanitized, fontSize);
+        this.page.drawRectangle({
+          x: cursorX - 2,
+          y: adjustedY - fontSize * 0.2,
+          width: textWidth + 4,
+          height: fontSize * 1.2,
+          color: rgb(
+            styles.backgroundColor.r,
+            styles.backgroundColor.g,
+            styles.backgroundColor.b
+          ),
+        });
+      }
+
+      this.page.drawText(sanitized, {
+        x: cursorX,
+        y: adjustedY,
+        size: fontSize,
+        font,
         color: rgb(
-          styles.backgroundColor.r,
-          styles.backgroundColor.g,
-          styles.backgroundColor.b
+          styles.fillColor!.r,
+          styles.fillColor!.g,
+          styles.fillColor!.b
         ),
       });
-    }
 
-    // Draw the text
-    this.page.drawText(text, {
-      x,
-      y: adjustedY,
-      size: fontSize,
-      font,
-      color: rgb(styles.fillColor!.r, styles.fillColor!.g, styles.fillColor!.b),
-    });
+      const w = font.widthOfTextAtSize(sanitized, fontSize);
+      cursorX += w;
+    }
 
     // Draw underline if specified
     if (styles.underline) {
-      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const sanitizedText = sanitizeTextForPDF(text);
+      const textWidth = font.widthOfTextAtSize(sanitizedText, fontSize);
       this.page.drawLine({
         start: { x, y: adjustedY - 2 },
         end: { x: x + textWidth, y: adjustedY - 2 },
@@ -491,7 +675,8 @@ export class PDFAdapter implements IDocumentConverter {
 
     // Draw strikethrough if specified
     if (styles.strike) {
-      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const sanitizedText = sanitizeTextForPDF(text);
+      const textWidth = font.widthOfTextAtSize(sanitizedText, fontSize);
       this.page.drawLine({
         start: { x, y: adjustedY + fontSize * 0.3 },
         end: { x: x + textWidth, y: adjustedY + fontSize * 0.3 },
@@ -506,7 +691,8 @@ export class PDFAdapter implements IDocumentConverter {
 
     // Handle hyperlinks (basic visual indication)
     if (element?.attributes?.href) {
-      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      const sanitizedText = sanitizeTextForPDF(text);
+      const textWidth = font.widthOfTextAtSize(sanitizedText, fontSize);
       // Draw link annotation if pdf-lib supports it, for now just underline
       if (!styles.underline) {
         this.page.drawLine({
@@ -557,7 +743,7 @@ export class PDFAdapter implements IDocumentConverter {
           this.fonts.get(headingFont!) ||
           this.fonts.get(StandardFonts.HelveticaBold)!;
 
-        this.page.drawText(textLine, {
+        this.page.drawText(sanitizeTextForPDF(textLine), {
           x: this.pageMargin,
           y: this.currentY,
           size: headingFontSize,
@@ -574,7 +760,7 @@ export class PDFAdapter implements IDocumentConverter {
         this.fonts.get(headingFont!) ||
         this.fonts.get(StandardFonts.HelveticaBold)!;
 
-      this.page.drawText(el.text, {
+      this.page.drawText(sanitizeTextForPDF(el.text), {
         x: this.pageMargin,
         y: this.currentY,
         size: headingFontSize,
@@ -602,7 +788,7 @@ export class PDFAdapter implements IDocumentConverter {
       this.fonts.get(pdfStyles.font!) ||
       this.fonts.get(StandardFonts.Helvetica)!;
 
-    this.page.drawText(el.text, {
+    this.page.drawText(sanitizeTextForPDF(el.text), {
       x: this.pageMargin,
       y: this.currentY,
       size: pdfStyles.fontSize || 12,
@@ -628,53 +814,169 @@ export class PDFAdapter implements IDocumentConverter {
 
     for (let i = 0; i < el.content.length; i++) {
       const item = el.content[i] as ListItemElement;
-      const bullet = el.listType === 'ordered' ? `${i + 1}. ` : '• ';
       const itemStyles = { ...rawStyles, ...item.styles };
       const itemPdfStyles = this.mapStyles(itemStyles, item);
 
-      this.checkPageSpace(this.lineHeight);
-
-      const font =
-        this.fonts.get(itemPdfStyles.font!) ||
-        this.fonts.get(StandardFonts.Helvetica)!;
-
-      if (item.content && item.content.length > 0) {
-        let textLine = bullet;
-        for (const contentEl of item.content) {
-          if (contentEl.type === 'text' && (contentEl as TextElement).text) {
-            textLine += (contentEl as TextElement).text;
-          }
-        }
-
-        this.page.drawText(textLine, {
-          x: this.pageMargin + 20, // Indent list items
-          y: this.currentY,
-          size: itemPdfStyles.fontSize || 12,
-          font,
-          color: rgb(
-            itemPdfStyles.fillColor!.r,
-            itemPdfStyles.fillColor!.g,
-            itemPdfStyles.fillColor!.b
-          ),
-        });
-      } else if (item.text) {
-        this.page.drawText(bullet + item.text, {
-          x: this.pageMargin + 20,
-          y: this.currentY,
-          size: itemPdfStyles.fontSize || 12,
-          font,
-          color: rgb(
-            itemPdfStyles.fillColor!.r,
-            itemPdfStyles.fillColor!.g,
-            itemPdfStyles.fillColor!.b
-          ),
-        });
-      }
-
-      this.currentY -= this.lineHeight;
+      await this.convertListItem(item, el.listType, i, itemPdfStyles, 0);
     }
 
-    this.currentY -= 10; // Space after list
+    this.currentY -= 5; // Space after list
+  }
+
+  private async convertListItem(
+    item: ListItemElement,
+    listType: string,
+    index: number,
+    pdfStyles: PDFStyleOptions,
+    level: number
+  ): Promise<void> {
+    if (!this.page) return;
+
+    this.checkPageSpace(this.lineHeight);
+
+    // Calculate indentation based on level (similar to DOCX adapter)
+    const baseIndent = 20;
+    const levelIndent = level * 20;
+    const totalIndent = this.pageMargin + baseIndent + levelIndent;
+
+    const markerX = totalIndent - 15;
+    const markerCenterY = this.currentY + (pdfStyles.fontSize || 12) * 0.3;
+    const bulletSize = 3;
+
+    const font =
+      this.fonts.get(pdfStyles.font!) ||
+      this.fonts.get(StandardFonts.Helvetica)!;
+
+    if (listType === 'ordered') {
+      const marker = `${index + 1}.`;
+      this.page.drawText(marker, {
+        x: markerX,
+        y: this.currentY,
+        size: pdfStyles.fontSize || 12,
+        font,
+        color: rgb(
+          pdfStyles.fillColor!.r,
+          pdfStyles.fillColor!.g,
+          pdfStyles.fillColor!.b
+        ),
+      });
+    } else {
+      switch (level) {
+        case 0: // filled circle
+          this.page.drawCircle({
+            x: markerX + bulletSize,
+            y: markerCenterY,
+            size: bulletSize,
+            color: rgb(
+              pdfStyles.fillColor!.r,
+              pdfStyles.fillColor!.g,
+              pdfStyles.fillColor!.b
+            ),
+          });
+          break;
+        case 1: // open circle
+          this.page.drawCircle({
+            x: markerX + bulletSize,
+            y: markerCenterY,
+            size: bulletSize,
+            borderWidth: 1,
+            borderColor: rgb(
+              pdfStyles.fillColor!.r,
+              pdfStyles.fillColor!.g,
+              pdfStyles.fillColor!.b
+            ),
+            color: undefined,
+          });
+          break;
+        default: // level 2+ filled square
+          this.page.drawRectangle({
+            x: markerX + bulletSize,
+            y: markerCenterY - bulletSize,
+            width: bulletSize * 2,
+            height: bulletSize * 2,
+            color: rgb(
+              pdfStyles.fillColor!.r,
+              pdfStyles.fillColor!.g,
+              pdfStyles.fillColor!.b
+            ),
+          });
+          break;
+      }
+    }
+
+    if (item.content && item.content.length > 0) {
+      // Handle complex content with multiple text runs and nested elements
+      let currentX = totalIndent;
+      for (const contentEl of item.content) {
+        if (contentEl.type === 'text' && (contentEl as TextElement).text) {
+          const textElement = contentEl as TextElement;
+          const elementStyles = {
+            ...pdfStyles,
+            ...this.mapStyles(contentEl.styles || {}, contentEl),
+          };
+          this.page.drawText(sanitizeTextForPDF(textElement.text), {
+            x: currentX,
+            y: this.currentY,
+            size: elementStyles.fontSize || 12,
+            font: this.fonts.get(elementStyles.font!) || font,
+            color: rgb(
+              elementStyles.fillColor!.r,
+              elementStyles.fillColor!.g,
+              elementStyles.fillColor!.b
+            ),
+          });
+          // Update X position for next text element
+          const textFont = this.fonts.get(elementStyles.font!) || font;
+          const textWidth = textFont.widthOfTextAtSize(
+            sanitizeTextForPDF(textElement.text),
+            elementStyles.fontSize || 12
+          );
+          currentX += textWidth;
+        } else if (contentEl.type === 'list') {
+          // Handle nested lists
+          this.currentY -= this.lineHeight;
+          const nestedList = contentEl as ListElement;
+          for (let j = 0; j < nestedList.content.length; j++) {
+            const nestedItem = nestedList.content[j] as ListItemElement;
+            await this.convertListItem(
+              nestedItem,
+              nestedList.listType,
+              j,
+              pdfStyles,
+              level + 1
+            );
+          }
+          return; // Don't decrement Y again after nested list
+        }
+      }
+    } else if (item.text) {
+      this.page.drawText(sanitizeTextForPDF(item.text), {
+        x: totalIndent,
+        y: this.currentY,
+        size: pdfStyles.fontSize || 12,
+        font,
+        color: rgb(
+          pdfStyles.fillColor!.r,
+          pdfStyles.fillColor!.g,
+          pdfStyles.fillColor!.b
+        ),
+      });
+    }
+
+    this.currentY -= this.lineHeight;
+  }
+
+  // getListMarker is no longer used for unordered lists, but kept for ordered lists
+  private getListMarker(
+    listType: string,
+    index: number,
+    level: number
+  ): string {
+    if (listType === 'ordered') {
+      return `${index + 1}.`;
+    }
+    // No longer used for unordered lists (bullets drawn as shapes)
+    return '';
   }
 
   private async convertLine(
@@ -683,8 +985,9 @@ export class PDFAdapter implements IDocumentConverter {
   ): Promise<void> {
     if (!this.doc || !this.page) return;
 
-    this.checkPageSpace(20);
-    this.currentY -= 10; // Space before line
+    const lineGap = 15; // pts of whitespace before and after an <hr>
+    this.checkPageSpace(lineGap * 2);
+    this.currentY -= lineGap; // Space before line
 
     const strokeColor = pdfStyles.strokeColor || { r: 0, g: 0, b: 0 };
     const lineWidth = pdfStyles.lineWidth || 1;
@@ -696,7 +999,7 @@ export class PDFAdapter implements IDocumentConverter {
       color: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
     });
 
-    this.currentY -= 10; // Space after line
+    this.currentY -= lineGap; // Space after line
   }
 
   private async convertImage(
@@ -768,73 +1071,192 @@ export class PDFAdapter implements IDocumentConverter {
 
   private async convertTable(
     el: TableElement,
-    pdfStyles: PDFStyleOptions,
+    _pdfStyles: PDFStyleOptions,
     rawStyles: Styles
   ): Promise<void> {
     if (!this.doc || !this.page) return;
+    const rows = el.rows ?? [];
+    if (rows.length === 0) return;
 
-    const { rows } = el;
-    if (!rows || rows.length === 0) return;
+    // --------- PRE‑COMPUTE COLUMN WIDTHS ----------
+    // Count logical columns from first row (respecting colspan)
+    let columnCount = 0;
+    for (const cell of rows[0].cells) columnCount += cell.colspan ?? 1;
 
-    const columnCount = rows[0]?.cells.length || 1;
-    const availableWidth = this.page.getWidth() - this.pageMargin * 2;
-    const defaultColWidth = availableWidth / columnCount;
-    const colWidths: number[] = Array(columnCount).fill(defaultColWidth);
-    const rowHeight = 30; // Fixed row height for simplicity
+    const pageWidth = this.page.getWidth();
+    const tableWidth = pageWidth - this.pageMargin * 2;
+    const colWidths = Array(columnCount).fill(tableWidth / columnCount);
 
-    this.currentY -= 10; // Space before table
+    // --------- FIRST PASS  →  ROW HEIGHTS ----------
+    const rowHeights: number[] = [];
+    const fontCache = (fontName?: StandardFonts) =>
+      this.fonts.get(fontName || StandardFonts.Helvetica) ??
+      this.fonts.get(StandardFonts.Helvetica)!;
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      this.checkPageSpace(rowHeight + 10);
+    for (const row of rows) {
+      let maxHeight = 0;
+      let colIdx = 0;
 
-      let currentX = this.pageMargin;
+      for (const cell of row.cells) {
+        // Skip phantom columns already occupied by an active rowspan in a previous row
+        const spanLeft =
+          (rows as any)._rowspanTracker ??
+          ((rows as any)._rowspanTracker = Array(columnCount).fill(0));
+        while (spanLeft[colIdx] > 0) {
+          colIdx++;
+        }
 
-      for (let j = 0; j < row.cells.length; j++) {
-        const cell = row.cells[j];
-        const cellText =
-          cell.text ||
-          cell.content?.map((c) => (c as TextElement).text).join(' ') ||
-          '';
-        const cellStyles = { ...rawStyles, ...row.styles, ...cell.styles };
-        const cellPdfStyles = this.mapStyles(cellStyles, cell);
+        const colspan = cell.colspan ?? 1;
+        const cellWidth = colWidths
+          .slice(colIdx, colIdx + colspan)
+          .reduce((a, b) => a + b, 0);
 
-        // Draw cell border
-        this.page.drawRectangle({
-          x: currentX,
-          y: this.currentY - rowHeight,
-          width: colWidths[j],
-          height: rowHeight,
-          borderColor: rgb(0, 0, 0),
-          borderWidth: 1,
-        });
+        const combinedStyles = { ...rawStyles, ...row.styles, ...cell.styles };
+        const pdfOpts = this.mapStyles(combinedStyles, cell);
 
-        // Draw cell text
-        if (cellText) {
-          const font =
-            this.fonts.get(cellPdfStyles.font!) ||
-            this.fonts.get(StandardFonts.Helvetica)!;
+        const font = fontCache(pdfOpts.font);
+        const fontSize = pdfOpts.fontSize ?? 10;
 
-          this.page.drawText(cellText, {
-            x: currentX + 5, // padding
-            y: this.currentY - rowHeight / 2 - 5, // center vertically
-            size: cellPdfStyles.fontSize || 10,
-            font,
+        // Estimate wrapped text height
+        const content = this.getCellTextContent(cell);
+        const lines = this.wrapText(
+          content,
+          font,
+          fontSize,
+          cellWidth - 10 /* padding * 2 */
+        );
+        const estimated = lines.length * (fontSize + 2) + 10; // padding 5 top/bot
+
+        maxHeight = Math.max(maxHeight, estimated);
+
+        // Register rowspan so later rows know some columns are taken
+        const rowspan = cell.rowspan ?? 1;
+        if (rowspan > 1) {
+          for (let k = 0; k < colspan; k++) {
+            spanLeft[colIdx + k] = rowspan - 1;
+          }
+        }
+
+        colIdx += colspan;
+      }
+
+      rowHeights.push(maxHeight);
+
+      // Decrement tracker counts for next iteration
+      const spanLeft = (rows as any)._rowspanTracker;
+      for (let i = 0; i < spanLeft.length; i++) {
+        if (spanLeft[i] > 0) spanLeft[i]--;
+      }
+    }
+
+    delete (rows as any)._rowspanTracker; // cleanup helper
+
+    // --------- SECOND PASS  →  RENDER ----------
+    const rowspanLeft: number[] = Array(columnCount).fill(0);
+    this.currentY -= 15; // space before table
+
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      const rowHeight = rowHeights[r];
+
+      // Ensure the tallest piece of a potential rowspan fits on page
+      this.checkPageSpace(rowHeight);
+
+      let colIdx = 0;
+      let x = this.pageMargin;
+
+      for (const cell of row.cells) {
+        // Skip columns masked by active rowspan
+        while (rowspanLeft[colIdx] > 0) {
+          x += colWidths[colIdx];
+          rowspanLeft[colIdx]--;
+          colIdx++;
+        }
+
+        const colspan = cell.colspan ?? 1;
+        const rowspan = cell.rowspan ?? 1;
+        const cellWidth = colWidths
+          .slice(colIdx, colIdx + colspan)
+          .reduce((a, b) => a + b, 0);
+        const cellHeight = rowHeights
+          .slice(r, r + rowspan)
+          .reduce((a, b) => a + b, 0);
+
+        // Mark columns as blocked for upcoming rows if rowspan > 1
+        if (rowspan > 1) {
+          for (let k = 0; k < colspan; k++) {
+            rowspanLeft[colIdx + k] = rowspan - 1;
+          }
+        }
+
+        const combinedStyles = { ...rawStyles, ...row.styles, ...cell.styles };
+        const pdfOpts = this.mapStyles(combinedStyles, cell);
+        const font = fontCache(pdfOpts.font);
+        const fontSize = pdfOpts.fontSize ?? 10;
+
+        // BACKGROUND
+        if (pdfOpts.backgroundColor) {
+          this.page.drawRectangle({
+            x,
+            y: this.currentY - cellHeight,
+            width: cellWidth,
+            height: cellHeight,
             color: rgb(
-              cellPdfStyles.fillColor!.r,
-              cellPdfStyles.fillColor!.g,
-              cellPdfStyles.fillColor!.b
+              pdfOpts.backgroundColor.r,
+              pdfOpts.backgroundColor.g,
+              pdfOpts.backgroundColor.b
             ),
-            maxWidth: colWidths[j] - 10, // padding
+            borderWidth: 0,
           });
         }
 
-        currentX += colWidths[j];
+        // BORDER
+        this.page.drawRectangle({
+          x,
+          y: this.currentY - cellHeight,
+          width: cellWidth,
+          height: cellHeight,
+          borderWidth: 1,
+          borderColor: rgb(0, 0, 0),
+        });
+
+        // TEXT
+        const content = this.getCellTextContent(cell);
+        const lines = this.wrapText(content, font, fontSize, cellWidth - 10);
+        let textY = this.currentY - 5 - fontSize; // 5pt top padding then baseline
+        for (const line of lines) {
+          await this.renderTextRun(line, x + 5, textY, {
+            ...pdfOpts,
+            fontSize,
+            font: pdfOpts.font,
+          });
+          textY -= fontSize + 2;
+        }
+
+        x += cellWidth;
+        colIdx += colspan;
       }
 
       this.currentY -= rowHeight;
     }
 
-    this.currentY -= 10; // Space after table
+    this.currentY -= 30; // a bit more breathing room after the table
+  }
+
+  private getCellTextContent(cell: TableCellElement): string {
+    if (cell.text) {
+      return cell.text;
+    }
+
+    if (cell.content && cell.content.length > 0) {
+      return cell.content
+        .filter((c: DocumentElement) => c.type === 'text')
+        .map((c: DocumentElement) =>
+          sanitizeTextForPDF((c as TextElement).text || '')
+        )
+        .join(' ');
+    }
+
+    return '';
   }
 }
