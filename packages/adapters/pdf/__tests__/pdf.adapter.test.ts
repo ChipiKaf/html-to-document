@@ -418,37 +418,37 @@ describe('PDFAdapter.convert', () => {
       }
     });
 
-    // it('should render subscript and superscript text correctly (text content check)', async () => {
-    //   const elements: DocumentElement[] = [
-    //     {
-    //       type: 'paragraph',
-    //       content: [
-    //         { type: 'text', text: 'H' },
-    //         {
-    //           type: 'text',
-    //           text: '2',
-    //           styles: { verticalAlign: 'sub' },
-    //         },
-    //         { type: 'text', text: 'O and x' },
-    //         {
-    //           type: 'text',
-    //           text: '2',
-    //           styles: { verticalAlign: 'super' },
-    //         },
-    //       ],
-    //       styles: {},
-    //       attributes: {},
-    //     },
-    //   ];
+    it('should render subscript and superscript text correctly (text content check)', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'H' },
+            {
+              type: 'text',
+              text: '2',
+              styles: { verticalAlign: 'sub' },
+            },
+            { type: 'text', text: 'O and x' },
+            {
+              type: 'text',
+              text: '2',
+              styles: { verticalAlign: 'super' },
+            },
+          ],
+          styles: {},
+          attributes: {},
+        },
+      ];
 
-    //   const buffer = (await adapter.convert(elements)) as Buffer;
-    //   const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-    //   if (parsedSuccessfully) {
-    //     expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-    //       'H2O and x2'
-    //     );
-    //   }
-    // });
+      const buffer = (await adapter.convert(elements)) as Buffer;
+      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
+      if (parsedSuccessfully) {
+        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
+          'H2O and x2'
+        );
+      }
+    });
   });
 
   describe('Complex Paragraph styles', () => {
