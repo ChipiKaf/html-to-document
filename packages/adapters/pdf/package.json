@@ -1,13 +1,13 @@
 {
   "name": "html-to-document-adapter-pdf",
   "version": "0.1.0",
-  "description": "PDF adapter for html-to-document-core — converts a DocumentElement tree into a .pdf Buffer using the pdfkit library.",
+  "description": "PDF adapter for html-to-document-core — converts a DocumentElement tree into a .pdf Buffer using the pdf-lib library.",
   "keywords": [
     "html-to-document",
     "pdf",
     "adapter",
     "pdf-converter",
-    "pdfkit"
+    "pdf-lib"
   ],
   "license": "ISC",
   "homepage": "https://github.com/ChipiKaf/html-to-document#readme",
@@ -39,9 +39,7 @@
     "html-to-document-core": "^0.2.0"
   },
   "dependencies": {
-    "pdfkit": "^0.14.0",
-    "image-size": "^2.0.2",
-    "blob-stream": "^0.1.3"
+    "pdf-lib": "^1.17.1"
   },
   "engines": {
     "node": ">=14"

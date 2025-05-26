@@ -1,5 +1,4 @@
 import {
-  extractAllAttributes,
   extractAttributesToMetadata,
   parseAttributes,
   parseStyles,

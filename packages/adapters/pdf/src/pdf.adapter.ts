@@ -1,6 +1,14 @@
-import PDFDocument from 'pdfkit';
-import blobStream from 'blob-stream'; // Only for browser path
-import { PassThrough } from 'stream'; // For Node.js path
+import {
+  PDFDocument,
+  PDFPage,
+  PDFFont,
+  rgb,
+  StandardFonts,
+  PageSizes,
+  TextAlignment,
+  LineCapStyle,
+  PDFImage,
+} from 'pdf-lib';
 import {
   DocumentElement,
   ParagraphElement,
@@ -10,371 +18,698 @@ import {
   ListElement,
   ListItemElement,
   TableElement,
-  // GridCell, // If needed for table processing logic
   LineElement,
   Styles,
   IConverterDependencies,
   StyleMapper,
   IDocumentConverter,
 } from 'html-to-document-core';
-import { handleChildren, isInline } from './pdf.util';
-// Import image-size if you plan to use it for image dimensions
-import imageSize from 'image-size';
-import fs from 'fs'; // Required by image-size in Node.js, and for local file access for images
-import path from 'path'; // For image path processing
+// Utility functions are available if needed later
+import fs from 'fs';
+import path from 'path';
 
 // Define a type for PDF rendering options based on styles
 type PDFStyleOptions = {
-  font?: string;
+  font?: StandardFonts;
   fontSize?: number;
-  fillColor?: string; // for text color
-  strokeColor?: string; // for borders, lines
+  fillColor?: { r: number; g: number; b: number }; // RGB color for text
+  backgroundColor?: { r: number; g: number; b: number }; // RGB color for background
+  strokeColor?: { r: number; g: number; b: number }; // RGB color for borders, lines
   lineWidth?: number;
-  lineCap?: 'butt' | 'round' | 'square';
-  align?: 'left' | 'center' | 'right' | 'justify';
+  lineCap?: LineCapStyle;
+  align?: TextAlignment;
   valign?: 'top' | 'center' | 'bottom'; // For table cells primarily
-  bold?: boolean; // Custom handling as pdfkit might need font switching
-  italic?: boolean; // Custom handling
+  bold?: boolean;
+  italic?: boolean;
   underline?: boolean;
   strike?: boolean;
+  subscript?: boolean;
+  superscript?: boolean;
   bullet?: boolean | { indent?: number; character?: string }; // For lists
-  continued?: boolean; // For text runs that continue on the same line
+  continued?: boolean;
   link?: string;
   width?: number; // For images, tables
   height?: number; // For images
-  // Add more pdfkit specific options as needed
   margins?: { top: number; right: number; bottom: number; left: number };
-  textOptions?: any; // To pass directly to pdfkit's text method options
-  imageOptions?: any; // To pass directly to pdfkit's image method options
+  padding?: { top: number; right: number; bottom: number; left: number };
 };
 
-// Define a simple style mapping structure for now
-// This will need to be significantly expanded
-const defaultPDFStyleMap: Record<string, (value: any) => Partial<PDFStyleOptions>> = {
-  'color': (value) => ({ fillColor: value }),
-  'background-color': (value) => ({ /* PDFKit handles background differently, often per shape */ }),
-  'font-size': (value) => ({ fontSize: parseFloat(value) }), // Assuming value is like '12px' or '12pt'
-  'font-family': (value) => ({ font: value }), // Basic mapping, pdfkit needs registered fonts
-  'font-weight': (value) => ({ bold: value === 'bold' || Number(value) >= 700 }),
-  'font-style': (value) => ({ italic: value === 'italic' }),
-  'text-decoration': (value) => ({
-    underline: value.includes('underline'),
-    strike: value.includes('line-through'),
+// Helper function to convert hex color to RGB
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return {
+      r: parseInt(result[1], 16) / 255,
+      g: parseInt(result[2], 16) / 255,
+      b: parseInt(result[3], 16) / 255,
+    };
+  }
+  return { r: 0, g: 0, b: 0 }; // Default to black
+};
+
+// Helper function to convert named colors to RGB
+const namedColorToRgb = (
+  color: string
+): { r: number; g: number; b: number } => {
+  const colors: Record<string, { r: number; g: number; b: number }> = {
+    black: { r: 0, g: 0, b: 0 },
+    white: { r: 1, g: 1, b: 1 },
+    red: { r: 1, g: 0, b: 0 },
+    green: { r: 0, g: 1, b: 0 },
+    blue: { r: 0, g: 0, b: 1 },
+    // Add more as needed
+  };
+  return colors[color.toLowerCase()] || { r: 0, g: 0, b: 0 };
+};
+
+// Helper function to parse color values
+const parseColor = (value: string): { r: number; g: number; b: number } => {
+  if (value.startsWith('#')) {
+    return hexToRgb(value);
+  } else if (value.startsWith('rgb')) {
+    // Parse rgb(r, g, b) format
+    const match = value.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (match) {
+      return {
+        r: parseInt(match[1]) / 255,
+        g: parseInt(match[2]) / 255,
+        b: parseInt(match[3]) / 255,
+      };
+    }
+  }
+  return namedColorToRgb(value);
+};
+
+// Define a simple style mapping structure for pdf-lib
+const defaultPDFStyleMap: Record<
+  string,
+  (value: unknown) => Partial<PDFStyleOptions>
+> = {
+  color: (value) => ({ fillColor: parseColor(String(value)) }),
+  'background-color': (value) => ({
+    backgroundColor: parseColor(String(value)),
   }),
-  'text-align': (value) => ({ align: value as PDFStyleOptions['align'] }),
-  'margin-left': (value) => ({ /* Need to handle margins at block level */ }),
-  'padding-left': (value) => ({ /* Need to handle padding, pdfkit uses current x,y pos */ }),
-  // ... more CSS properties
+  'font-size': (value) => ({ fontSize: parseFloat(String(value)) }),
+  'font-family': () => ({
+    font: StandardFonts.Helvetica, // Default to Helvetica, can be enhanced
+  }),
+  'font-weight': (value) => ({
+    bold: value === 'bold' || Number(value) >= 700,
+  }),
+  'font-style': (value) => ({ italic: value === 'italic' }),
+  'text-decoration': (value) => {
+    const decoration = String(value);
+    return {
+      underline: decoration.includes('underline'),
+      strike: decoration.includes('line-through'),
+    };
+  },
+  'text-align': (value) => {
+    const alignMap: Record<string, TextAlignment> = {
+      left: TextAlignment.Left,
+      center: TextAlignment.Center,
+      right: TextAlignment.Right,
+      justify: TextAlignment.Center, // pdf-lib doesn't have Justified, use Center as fallback
+    };
+    return { align: alignMap[String(value)] || TextAlignment.Left };
+  },
+  'margin-left': () => ({
+    /* Need to handle margins at block level */
+  }),
+  'padding-left': () => ({
+    /* Need to handle padding */
+  }),
 };
 
 export class PDFAdapter implements IDocumentConverter {
-  private _mapper: StyleMapper; // This might need to be a custom PDFStyleMapper
+  private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
-  private doc: typeof PDFDocument | null = null; // Holds the pdfkit document instance
+  private doc: PDFDocument | null = null;
+  private page: PDFPage | null = null;
+  private currentY: number = 0;
+  private pageMargin = 50;
+  private lineHeight = 20;
+  private fonts: Map<string, PDFFont> = new Map();
 
   constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
-    // For now, we'll use a simple style mapping.
-    // The provided styleMapper might be for HTML/CSS, we need to adapt it or create a new one for PDF.
-    this._mapper = styleMapper; // Or initialize a new PDF specific mapper
+    this._mapper = styleMapper;
     this._defaultStyles = { ...defaultStyles };
   }
 
   private mapStyles(styles: Styles, element: DocumentElement): PDFStyleOptions {
-    const pdfOptions: PDFStyleOptions = {};
+    const pdfOptions: PDFStyleOptions = {
+      font: StandardFonts.Helvetica,
+      fontSize: 12,
+      fillColor: { r: 0, g: 0, b: 0 },
+      align: TextAlignment.Left,
+    };
+
     // Use the core StyleMapper first if it can produce generic style objects
     const genericStyles = this._mapper.mapStyles(styles, element);
 
     for (const key in genericStyles) {
-        if (defaultPDFStyleMap[key]) {
-            Object.assign(pdfOptions, defaultPDFStyleMap[key](genericStyles[key]));
-        } else {
-            // Handle direct properties or complex ones
-            switch (key) {
-                // Example: if genericStyles includes 'bold: true' directly
-                case 'bold': pdfOptions.bold = genericStyles[key] as boolean; break;
-                case 'italic': pdfOptions.italic = genericStyles[key] as boolean; break;
-                // Add more direct mappings or transformations here
-            }
+      if (defaultPDFStyleMap[key]) {
+        Object.assign(pdfOptions, defaultPDFStyleMap[key](genericStyles[key]));
+      } else {
+        // Handle direct properties or complex ones
+        switch (key) {
+          case 'bold':
+            pdfOptions.bold = genericStyles[key] as boolean;
+            break;
+          case 'italic':
+            pdfOptions.italic = genericStyles[key] as boolean;
+            break;
         }
+      }
     }
-    // Apply element-specific styles (e.g. from el.styles)
-    // This part is crucial and needs to be robust
+
+    // Apply element-specific styles
     for (const styleKey in styles) {
-        if (defaultPDFStyleMap[styleKey]) {
-            Object.assign(pdfOptions, defaultPDFStyleMap[styleKey](styles[styleKey]));
-        } else {
-             switch (styleKey) {
-                case 'fontWeight': pdfOptions.bold = styles[styleKey] === 'bold' || Number(styles[styleKey]) >= 700; break;
-                case 'fontStyle': pdfOptions.italic = styles[styleKey] === 'italic'; break;
-                // Add more direct mappings or transformations here
+      if (defaultPDFStyleMap[styleKey]) {
+        Object.assign(
+          pdfOptions,
+          defaultPDFStyleMap[styleKey](styles[styleKey])
+        );
+      } else {
+        switch (styleKey) {
+          case 'fontWeight':
+            pdfOptions.bold =
+              styles[styleKey] === 'bold' || Number(styles[styleKey]) >= 700;
+            break;
+          case 'fontStyle':
+            pdfOptions.italic = styles[styleKey] === 'italic';
+            break;
+          case 'fontSize':
+            pdfOptions.fontSize = parseFloat(styles[styleKey] as string);
+            break;
+          case 'color':
+            pdfOptions.fillColor = parseColor(styles[styleKey] as string);
+            break;
+          case 'textAlign':
+            const alignMap: Record<string, TextAlignment> = {
+              left: TextAlignment.Left,
+              center: TextAlignment.Center,
+              right: TextAlignment.Right,
+              justify: TextAlignment.Center, // pdf-lib doesn't have Justified, use Center as fallback
+            };
+            pdfOptions.align =
+              alignMap[styles[styleKey] as string] || TextAlignment.Left;
+            break;
+          case 'textDecoration':
+            const decoration = styles[styleKey] as string;
+            pdfOptions.underline = decoration.includes('underline');
+            pdfOptions.strike = decoration.includes('line-through');
+            break;
+          case 'backgroundColor':
+            pdfOptions.backgroundColor = parseColor(styles[styleKey] as string);
+            break;
+          case 'verticalAlign':
+            const vertAlign = styles[styleKey] as string;
+            pdfOptions.subscript = vertAlign === 'sub';
+            pdfOptions.superscript = vertAlign === 'super';
+            break;
+          case 'marginTop':
+          case 'marginBottom':
+          case 'marginLeft':
+          case 'marginRight':
+            if (!pdfOptions.margins) {
+              pdfOptions.margins = { top: 0, right: 0, bottom: 0, left: 0 };
             }
+            const marginValue = parseFloat(styles[styleKey] as string) || 0;
+            switch (styleKey) {
+              case 'marginTop':
+                pdfOptions.margins.top = marginValue;
+                break;
+              case 'marginBottom':
+                pdfOptions.margins.bottom = marginValue;
+                break;
+              case 'marginLeft':
+                pdfOptions.margins.left = marginValue;
+                break;
+              case 'marginRight':
+                pdfOptions.margins.right = marginValue;
+                break;
+            }
+            break;
         }
+      }
     }
+
+    // Determine font based on bold and italic
+    if (pdfOptions.bold && pdfOptions.italic) {
+      pdfOptions.font = StandardFonts.HelveticaBoldOblique;
+    } else if (pdfOptions.bold) {
+      pdfOptions.font = StandardFonts.HelveticaBold;
+    } else if (pdfOptions.italic) {
+      pdfOptions.font = StandardFonts.HelveticaOblique;
+    } else {
+      pdfOptions.font = StandardFonts.Helvetica;
+    }
+
     return pdfOptions;
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
-    this.doc = new PDFDocument({
-      autoFirstPage: true,
-    });
+    this.doc = await PDFDocument.create();
+    this.page = this.doc.addPage(PageSizes.A4);
+    this.currentY = this.page.getHeight() - this.pageMargin;
+
+    // Load standard fonts
+    await this.loadFonts();
 
     for (const el of elements) {
       await this.convertElement(el, {});
     }
 
-    if (typeof window !== 'undefined') {
-      const bs = blobStream();
-      this.doc!.pipe(bs); // Non-null assertion
-      this.doc!.end();   // Non-null assertion
-      return new Promise((resolve, reject) => {
-        bs.on('finish', () => resolve(bs.toBlob('application/pdf')));
-        bs.on('error', reject);
-      });
-    } else {
-      // Node.js path
-      const pt = new PassThrough();
-      const buffers: Buffer[] = [];
-      pt.on('data', (chunk) => buffers.push(chunk));
-      
-      return new Promise((resolve, reject) => {
-        pt.on('end', () => resolve(Buffer.concat(buffers)));
-        pt.on('error', reject); // Catch errors on the PassThrough stream
-        this.doc!.on('error', reject); // Non-null assertion
+    const pdfBytes = await this.doc.save();
 
-        this.doc!.pipe(pt);   // Non-null assertion
-        this.doc!.end();      // Non-null assertion
-      });
+    if (typeof window !== 'undefined') {
+      return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+    } else {
+      return Buffer.from(pdfBytes);
     }
   }
 
-  private async convertElement(el: DocumentElement, parentStyles: Styles): Promise<void> {
+  private async loadFonts(): Promise<void> {
     if (!this.doc) return;
 
-    const mergedStyles = { ...this._defaultStyles?.[el.type], ...parentStyles, ...el.styles };
-    const pdfStyles = this.mapStyles(mergedStyles, el);
+    const fontTypes = [
+      StandardFonts.Helvetica,
+      StandardFonts.HelveticaBold,
+      StandardFonts.HelveticaOblique,
+      StandardFonts.HelveticaBoldOblique,
+    ];
 
-    // Apply common styles like font, size, color before specific element rendering
-    if (pdfStyles.font) this.doc.font(pdfStyles.font); // Make sure font is registered
-    if (pdfStyles.fontSize) this.doc.fontSize(pdfStyles.fontSize);
-    if (pdfStyles.fillColor) this.doc.fillColor(pdfStyles.fillColor);
-    // pdfStyles.strokeColor, pdfStyles.lineWidth etc. might be used by specific handlers
+    for (const fontType of fontTypes) {
+      const font = await this.doc.embedFont(fontType);
+      this.fonts.set(fontType, font);
+    }
+  }
+
+  private checkPageSpace(requiredHeight: number): void {
+    if (!this.page || !this.doc) return;
+
+    if (this.currentY - requiredHeight < this.pageMargin) {
+      this.page = this.doc.addPage(PageSizes.A4);
+      this.currentY = this.page.getHeight() - this.pageMargin;
+    }
+  }
+
+  private async convertElement(
+    el: DocumentElement,
+    parentStyles: Styles
+  ): Promise<void> {
+    if (!this.doc || !this.page) return;
+
+    const mergedStyles = {
+      ...this._defaultStyles?.[el.type],
+      ...parentStyles,
+      ...el.styles,
+    };
+    const pdfStyles = this.mapStyles(mergedStyles, el);
 
     switch (el.type) {
       case 'paragraph':
-        await this.convertParagraph(el as ParagraphElement, pdfStyles, mergedStyles);
+        await this.convertParagraph(el as ParagraphElement, pdfStyles);
         break;
       case 'heading':
-        await this.convertHeading(el as HeadingElement, pdfStyles, mergedStyles);
+        await this.convertHeading(el as HeadingElement, pdfStyles);
         break;
       case 'list':
         await this.convertList(el as ListElement, pdfStyles, mergedStyles);
         break;
       case 'line':
-        await this.convertLine(el as LineElement, pdfStyles, mergedStyles);
+        await this.convertLine(el as LineElement, pdfStyles);
         break;
       case 'image':
-        await this.convertImage(el as ImageElement, pdfStyles, mergedStyles);
+        await this.convertImage(el as ImageElement, pdfStyles);
         break;
       case 'table':
-        // Table conversion is complex, will need significant work
         await this.convertTable(el as TableElement, pdfStyles, mergedStyles);
         break;
       case 'text':
-        // This case might be mostly handled within paragraphs/headings
-        await this.convertText(el as TextElement, pdfStyles, mergedStyles, false);
+        await this.convertText(el as TextElement, pdfStyles);
         break;
       default:
         console.warn(`PDFAdapter: Unsupported element type: ${el.type}`);
-        // Fallback to paragraph-like rendering for unknown custom elements
-        if ((el as any).text || (el as any).content) {
-            await this.convertParagraph(el as ParagraphElement, pdfStyles, mergedStyles);
+        if ('text' in el || 'content' in el) {
+          await this.convertParagraph(el as ParagraphElement, pdfStyles);
         }
     }
   }
 
-  private async convertParagraph(el: ParagraphElement, pdfStyles: PDFStyleOptions, rawStyles: Styles): Promise<void> {
-    if (!this.doc) return;
-    // For paragraphs, styles like alignment are applied to the text options
-    const textOptions: any = {
-        align: pdfStyles.align || 'left',
-        // continued: false, // Handled by convertText
-        underline: pdfStyles.underline,
-        strike: pdfStyles.strike,
-        link: pdfStyles.link,
-    };
+  private async convertParagraph(
+    el: ParagraphElement,
+    pdfStyles: PDFStyleOptions
+  ): Promise<void> {
+    if (!this.doc || !this.page) return;
+
+    this.checkPageSpace(this.lineHeight * 2);
+
+    // Apply margins if specified
+    if (pdfStyles.margins?.top) {
+      this.currentY -= pdfStyles.margins.top;
+    }
+
     if (el.content && el.content.length > 0) {
-        let firstInLine = true;
-        for (const contentElement of el.content) {
-            const contentStyles = { ...rawStyles, ...contentElement.styles };
-            const contentPdfStyles = this.mapStyles(contentStyles, contentElement);
-            await this.convertText(contentElement as TextElement, contentPdfStyles, contentStyles, !firstInLine);
-            firstInLine = false; // Subsequent texts are continued
+      // Handle multiple text runs with different styles
+      let currentX = this.pageMargin;
+      if (pdfStyles.margins?.left) {
+        currentX += pdfStyles.margins.left;
+      }
+
+      for (const contentElement of el.content) {
+        if (
+          contentElement.type === 'text' &&
+          (contentElement as TextElement).text
+        ) {
+          const mergedStyles = {
+            ...pdfStyles,
+            ...this.mapStyles(contentElement.styles || {}, contentElement),
+          };
+          await this.renderTextRun(
+            (contentElement as TextElement).text,
+            currentX,
+            this.currentY,
+            mergedStyles,
+            contentElement as TextElement
+          );
+
+          // Update X position for next text run (basic horizontal flow)
+          const font =
+            this.fonts.get(mergedStyles.font!) ||
+            this.fonts.get(StandardFonts.Helvetica)!;
+
+          // Calculate actual font size used for rendering (considering subscript/superscript)
+          let actualFontSize = mergedStyles.fontSize || 12;
+          if (mergedStyles.subscript || mergedStyles.superscript) {
+            actualFontSize *= 0.7;
+          }
+
+          const textWidth = font.widthOfTextAtSize(
+            (contentElement as TextElement).text,
+            actualFontSize
+          );
+          currentX += textWidth;
+        } else if (contentElement.type === 'list') {
+          // Handle nested lists
+          this.currentY -= this.lineHeight;
+          await this.convertList(contentElement as ListElement, pdfStyles, {});
         }
-        // Add a line break after the paragraph content, unless it's the last element or followed by non-text
-         this.doc.moveDown(0.5); // Spacing after paragraph
+      }
     } else if (el.text) {
-        this.doc.text(el.text, textOptions);
-    } else {
-        // Empty paragraph, add some vertical space
-        this.doc.moveDown(0.5);
+      const textX = this.pageMargin + (pdfStyles.margins?.left || 0);
+      await this.renderTextRun(el.text, textX, this.currentY, pdfStyles);
+    }
+
+    // Apply bottom margin and default spacing
+    this.currentY -= this.lineHeight + 5 + (pdfStyles.margins?.bottom || 0);
+  }
+
+  private async renderTextRun(
+    text: string,
+    x: number,
+    y: number,
+    styles: PDFStyleOptions,
+    element?: TextElement
+  ): Promise<void> {
+    if (!this.page) return;
+
+    const font =
+      this.fonts.get(styles.font!) || this.fonts.get(StandardFonts.Helvetica)!;
+    let fontSize = styles.fontSize || 12;
+    let adjustedY = y;
+
+    // Handle subscript/superscript
+    if (styles.subscript) {
+      fontSize *= 0.7;
+      adjustedY -= fontSize * 0.3;
+    } else if (styles.superscript) {
+      fontSize *= 0.7;
+      adjustedY += fontSize * 0.3;
+    }
+
+    // Draw background if specified
+    if (styles.backgroundColor) {
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      this.page.drawRectangle({
+        x: x - 2,
+        y: adjustedY - fontSize * 0.2,
+        width: textWidth + 4,
+        height: fontSize * 1.2,
+        color: rgb(
+          styles.backgroundColor.r,
+          styles.backgroundColor.g,
+          styles.backgroundColor.b
+        ),
+      });
+    }
+
+    // Draw the text
+    this.page.drawText(text, {
+      x,
+      y: adjustedY,
+      size: fontSize,
+      font,
+      color: rgb(styles.fillColor!.r, styles.fillColor!.g, styles.fillColor!.b),
+    });
+
+    // Draw underline if specified
+    if (styles.underline) {
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      this.page.drawLine({
+        start: { x, y: adjustedY - 2 },
+        end: { x: x + textWidth, y: adjustedY - 2 },
+        thickness: 1,
+        color: rgb(
+          styles.fillColor!.r,
+          styles.fillColor!.g,
+          styles.fillColor!.b
+        ),
+      });
+    }
+
+    // Draw strikethrough if specified
+    if (styles.strike) {
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      this.page.drawLine({
+        start: { x, y: adjustedY + fontSize * 0.3 },
+        end: { x: x + textWidth, y: adjustedY + fontSize * 0.3 },
+        thickness: 1,
+        color: rgb(
+          styles.fillColor!.r,
+          styles.fillColor!.g,
+          styles.fillColor!.b
+        ),
+      });
+    }
+
+    // Handle hyperlinks (basic visual indication)
+    if (element?.attributes?.href) {
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      // Draw link annotation if pdf-lib supports it, for now just underline
+      if (!styles.underline) {
+        this.page.drawLine({
+          start: { x, y: adjustedY - 2 },
+          end: { x: x + textWidth, y: adjustedY - 2 },
+          thickness: 1,
+          color: rgb(0, 0, 1), // Blue for links
+        });
+      }
     }
   }
 
-  private async convertHeading(el: HeadingElement, pdfStyles: PDFStyleOptions, rawStyles: Styles): Promise<void> {
-    if (!this.doc) return;
+  private async convertHeading(
+    el: HeadingElement,
+    pdfStyles: PDFStyleOptions
+  ): Promise<void> {
+    if (!this.doc || !this.page) return;
+
     const level = el.level || 1;
-    // Example: Adjust font size based on heading level
-    const baseFontFamily = pdfStyles.font || 'Helvetica'; // Base font for this heading, before bold/italic variants
-    const baseFontSize = pdfStyles.fontSize || 12;      // Base size for this heading
-    const baseFillColor = pdfStyles.fillColor || (this._defaultStyles?.text?.color as string) || 'black'; // Base color
+    const baseFontSize = pdfStyles.fontSize || 12;
+    const headingFontSize = baseFontSize + (6 - level) * 2; // Scale based on heading level
 
-    const headingFontSize = baseFontSize + (6 - level) * 2; // Simple scaling
+    this.checkPageSpace(headingFontSize + 10);
 
-    // Font selection for the heading block
-    let currentHeadingFont = baseFontFamily;
+    // Determine font with bold styling for headings
+    let headingFont = pdfStyles.font;
     if (pdfStyles.bold && pdfStyles.italic) {
-        currentHeadingFont = 'Helvetica-BoldOblique';
-    } else if (pdfStyles.bold) {
-        currentHeadingFont = 'Helvetica-Bold';
+      headingFont = StandardFonts.HelveticaBoldOblique;
     } else if (pdfStyles.italic) {
-        currentHeadingFont = 'Helvetica-Oblique';
+      headingFont = StandardFonts.HelveticaOblique;
+    } else {
+      headingFont = StandardFonts.HelveticaBold; // Default headings to bold
     }
-    
-    this.doc.font(currentHeadingFont).fontSize(headingFontSize).fillColor(baseFillColor);
-
-    const textOptions: any = { align: pdfStyles.align || 'left' };
-    if (pdfStyles.underline) textOptions.underline = true;
-    if (pdfStyles.strike) textOptions.strike = true;
-    if (pdfStyles.link) textOptions.link = pdfStyles.link;
-    // Font, fontSize, and fillColor are set on the doc instance directly.
-    // Bold/italic are handled by font selection.
 
     if (el.content && el.content.length > 0) {
-        let firstInLine = true;
-        for (const contentElement of el.content) {
-            const contentStyles = { ...rawStyles, ...contentElement.styles }; // Merge styles
-            const contentPdfStyles = this.mapStyles(contentStyles, contentElement); // Map to PDF options
-
-            // `convertText` will set its own font, size, color based on `contentPdfStyles`.
-            // It's important that `convertText` correctly handles `pdfStyles.font` if present,
-            // or defaults to Helvetica variants for bold/italic.
-            await this.convertText(contentElement as TextElement, contentPdfStyles, contentStyles, !firstInLine);
-            
-            // After `convertText` (which might change doc's font/size/color),
-            // ensure the main heading's font/size/color are reapplied for any subsequent text segments
-            // *if those segments are not TextElements with their own specific styling*.
-            // However, el.content are all DocumentElements, so convertText handles each.
-            // The main heading font/size/color should be set once before the loop if there's no mixed styling.
-            // If mixed styling is needed inside a heading (e.g. "Normal **Bold** Normal"),
-            // then `el.content` should contain multiple TextElements, and `convertText` handles each.
-            // For now, we assume `convertText` correctly applies its given `contentPdfStyles`.
-            // We just need to ensure the main heading font is active before the loop if there's no `el.text`.
-            // The current structure is: set heading font, loop calls convertText (which sets its own font), then reset.
-            // This is mostly fine. The explicit reset to `currentHeadingFont` inside the loop might be redundant
-            // if `convertText` is the last thing for that `contentElement`.
-
-            firstInLine = false;
+      let textLine = '';
+      for (const contentElement of el.content) {
+        if (
+          contentElement.type === 'text' &&
+          (contentElement as TextElement).text
+        ) {
+          textLine += (contentElement as TextElement).text;
         }
-        this.doc.moveDown(0.5); // Spacing after all content of the heading
+      }
+
+      if (textLine) {
+        const font =
+          this.fonts.get(headingFont!) ||
+          this.fonts.get(StandardFonts.HelveticaBold)!;
+
+        this.page.drawText(textLine, {
+          x: this.pageMargin,
+          y: this.currentY,
+          size: headingFontSize,
+          font,
+          color: rgb(
+            pdfStyles.fillColor!.r,
+            pdfStyles.fillColor!.g,
+            pdfStyles.fillColor!.b
+          ),
+        });
+      }
     } else if (el.text) {
-        // If there's only el.text, the font/size/color set before this block is used.
-        this.doc.text(el.text, textOptions);
-        this.doc.moveDown(0.5); // Spacing after text
+      const font =
+        this.fonts.get(headingFont!) ||
+        this.fonts.get(StandardFonts.HelveticaBold)!;
+
+      this.page.drawText(el.text, {
+        x: this.pageMargin,
+        y: this.currentY,
+        size: headingFontSize,
+        font,
+        color: rgb(
+          pdfStyles.fillColor!.r,
+          pdfStyles.fillColor!.g,
+          pdfStyles.fillColor!.b
+        ),
+      });
     }
 
-    // Reset font, size, and color to what they were before this heading element,
-    // or to document defaults to prevent style bleeding.
-    // Use the values captured at the start of the *parent* element's processing,
-    // or sensible defaults. For now, use `baseFontFamily`, `baseFontSize`, `baseFillColor`
-    // which were derived from this heading's `pdfStyles` or defaults.
-    // A more robust system might pass down the "current document state" to be restored.
-    this.doc.font(baseFontFamily) // Reset to the non-bold/italic family from pdfStyles or Helvetica
-             .fontSize(baseFontSize)   // Reset to the size from pdfStyles or 12
-             .fillColor(baseFillColor); // Reset to color from pdfStyles or default (black)
-    this.doc.moveDown(0.5); // Spacing after heading, as per example
+    this.currentY -= headingFontSize + 10; // Add extra spacing after heading
   }
 
-  private async convertText(el: TextElement, pdfStyles: PDFStyleOptions, rawStyles: Styles, continued: boolean): Promise<void> {
-    if (!this.doc || !el.text) return;
+  private async convertText(
+    el: TextElement,
+    pdfStyles: PDFStyleOptions
+  ): Promise<void> {
+    if (!this.doc || !this.page || !el.text) return;
 
-    // Handle font variations (bold, italic)
-    // pdfkit requires switching fonts for bold/italic unless using a registered font family with styles
-    let font = pdfStyles.font || 'Helvetica';
-    if (pdfStyles.bold && pdfStyles.italic) {
-        font = 'Helvetica-BoldOblique';
-    } else if (pdfStyles.bold) {
-        font = 'Helvetica-Bold';
-    } else if (pdfStyles.italic) {
-        font = 'Helvetica-Oblique';
-    }
-    this.doc.font(font);
+    this.checkPageSpace(this.lineHeight);
 
-    if (pdfStyles.fontSize) this.doc.fontSize(pdfStyles.fontSize);
-    if (pdfStyles.fillColor) this.doc.fillColor(pdfStyles.fillColor);
+    const font =
+      this.fonts.get(pdfStyles.font!) ||
+      this.fonts.get(StandardFonts.Helvetica)!;
 
-    const textOptions: any = {
-      continued: continued,
-      underline: pdfStyles.underline,
-      strike: pdfStyles.strike,
-      link: (el.attributes?.href as string) || pdfStyles.link,
-      // features: [] // For OpenType features if needed
-    };
-    // Apply raw element styles that might not have been mapped yet
-    // e.g. el.styles.color
-    if(el.styles?.color) this.doc.fillColor(el.styles.color as string);
+    this.page.drawText(el.text, {
+      x: this.pageMargin,
+      y: this.currentY,
+      size: pdfStyles.fontSize || 12,
+      font,
+      color: rgb(
+        pdfStyles.fillColor!.r,
+        pdfStyles.fillColor!.g,
+        pdfStyles.fillColor!.b
+      ),
+    });
 
-
-    this.doc.text(el.text, textOptions);
+    this.currentY -= this.lineHeight;
   }
 
-  private async convertList(el: ListElement, pdfStyles: PDFStyleOptions, rawStyles: Styles): Promise<void> {
-    if (!this.doc) return;
-    this.doc.moveDown(0.5); // Space before list
-    for (const item of el.content as ListItemElement[]) {
-      // Determine bullet character or number
-      const bullet = el.listType === 'ordered' ? `${(item.metadata?.order || 1)}. ` : '- ';
-      // ListItemElement might have its own content (nested elements) or just text
+  private async convertList(
+    el: ListElement,
+    pdfStyles: PDFStyleOptions,
+    rawStyles: Styles
+  ): Promise<void> {
+    if (!this.doc || !this.page) return;
+
+    this.currentY -= 10; // Space before list
+
+    for (let i = 0; i < el.content.length; i++) {
+      const item = el.content[i] as ListItemElement;
+      const bullet = el.listType === 'ordered' ? `${i + 1}. ` : '• ';
       const itemStyles = { ...rawStyles, ...item.styles };
       const itemPdfStyles = this.mapStyles(itemStyles, item);
 
+      this.checkPageSpace(this.lineHeight);
+
+      const font =
+        this.fonts.get(itemPdfStyles.font!) ||
+        this.fonts.get(StandardFonts.Helvetica)!;
+
       if (item.content && item.content.length > 0) {
-          // Handle complex list items with nested content
-          // This part needs careful x,y positioning or using pdfkit's list/item features
-          this.doc.text(bullet, { continued: true, ...itemPdfStyles.textOptions }); // Render bullet
-          // Render item content. This might involve recursive calls or specific text handling
-          let firstInLine = true;
-          for (const contentEl of item.content) {
-              const contentStyles = { ...itemStyles, ...contentEl.styles };
-              const contentPdfStyles = this.mapStyles(contentStyles, contentEl);
-              // Pass 'continued: !firstInLine' if it's text
-              await this.convertText(contentEl as TextElement, contentPdfStyles, contentStyles, !firstInLine);
-              firstInLine = false;
+        let textLine = bullet;
+        for (const contentEl of item.content) {
+          if (contentEl.type === 'text' && (contentEl as TextElement).text) {
+            textLine += (contentEl as TextElement).text;
           }
-          this.doc.moveDown(0.25);
+        }
+
+        this.page.drawText(textLine, {
+          x: this.pageMargin + 20, // Indent list items
+          y: this.currentY,
+          size: itemPdfStyles.fontSize || 12,
+          font,
+          color: rgb(
+            itemPdfStyles.fillColor!.r,
+            itemPdfStyles.fillColor!.g,
+            itemPdfStyles.fillColor!.b
+          ),
+        });
       } else if (item.text) {
-        this.doc.text(bullet + item.text, { ...itemPdfStyles.textOptions, continued: false });
+        this.page.drawText(bullet + item.text, {
+          x: this.pageMargin + 20,
+          y: this.currentY,
+          size: itemPdfStyles.fontSize || 12,
+          font,
+          color: rgb(
+            itemPdfStyles.fillColor!.r,
+            itemPdfStyles.fillColor!.g,
+            itemPdfStyles.fillColor!.b
+          ),
+        });
       }
+
+      this.currentY -= this.lineHeight;
     }
-    this.doc.moveDown(0.5); // Space after list
+
+    this.currentY -= 10; // Space after list
   }
 
-  private async convertLine(el: LineElement, pdfStyles: PDFStyleOptions, rawStyles: Styles): Promise<void> {
-    if (!this.doc) return;
-    this.doc.moveDown(0.5); // Space before line
-    this.doc
-      .strokeColor(pdfStyles.strokeColor || '#000000')
-      .lineWidth(pdfStyles.lineWidth || 1)
-      .moveTo(this.doc.page.margins.left, this.doc.y)
-      .lineTo(this.doc.page.width - this.doc.page.margins.right, this.doc.y)
-      .stroke();
-    this.doc.moveDown(0.5); // Space after line
+  private async convertLine(
+    el: LineElement,
+    pdfStyles: PDFStyleOptions
+  ): Promise<void> {
+    if (!this.doc || !this.page) return;
+
+    this.checkPageSpace(20);
+    this.currentY -= 10; // Space before line
+
+    const strokeColor = pdfStyles.strokeColor || { r: 0, g: 0, b: 0 };
+    const lineWidth = pdfStyles.lineWidth || 1;
+
+    this.page.drawLine({
+      start: { x: this.pageMargin, y: this.currentY },
+      end: { x: this.page.getWidth() - this.pageMargin, y: this.currentY },
+      thickness: lineWidth,
+      color: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
+    });
+
+    this.currentY -= 10; // Space after line
   }
 
-  private async convertImage(el: ImageElement, pdfStyles: PDFStyleOptions, rawStyles: Styles): Promise<void> {
-    if (!this.doc || !el.src) return;
+  private async convertImage(
+    el: ImageElement,
+    pdfStyles: PDFStyleOptions
+  ): Promise<void> {
+    if (!this.doc || !this.page || !el.src) return;
 
     let dataBuffer: Buffer | Uint8Array | undefined;
-    let imgDimensions = { width: pdfStyles.width || 100, height: pdfStyles.height || 100 }; // Default/fallback
+    let imgDimensions = {
+      width: pdfStyles.width || 100,
+      height: pdfStyles.height || 100,
+    };
 
     try {
       const src = el.src;
@@ -382,148 +717,124 @@ export class PDFAdapter implements IDocumentConverter {
         const matches = src.match(/^data:(image\/[a-zA-Z]+);base64,(.*)$/);
         if (!matches || matches.length < 3) throw new Error('Invalid data URI');
         dataBuffer = Buffer.from(matches[2], 'base64');
-      } else if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//')) {
+      } else if (
+        src.startsWith('http://') ||
+        src.startsWith('https://') ||
+        src.startsWith('//')
+      ) {
         const response = await fetch(src);
         if (!response.ok) throw new Error(`Failed to fetch image from ${src}`);
         const arrayBuffer = await response.arrayBuffer();
         dataBuffer = Buffer.from(arrayBuffer);
-      } else if (typeof window === 'undefined') { // Node.js local file
-        const imagePath = path.resolve(src); // Ensure path is absolute or resolved correctly
-        if (!fs.existsSync(imagePath)) throw new Error(`File not found: ${imagePath}`);
+      } else if (typeof window === 'undefined') {
+        const imagePath = path.resolve(src);
+        if (!fs.existsSync(imagePath))
+          throw new Error(`File not found: ${imagePath}`);
         dataBuffer = fs.readFileSync(imagePath);
       }
 
       if (dataBuffer) {
-        // Try to get dimensions using image-size
-        // image-size expects Buffer in Node.js
-        const dimensions = imageSize(dataBuffer as Buffer);
-        if (dimensions.width && dimensions.height) {
-            imgDimensions = { width: dimensions.width * 0.75, height: dimensions.height * 0.75 }; // PDF points (72 DPI)
+        // Determine image type and embed
+        let image: PDFImage;
+        const imageType = el.src.includes('png') ? 'png' : 'jpg';
+
+        if (imageType === 'png') {
+          image = await this.doc.embedPng(dataBuffer);
+        } else {
+          image = await this.doc.embedJpg(dataBuffer);
         }
+
+        const scaledDims = image.scaleToFit(
+          imgDimensions.width,
+          imgDimensions.height
+        );
+
+        this.checkPageSpace(scaledDims.height + 20);
+
+        this.page.drawImage(image, {
+          x: this.pageMargin,
+          y: this.currentY - scaledDims.height,
+          width: scaledDims.width,
+          height: scaledDims.height,
+        });
+
+        this.currentY -= scaledDims.height + 10;
       }
     } catch (error) {
       console.error('Error loading image for PDF:', error);
-      // Optionally, render a placeholder or skip
-      return;
-    }
-
-    if (dataBuffer) {
-      const imageOptions: any = {
-        fit: [imgDimensions.width, imgDimensions.height], // Example: fit within a 100x100 box
-        align: pdfStyles.align || 'left',
-        ...pdfStyles.imageOptions, // Allow overriding with specific image options
-      };
-      if(el.styles?.width) imageOptions.width = parseFloat(el.styles.width as string);
-      if(el.styles?.height) imageOptions.height = parseFloat(el.styles.height as string);
-
-      this.doc.image(dataBuffer as Buffer, imageOptions);
-      this.doc.moveDown(0.5);
+      // Skip image on error
     }
   }
 
-  private async convertTable(el: TableElement, pdfStyles: PDFStyleOptions, rawStyles: Styles): Promise<void> {
-    if (!this.doc) return;
-    // Basic table implementation placeholder
-    // pdfkit has some table support but it can be manual for complex tables.
-    // For a simple approach: iterate rows and cells, draw text and borders.
-    // More advanced: use a library like 'pdfkit-table' or implement layout logic.
+  private async convertTable(
+    el: TableElement,
+    pdfStyles: PDFStyleOptions,
+    rawStyles: Styles
+  ): Promise<void> {
+    if (!this.doc || !this.page) return;
 
-    this.doc.moveDown(0.5);
-    const tableTopY = this.doc.y;
     const { rows } = el;
-    const columnCount = rows[0]?.cells.length || 1; // Assume all rows have same number of cells for simplicity
-    const pageMargin = this.doc.page.margins.left + this.doc.page.margins.right;
-    const availableWidth = this.doc.page.width - pageMargin;
+    if (!rows || rows.length === 0) return;
+
+    const columnCount = rows[0]?.cells.length || 1;
+    const availableWidth = this.page.getWidth() - this.pageMargin * 2;
     const defaultColWidth = availableWidth / columnCount;
-
-    // Calculate column widths (very basic, can be improved with colgroup/col metadata)
     const colWidths: number[] = Array(columnCount).fill(defaultColWidth);
+    const rowHeight = 30; // Fixed row height for simplicity
 
+    this.currentY -= 10; // Space before table
 
-    let currentX = this.doc.page.margins.left;
-    let currentY = tableTopY;
-    const rowHeights: number[] = [];
-
-    // First pass: determine row heights (max cell height in a row)
-    for (const row of rows) {
-        let maxCellHeight = 0;
-        currentX = this.doc.page.margins.left;
-        for (let i = 0; i < row.cells.length; i++) {
-            const cell = row.cells[i];
-            const cellText = cell.text || (cell.content?.map(c => (c as TextElement).text).join(' ') || '');
-            const cellStyles = { ...rawStyles, ...row.styles, ...cell.styles };
-            const cellPdfStyles = this.mapStyles(cellStyles, cell);
-
-            // Simulate text rendering to get height
-            this.doc.font(cellPdfStyles.font || 'Helvetica')
-                    .fontSize(cellPdfStyles.fontSize || 10);
-            const textHeight = this.doc.heightOfString(cellText, { width: colWidths[i] - 10, align: cellPdfStyles.align }); // 10 for padding
-            maxCellHeight = Math.max(maxCellHeight, textHeight + 10); // 10 for padding
-        }
-        rowHeights.push(maxCellHeight);
-    }
-
-
-    // Second pass: draw cells and text
-    currentY = tableTopY;
     for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const rowHeight = rowHeights[i];
-        currentX = this.doc.page.margins.left;
+      const row = rows[i];
+      this.checkPageSpace(rowHeight + 10);
 
-        for (let j = 0; j < row.cells.length; j++) {
-            const cell = row.cells[j];
-            const cellText = cell.text || (cell.content?.map(c => (c as TextElement).text).join(' ') || '');
-            const cellStyles = { ...rawStyles, ...row.styles, ...cell.styles };
-            const cellPdfStyles = this.mapStyles(cellStyles, cell);
+      let currentX = this.pageMargin;
 
-            // Draw cell border
-            this.doc.rect(currentX, currentY, colWidths[j], rowHeight).stroke(cellPdfStyles.strokeColor || '#000');
+      for (let j = 0; j < row.cells.length; j++) {
+        const cell = row.cells[j];
+        const cellText =
+          cell.text ||
+          cell.content?.map((c) => (c as TextElement).text).join(' ') ||
+          '';
+        const cellStyles = { ...rawStyles, ...row.styles, ...cell.styles };
+        const cellPdfStyles = this.mapStyles(cellStyles, cell);
 
-            // Apply cell styles and draw text
-             this.doc.font(cellPdfStyles.font || 'Helvetica')
-                    .fontSize(cellPdfStyles.fontSize || 10)
-                    .fillColor(cellPdfStyles.fillColor || '#000');
+        // Draw cell border
+        this.page.drawRectangle({
+          x: currentX,
+          y: this.currentY - rowHeight,
+          width: colWidths[j],
+          height: rowHeight,
+          borderColor: rgb(0, 0, 0),
+          borderWidth: 1,
+        });
 
-            // Handle cell content (basic text for now)
-            if (cell.content && cell.content.length > 0) {
-                // Simplified: just join text of content elements. Real impl needs recursive conversion.
-                let cellContentX = currentX + 5; // 5 for padding
-                let cellContentY = currentY + 5;
-                let firstInLine = true;
-                for(const contentEl of cell.content) {
-                    const contentElStyles = { ...cellStyles, ...contentEl.styles};
-                    const contentElPdfStyles = this.mapStyles(contentElStyles, contentEl);
-                     this.doc.font(contentElPdfStyles.font || 'Helvetica')
-                        .fontSize(contentElPdfStyles.fontSize || 10)
-                        .fillColor(contentElPdfStyles.fillColor || '#000');
-                    this.doc.text((contentEl as TextElement).text || '', cellContentX, cellContentY, {
-                        width: colWidths[j] - 10, // padding
-                        height: rowHeight - 10,
-                        align: contentElPdfStyles.align || 'left',
-                        continued: !firstInLine,
-                        // valign: cellPdfStyles.valign || 'top', // pdfkit text options for valign
-                    });
-                    // This simple text addition won't correctly flow or position multiple elements in a cell
-                    // A proper implementation would manage y position within the cell or use nested structures
-                    firstInLine = false;
-                    // For now, just move Y down for next potential text run, crude.
-                    // cellContentY += this.doc.heightOfString((contentEl as TextElement).text || '', {width: colWidths[j] -10});
-                }
+        // Draw cell text
+        if (cellText) {
+          const font =
+            this.fonts.get(cellPdfStyles.font!) ||
+            this.fonts.get(StandardFonts.Helvetica)!;
 
-            } else if (cell.text) {
-                 this.doc.text(cell.text, currentX + 5, currentY + 5, { // 5 for padding
-                    width: colWidths[j] - 10,
-                    height: rowHeight - 10,
-                    align: cellPdfStyles.align || 'left',
-                    // valign: cellPdfStyles.valign || 'top',
-                });
-            }
-            currentX += colWidths[j];
+          this.page.drawText(cellText, {
+            x: currentX + 5, // padding
+            y: this.currentY - rowHeight / 2 - 5, // center vertically
+            size: cellPdfStyles.fontSize || 10,
+            font,
+            color: rgb(
+              cellPdfStyles.fillColor!.r,
+              cellPdfStyles.fillColor!.g,
+              cellPdfStyles.fillColor!.b
+            ),
+            maxWidth: colWidths[j] - 10, // padding
+          });
         }
-        currentY += rowHeight;
+
+        currentX += colWidths[j];
+      }
+
+      this.currentY -= rowHeight;
     }
-    this.doc.y = currentY; // Update document's y position
-    this.doc.moveDown(0.5);
+
+    this.currentY -= 10; // Space after table
   }
 }
