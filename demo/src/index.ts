@@ -158,6 +158,7 @@ export const run: () => Promise<any> = async () => {
             try {
               // 2. Convert HTML to PDF format (returns a Promise<Buffer>).
               const parsedContent = await converter.parse(htmlContent);
+              console.log(parsedContent);
               const pdfBuffer = await converter.convert(parsedContent, 'pdf');
 
               // 3. Create a Blob from the buffer.

@@ -18,6 +18,7 @@ import {
   ListElement,
   ListItemElement,
   TableElement,
+  TableRowElement,
   TableCellElement,
   LineElement,
   Styles,
@@ -111,6 +112,97 @@ export class PDFAdapter implements IDocumentConverter {
   constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
     this._mapper = styleMapper;
     this._defaultStyles = { ...defaultStyles };
+    this.addPDFSpecificMappings();
+  }
+
+  private addPDFSpecificMappings(): void {
+    this._mapper.addMapping({
+      // PDF-specific font mapping
+      fontFamily: (v: string) => {
+        const fontName = v.toLowerCase();
+        if (fontName.includes('times')) {
+          return { pdfFont: 'TimesRoman' };
+        } else if (fontName.includes('courier')) {
+          return { pdfFont: 'Courier' };
+        } else {
+          return { pdfFont: 'Helvetica' };
+        }
+      },
+      // PDF-specific color mapping for fill/text color
+      color: (v: string) => {
+        const colorValue = v.startsWith('#') ? v : `#${v}`;
+        const rgb = this.hexToRgb(colorValue);
+        return { pdfFillColor: rgb };
+      },
+      backgroundColor: (v: string) => {
+        const colorValue = v.startsWith('#') ? v : `#${v}`;
+        const rgb = this.hexToRgb(colorValue);
+        return { pdfBackgroundColor: rgb };
+      },
+      // PDF-specific font style mappings
+      fontWeight: (v: string | number) => {
+        if (v === 'bold' || Number(v) >= 700) {
+          return { pdfBold: true };
+        }
+        return {};
+      },
+      fontStyle: (v: string) => {
+        if (v === 'italic') {
+          return { pdfItalic: true };
+        }
+        return {};
+      },
+      textDecoration: (v: string) => {
+        const result: Record<string, boolean> = {};
+        const decoration = String(v);
+        if (decoration.includes('underline')) {
+          result.pdfUnderline = true;
+        }
+        if (decoration.includes('line-through')) {
+          result.pdfStrike = true;
+        }
+        return result;
+      },
+      verticalAlign: (v: string) => {
+        if (v === 'sub') {
+          return { pdfSubscript: true };
+        } else if (v === 'super') {
+          return { pdfSuperscript: true };
+        }
+        return {};
+      },
+      // PDF-specific alignment mapping
+      textAlign: (v: string, el: DocumentElement) => {
+        if (el.type === 'table') return {};
+        const alignMap: Record<string, string> = {
+          left: 'Left',
+          center: 'Center',
+          right: 'Right',
+          justify: 'Center', // pdf-lib doesn't have justified
+          justified: 'Center',
+        };
+        const alignment = alignMap[String(v).trim().toLowerCase()];
+        return alignment ? { pdfAlign: alignment } : {};
+      },
+      // PDF-specific size mapping
+      fontSize: (v: string | number) => {
+        let fontSize = 12;
+        if (typeof v === 'string') {
+          if (v.endsWith('px')) {
+            fontSize = parseFloat(v.slice(0, -2));
+          } else if (v.endsWith('%')) {
+            const base = 16;
+            const percent = parseFloat(v.slice(0, -1));
+            fontSize = base * (percent / 100);
+          } else {
+            fontSize = parseFloat(v) || 12;
+          }
+        } else {
+          fontSize = v;
+        }
+        return { pdfFontSize: fontSize };
+      },
+    });
   }
 
   private mapStyles(styles: Styles, element: DocumentElement): PDFStyleOptions {
@@ -121,14 +213,14 @@ export class PDFAdapter implements IDocumentConverter {
       align: TextAlignment.Left,
     };
 
-    // Use the core StyleMapper to get comprehensive style mappings
+    // Use the StyleMapper to get all style mappings (including PDF-specific ones)
     const genericStyles = this._mapper.mapStyles(styles, element);
 
-    // Map core StyleMapper output to PDF-specific options
-    this.mapGenericStylesToPDF(genericStyles, pdfOptions);
+    // Extract PDF-specific properties from the mapped styles
+    this.extractPDFOptionsFromGenericStyles(genericStyles, pdfOptions);
 
-    // Also process raw CSS styles directly
-    this.mapRawStylesToPDF(styles, pdfOptions);
+    // Map core StyleMapper output to PDF-specific options (for backwards compatibility)
+    this.mapGenericStylesToPDF(genericStyles, pdfOptions);
 
     // Update font based on bold/italic combination
     this.updateFontBasedOnStyle(pdfOptions);
@@ -136,60 +228,136 @@ export class PDFAdapter implements IDocumentConverter {
     return pdfOptions;
   }
 
+  private extractPDFOptionsFromGenericStyles(
+    genericStyles: Record<string, unknown>,
+    pdfOptions: PDFStyleOptions
+  ): void {
+    // Extract PDF-specific properties added by our mappings
+    if (genericStyles.pdfFont) {
+      const fontMap: Record<string, StandardFonts> = {
+        TimesRoman: StandardFonts.TimesRoman,
+        Courier: StandardFonts.Courier,
+        Helvetica: StandardFonts.Helvetica,
+      };
+      pdfOptions.font =
+        fontMap[genericStyles.pdfFont as string] || StandardFonts.Helvetica;
+    }
+
+    if (genericStyles.pdfFillColor) {
+      pdfOptions.fillColor = genericStyles.pdfFillColor as {
+        r: number;
+        g: number;
+        b: number;
+      };
+    }
+
+    if (genericStyles.pdfBackgroundColor) {
+      pdfOptions.backgroundColor = genericStyles.pdfBackgroundColor as {
+        r: number;
+        g: number;
+        b: number;
+      };
+    }
+
+    if (genericStyles.pdfBold) {
+      pdfOptions.bold = genericStyles.pdfBold as boolean;
+    }
+
+    if (genericStyles.pdfItalic) {
+      pdfOptions.italic = genericStyles.pdfItalic as boolean;
+    }
+
+    if (genericStyles.pdfUnderline) {
+      pdfOptions.underline = genericStyles.pdfUnderline as boolean;
+    }
+
+    if (genericStyles.pdfStrike) {
+      pdfOptions.strike = genericStyles.pdfStrike as boolean;
+    }
+
+    if (genericStyles.pdfSubscript) {
+      pdfOptions.subscript = genericStyles.pdfSubscript as boolean;
+    }
+
+    if (genericStyles.pdfSuperscript) {
+      pdfOptions.superscript = genericStyles.pdfSuperscript as boolean;
+    }
+
+    if (genericStyles.pdfAlign) {
+      const alignMap: Record<string, TextAlignment> = {
+        Left: TextAlignment.Left,
+        Center: TextAlignment.Center,
+        Right: TextAlignment.Right,
+      };
+      pdfOptions.align =
+        alignMap[genericStyles.pdfAlign as string] || TextAlignment.Left;
+    }
+
+    if (genericStyles.pdfFontSize) {
+      pdfOptions.fontSize = genericStyles.pdfFontSize as number;
+    }
+  }
+
   private mapGenericStylesToPDF(
     genericStyles: Record<string, unknown>,
     pdfOptions: PDFStyleOptions
   ): void {
-    // Map color (from core mapper output)
-    if (genericStyles.color) {
+    // Fallback mappings for core StyleMapper properties (for backwards compatibility)
+
+    // Map color (from core mapper output) - fallback if pdfFillColor not set
+    if (
+      pdfOptions.fillColor?.r === 0 &&
+      pdfOptions.fillColor?.g === 0 &&
+      pdfOptions.fillColor?.b === 0 &&
+      genericStyles.color
+    ) {
       const color = genericStyles.color as string;
       pdfOptions.fillColor = this.hexToRgb(color);
     }
 
-    // Map font properties
-    if (genericStyles.font) {
-      // Note: pdf-lib uses standard fonts, so we map common fonts to StandardFonts
+    // Map font properties - fallback if pdfFont not set
+    if (pdfOptions.font === StandardFonts.Helvetica && genericStyles.font) {
       const fontName = (genericStyles.font as string).toLowerCase();
       if (fontName.includes('times')) {
         pdfOptions.font = StandardFonts.TimesRoman;
       } else if (fontName.includes('courier')) {
         pdfOptions.font = StandardFonts.Courier;
       } else {
-        pdfOptions.font = StandardFonts.Helvetica; // Default
+        pdfOptions.font = StandardFonts.Helvetica;
       }
     }
 
     // Map size (from core mapper - comes as half-point units, convert to points)
-    if (genericStyles.size) {
+    if (pdfOptions.fontSize === 12 && genericStyles.size) {
       pdfOptions.fontSize = (genericStyles.size as number) / 2;
     }
 
-    // Map bold and italic
-    if (genericStyles.bold) {
+    // Map bold and italic - fallback if pdf properties not set
+    if (!pdfOptions.bold && genericStyles.bold) {
       pdfOptions.bold = genericStyles.bold as boolean;
     }
-    if (genericStyles.italics) {
+    if (!pdfOptions.italic && genericStyles.italics) {
       pdfOptions.italic = genericStyles.italics as boolean;
     }
 
-    // Map text decoration
-    if (genericStyles.underline) {
+    // Map text decoration - fallback if pdf properties not set
+    if (!pdfOptions.underline && genericStyles.underline) {
       pdfOptions.underline = true;
     }
-    if (genericStyles.strike) {
+    if (!pdfOptions.strike && genericStyles.strike) {
       pdfOptions.strike = genericStyles.strike as boolean;
     }
 
-    // Map superscript/subscript
-    if (genericStyles.superScript) {
+    // Map superscript/subscript - fallback if pdf properties not set
+    if (!pdfOptions.superscript && genericStyles.superScript) {
       pdfOptions.superscript = genericStyles.superScript as boolean;
     }
-    if (genericStyles.subScript) {
+    if (!pdfOptions.subscript && genericStyles.subScript) {
       pdfOptions.subscript = genericStyles.subScript as boolean;
     }
 
-    // Map alignment (from core mapper)
-    if (genericStyles.alignment) {
+    // Map alignment (from core mapper) - fallback if pdfAlign not set
+    if (pdfOptions.align === TextAlignment.Left && genericStyles.alignment) {
       const alignMap: Record<string, TextAlignment> = {
         left: TextAlignment.Left,
         center: TextAlignment.Center,
@@ -201,8 +369,12 @@ export class PDFAdapter implements IDocumentConverter {
         alignMap[genericStyles.alignment as string] || TextAlignment.Left;
     }
 
-    // Map background color/shading
-    if (genericStyles.shading && typeof genericStyles.shading === 'object') {
+    // Map background color/shading - fallback if pdfBackgroundColor not set
+    if (
+      !pdfOptions.backgroundColor &&
+      genericStyles.shading &&
+      typeof genericStyles.shading === 'object'
+    ) {
       const shading = genericStyles.shading as { fill?: string };
       if (shading.fill) {
         pdfOptions.backgroundColor = this.hexToRgb(shading.fill);
@@ -236,41 +408,6 @@ export class PDFAdapter implements IDocumentConverter {
       }
       if (indent.right) {
         pdfOptions.margins.right = indent.right / 20;
-      }
-    }
-  }
-
-  private mapRawStylesToPDF(styles: Styles, pdfOptions: PDFStyleOptions): void {
-    // Handle any styles that might not be covered by the core mapper
-    for (const [key, value] of Object.entries(styles)) {
-      switch (key) {
-        case 'fontWeight':
-          if (value === 'bold' || Number(value) >= 700) {
-            pdfOptions.bold = true;
-          }
-          break;
-        case 'fontStyle':
-          if (value === 'italic') {
-            pdfOptions.italic = true;
-          }
-          break;
-        case 'textDecoration':
-          const decoration = value as string;
-          if (decoration.includes('underline')) {
-            pdfOptions.underline = true;
-          }
-          if (decoration.includes('line-through')) {
-            pdfOptions.strike = true;
-          }
-          break;
-        case 'verticalAlign':
-          const vertAlign = value as string;
-          if (vertAlign === 'sub') {
-            pdfOptions.subscript = true;
-          } else if (vertAlign === 'super') {
-            pdfOptions.superscript = true;
-          }
-          break;
       }
     }
   }
@@ -967,11 +1104,7 @@ export class PDFAdapter implements IDocumentConverter {
   }
 
   // getListMarker is no longer used for unordered lists, but kept for ordered lists
-  private getListMarker(
-    listType: string,
-    index: number,
-    level: number
-  ): string {
+  private getListMarker(listType: string, index: number): string {
     if (listType === 'ordered') {
       return `${index + 1}.`;
     }
@@ -1100,8 +1233,11 @@ export class PDFAdapter implements IDocumentConverter {
       for (const cell of row.cells) {
         // Skip phantom columns already occupied by an active rowspan in a previous row
         const spanLeft =
-          (rows as any)._rowspanTracker ??
-          ((rows as any)._rowspanTracker = Array(columnCount).fill(0));
+          (rows as TableRowElement[] & { _rowspanTracker?: number[] })
+            ._rowspanTracker ??
+          ((
+            rows as TableRowElement[] & { _rowspanTracker?: number[] }
+          )._rowspanTracker = Array(columnCount).fill(0));
         while (spanLeft[colIdx] > 0) {
           colIdx++;
         }
@@ -1143,13 +1279,18 @@ export class PDFAdapter implements IDocumentConverter {
       rowHeights.push(maxHeight);
 
       // Decrement tracker counts for next iteration
-      const spanLeft = (rows as any)._rowspanTracker;
-      for (let i = 0; i < spanLeft.length; i++) {
-        if (spanLeft[i] > 0) spanLeft[i]--;
+      const spanLeft = (
+        rows as TableRowElement[] & { _rowspanTracker?: number[] }
+      )._rowspanTracker;
+      if (spanLeft) {
+        for (let i = 0; i < spanLeft.length; i++) {
+          if (spanLeft[i] > 0) spanLeft[i]--;
+        }
       }
     }
 
-    delete (rows as any)._rowspanTracker; // cleanup helper
+    delete (rows as TableRowElement[] & { _rowspanTracker?: number[] })
+      ._rowspanTracker; // cleanup helper
 
     // --------- SECOND PASS  →  RENDER ----------
     const rowspanLeft: number[] = Array(columnCount).fill(0);
