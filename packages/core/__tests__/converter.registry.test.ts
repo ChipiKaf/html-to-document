@@ -20,8 +20,11 @@ describe('ConverterRegistry', () => {
     expect(registry.get('test-format')).toBe(converter);
   });
 
-  it('returns undefined for an unregistered format', () => {
+  it('warns and returns undefined when converter not registered', () => {
+    const spy = jest.spyOn(console, 'warn').mockImplementation();
     expect(registry.get('nonexistent')).toBeUndefined();
+    expect(spy).toHaveBeenCalledWith('Converter for nonexistent not registered');
+    spy.mockRestore();
   });
 
   it('overwrites existing converter when registering the same name', () => {

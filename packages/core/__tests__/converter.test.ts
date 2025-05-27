@@ -4,6 +4,14 @@ import { JSDOMParser } from './utils/parser.helper';
 import { init } from '../src';
 import { IDOMParser } from '../src';
 
+// Suppress console.warn output during converter tests
+beforeAll(() => {
+  jest.spyOn(console, 'warn').mockImplementation();
+});
+afterAll(() => {
+  (console.warn as jest.Mock).mockRestore();
+});
+
 class DummyConverter implements IDocumentConverter {
   public parsed?: any;
   async convert(parsed: any): Promise<Buffer> {

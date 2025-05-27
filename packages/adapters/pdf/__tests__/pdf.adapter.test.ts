@@ -1,530 +1,414 @@
 import { PDFAdapter } from '../src/pdf.adapter';
-import { DocumentElement, StyleMapper, Parser } from 'html-to-document-core';
-// We'll need a way to parse/inspect PDF content for some tests.
-// pdf-parse is a good option for extracting text.
-// For structural/style validation, it's much harder with PDF.
-import pdfParse from 'pdf-parse';
+import { DocumentElement, StyleMapper } from 'html-to-document-core';
+import { jest } from '@jest/globals';
 
-// A helper to check if a buffer looks like a PDF
+// Mock the libreoffice-convert module
+jest.mock('libreoffice-convert', () => ({
+  convert: jest.fn(),
+}));
+
+// Mock mammoth
+jest.mock('mammoth', () => ({
+  convertToHtml: jest.fn(),
+}));
+
+// Mock html2pdf.js so that both the module itself **and** its `default` export are
+// callable builder functions (to satisfy both CJS and ESM import styles).
+jest.mock('html2pdf.js', () => {
+  // Fluent builder stub returned by calling html2pdf()
+  const createMockBuilder = () => ({
+    set: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    outputPdf: jest.fn(),
+  });
+
+  // The main mock function (also used for `default`)
+  const mockHtml2Pdf: any = jest.fn(createMockBuilder);
+
+  // Ensure `default` is the same callable (for `import html2pdf from 'html2pdf.js'`)
+  mockHtml2Pdf.default = mockHtml2Pdf;
+
+  return mockHtml2Pdf;
+});
+
+// Mock the DOCX adapter
+jest.mock('html-to-document-adapter-docx', () => ({
+  DocxAdapter: jest.fn().mockImplementation(() => ({
+    convert: jest.fn(),
+  })),
+}));
+
+import { convert } from 'libreoffice-convert';
+import { DocxAdapter } from 'html-to-document-adapter-docx';
+import mammoth from 'mammoth';
+import html2pdf from 'html2pdf.js';
+
+const mockLibreOfficeConvert = convert as jest.MockedFunction<typeof convert>;
+const mockMammoth = mammoth as jest.Mocked<typeof mammoth>;
+const mockHtml2pdf = (html2pdf as any).default as jest.Mock;
+
+// Helper to check if a buffer looks like a PDF
 const isPdf = (buffer: Buffer): boolean => {
   return buffer.toString('utf-8', 0, 5) === '%PDF-';
 };
 
-// Mock JSDOMParser if Parser requires a DOM parser and we are not testing HTML parsing here
-class MockJSDOMParser {
-  parse(html: string): DocumentFragment {
-    // This is a very basic mock. If complex HTML parsing is part of the test input,
-    // a more sophisticated mock or actual JSDOM setup might be needed.
-    const fragment =
-      typeof window !== 'undefined' ? document.createDocumentFragment() : null;
-    // For tests, we usually construct DocumentElement directly, so complex HTML parsing isn't the focus.
-    if (fragment && html) {
-      const p = document.createElement('p');
-      p.textContent = html;
-      fragment.appendChild(p);
-    }
-    return fragment as unknown as DocumentFragment;
-  }
-}
-
-describe('PDFAdapter.convert', () => {
+describe('PDFAdapter', () => {
   let adapter: PDFAdapter;
   let styleMapper: StyleMapper;
-
-  // Modified helper
-  const checkPdfAndParse = async (
-    buffer: Buffer
-  ): Promise<{ parsedSuccessfully: boolean; data: any }> => {
-    expect(buffer).toBeInstanceOf(Buffer);
-    expect(isPdf(buffer)).toBe(true);
-    expect(buffer.length).toBeGreaterThan(0);
-    try {
-      const parseData = await pdfParse(buffer);
-      expect(parseData.numpages).toBeGreaterThanOrEqual(1);
-      return { parsedSuccessfully: true, data: parseData };
-    } catch (error: any) {
-      console.warn(
-        `pdfParse failed for a generated PDF. Error: ${error.message}. Test will pass if PDF generation was successful.`
-      );
-      if (
-        error.name === 'UnknownErrorExceptionClosure' ||
-        error.message.includes('Invalid PDF') ||
-        error.message.includes('bad XRef entry') || // Added from new failures
-        error.message.includes('Illegal character') || // Added from new failures
-        error.message.includes('Invalid number')
-      ) {
-        // Added from new failures
-        return {
-          parsedSuccessfully: false,
-          data: {
-            text: '',
-            numpages: 0,
-            info: null,
-            metadata: null,
-            version: '',
-          },
-        };
-      }
-      throw error; // Re-throw if it's not a known pdfParse issue
-    }
-  };
+  let mockDocxAdapter: jest.Mocked<DocxAdapter>;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
     styleMapper = new StyleMapper();
+
+    // Create a mock DocxAdapter instance
+    mockDocxAdapter = {
+      convert: jest.fn(),
+    } as any;
+
+    // Mock the DocxAdapter constructor to return our mock instance
+    (DocxAdapter as jest.MockedClass<typeof DocxAdapter>).mockImplementation(
+      () => mockDocxAdapter
+    );
+
     adapter = new PDFAdapter({ styleMapper });
   });
 
-  describe('general', () => {
-    it('should create a PDF buffer from an empty DocumentElement array', async () => {
-      const elements: DocumentElement[] = [];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-
-      // Explicit top-level assertions for Jest's test runner
-      expect(buffer).toBeInstanceOf(Buffer);
-      expect(isPdf(buffer)).toBe(true); // isPdf is a helper in the file
-
-      // checkPdfAndParse also performs these checks, but having them here can help satisfy Jest
-      // if pdfParse fails and no assertions run inside the conditional block.
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-
-      if (parsedSuccessfully) {
-        expect(data.numpages).toBeGreaterThanOrEqual(1);
-      }
-      // If not parsedSuccessfully, the warning from checkPdfAndParse is logged.
-    });
-  });
-
-  describe('PDFAdapter image conversion', () => {
-    // Mocking fetch for remote image tests
-    // A 1x1 transparent PNG
-    const transparentPngBase64 =
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-    const fakePngArrayBuffer = Uint8Array.from(
-      atob(transparentPngBase64),
-      (c) => c.charCodeAt(0)
-    ).buffer;
-
+  describe('Node.js environment', () => {
     beforeEach(() => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        arrayBuffer: async () => fakePngArrayBuffer,
-        headers: { get: () => 'image/png' },
+      // Mock Node.js environment (window is undefined)
+      Object.defineProperty(globalThis, 'window', {
+        value: undefined,
+        writable: true,
       });
     });
 
-    afterEach(() => {
-      jest.restoreAllMocks(); // Clean up mocks
-    });
-
-    describe('Base64 data URI image', () => {
-      const base64Png = transparentPngBase64;
-      const dataUri = `data:image/png;base64,${base64Png}`;
-
-      it('should correctly embed a base64 data URI image', async () => {
-        const elements: DocumentElement[] = [
-          {
-            type: 'image',
-            src: dataUri,
-            styles: {},
-            attributes: {},
-          },
-        ];
-
-        const buffer = (await adapter.convert(elements)) as Buffer;
-        await checkPdfAndParse(buffer);
-      });
-    });
-
-    describe('Remote image (with mocked fetch)', () => {
-      const remoteUrl = 'https://example.com/image.png';
-
-      it('should correctly fetch and embed a remote image', async () => {
-        const elements: DocumentElement[] = [
-          {
-            type: 'image',
-            src: remoteUrl,
-            styles: {},
-            attributes: {},
-          },
-        ];
-
-        const buffer = (await adapter.convert(elements)) as Buffer;
-        expect(global.fetch).toHaveBeenCalledWith(remoteUrl);
-        await checkPdfAndParse(buffer);
-      });
-    });
-
-    describe('Invalid image source', () => {
-      it('should throw an error for an invalid image src when src is empty', async () => {
-        const elements: DocumentElement[] = [
-          {
-            type: 'image',
-            src: '',
-            styles: {},
-            attributes: {},
-          },
-        ];
-
-        const buffer = (await adapter.convert(elements)) as Buffer;
-        await checkPdfAndParse(buffer);
-      });
-
-      it('should handle image load failure gracefully for non-existent local files', async () => {
-        const elements: DocumentElement[] = [
-          {
-            type: 'image',
-            src: 'non-existent-local-image.png',
-            styles: {},
-            attributes: {},
-          },
-        ];
-        const buffer = (await adapter.convert(elements)) as Buffer;
-        await checkPdfAndParse(buffer);
-      });
-    });
-  });
-
-  describe('heading', () => {
-    it('should create a PDF with different headings', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'heading',
-          text: 'Heading 1',
-          level: 1,
-          styles: {},
-          attributes: {},
-        },
-        {
-          type: 'heading',
-          text: 'Heading 2',
-          level: 2,
-          styles: {},
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.replace(/\n|\s+/g, ' ')).toContain('Heading 1');
-        expect(data.text.replace(/\n|\s+/g, ' ')).toContain('Heading 2');
-      }
-    });
-
-    it('should render a heading with bold and italic styling', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'heading',
-          text: 'Styled Heading',
-          level: 1,
-          styles: { fontWeight: 'bold', fontStyle: 'italic' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      // Text content check might be unreliable due to pdfParse and Helvetica-BoldOblique
-      // Primarily checks if PDF is valid and parsable without error by pdfParse
-      await checkPdfAndParse(buffer);
-    });
-  });
-
-  describe('Paragraph styles', () => {
-    it('should render italic paragraph', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          text: 'Italic text',
-          styles: { fontStyle: 'italic' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Italic text'
-        );
-      }
-    });
-
-    it('should render centered text in the paragraph', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          text: 'Center text',
-          styles: { textAlign: 'center' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Center text'
-        );
-      }
-    });
-
-    it('should create a PDF buffer with a bold paragraph', async () => {
+    it('should convert elements to PDF using DOCX adapter and libre-office-convert', async () => {
       const elements: DocumentElement[] = [
         {
           type: 'paragraph',
           text: 'Test paragraph',
-          styles: { fontWeight: 'bold' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Test paragraph'
-        );
-      }
-    });
-
-    it('should render underlined paragraph', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          text: 'Underlined text',
-          styles: { textDecoration: 'underline' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Underlined text'
-        );
-      }
-    });
-
-    it('should render colored paragraph', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          text: 'Colored text',
-          styles: { color: '#FF0000' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Colored text'
-        );
-      }
-    });
-
-    it('should render paragraph and ignore unsupported backgroundColor for text', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          text: 'Highlighted text',
-          styles: { backgroundColor: '#FFFF00' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Highlighted text'
-        );
-      }
-    });
-
-    it('should render custom font size', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          text: 'Sized text',
-          styles: { fontSize: '16px' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Sized text'
-        );
-      }
-    });
-
-    it('should render text from a nested paragraph structure', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: 'Text only',
-              styles: {},
-            },
-          ],
-          styles: { fontWeight: 'bold' },
-          attributes: {},
-        },
-        {
-          type: 'paragraph',
-          text: 'Hello here',
-          styles: { fontStyle: 'italic', fontWeight: 'bold' },
-          attributes: {},
-        },
-      ];
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain('Text only');
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Hello here'
-        );
-      }
-    });
-
-    it('should flatten nested inline spans into separate text runs with correct styles applied by pdfkit', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: 'Hello ',
-              styles: { color: 'red', fontWeight: 'bold' },
-            },
-            {
-              type: 'text',
-              text: 'Green World',
-              styles: { color: 'green', fontWeight: 'bold' },
-            },
-            { type: 'text', text: ' World', styles: { fontWeight: 'bold' } },
-          ],
-          styles: { fontWeight: 'bold' },
-          attributes: {},
-        },
-      ];
-
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain('Hello');
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'Green World'
-        );
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain('World');
-      }
-    });
-
-    it('should render subscript and superscript text correctly (text content check)', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'paragraph',
-          content: [
-            { type: 'text', text: 'H' },
-            {
-              type: 'text',
-              text: '2',
-              styles: { verticalAlign: 'sub' },
-            },
-            { type: 'text', text: 'O and x' },
-            {
-              type: 'text',
-              text: '2',
-              styles: { verticalAlign: 'super' },
-            },
-          ],
           styles: {},
           attributes: {},
         },
       ];
 
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        expect(data.text.trim().replace(/\n|\s+/g, ' ')).toContain(
-          'H2O and x2'
-        );
-      }
+      const mockDocxBuffer = Buffer.from('mock docx content');
+      const mockPdfBuffer = Buffer.from('%PDF-1.4\nmock pdf content');
+
+      // Mock the DOCX adapter to return a buffer
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBuffer);
+
+      // Mock LibreOffice conversion with callback
+      mockLibreOfficeConvert.mockImplementation(
+        (inputBuffer, format, undefined, callback) => {
+          // Simulate async callback
+          process.nextTick(() => callback(null, mockPdfBuffer));
+        }
+      );
+
+      const result = await adapter.convert(elements);
+
+      expect(mockDocxAdapter.convert).toHaveBeenCalledWith(elements);
+      expect(mockLibreOfficeConvert).toHaveBeenCalledWith(
+        mockDocxBuffer,
+        '.pdf',
+        undefined,
+        expect.any(Function)
+      );
+      expect(result).toEqual(mockPdfBuffer);
+      expect(isPdf(result as Buffer)).toBe(true);
+    });
+
+    it('should handle conversion errors gracefully', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Test paragraph',
+          styles: {},
+          attributes: {},
+        },
+      ];
+
+      const mockDocxBuffer = Buffer.from('mock docx content');
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBuffer);
+
+      // Mock conversion to fail
+      mockLibreOfficeConvert.mockImplementation(
+        (inputBuffer, format, undefined, callback) => {
+          process.nextTick(() =>
+            callback(
+              new Error('LibreOffice conversion failed'),
+              Buffer.alloc(0)
+            )
+          );
+        }
+      );
+
+      await expect(adapter.convert(elements)).rejects.toThrow(
+        'PDF conversion failed'
+      );
+    });
+
+    it('should handle successful conversion', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Test paragraph',
+          styles: {},
+          attributes: {},
+        },
+      ];
+
+      const mockDocxBuffer = Buffer.from('mock docx content');
+      const mockPdfBuffer = Buffer.from('%PDF-1.4\nmock pdf content');
+
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBuffer);
+
+      // Mock successful conversion
+      mockLibreOfficeConvert.mockImplementation(
+        (inputBuffer, format, undefined, callback) => {
+          process.nextTick(() => callback(null, mockPdfBuffer));
+        }
+      );
+
+      const result = await adapter.convert(elements);
+
+      expect(result).toEqual(mockPdfBuffer);
+      expect(isPdf(result as Buffer)).toBe(true);
     });
   });
 
-  describe('Complex Paragraph styles', () => {
-    it('should apply paragraph-level styles (text content check)', async () => {
+  describe('Browser environment', () => {
+    beforeEach(() => {
+      // Mock browser environment
+      Object.defineProperty(globalThis, 'window', {
+        value: {},
+        writable: true,
+      });
+
+      // Mock self for html2pdf.js compatibility
+      Object.defineProperty(globalThis, 'self', {
+        value: globalThis,
+        writable: true,
+      });
+
+      // Mock document.createElement
+      Object.defineProperty(globalThis, 'document', {
+        value: {
+          createElement: jest.fn().mockReturnValue({
+            innerHTML: '',
+          }),
+        },
+        writable: true,
+      });
+    });
+
+    it('should handle browser conversion attempts', async () => {
       const elements: DocumentElement[] = [
         {
           type: 'paragraph',
-          content: [
-            { type: 'text', text: 'Here is a ' },
-            {
-              type: 'text',
-              text: 'combined decoration',
-              styles: { textDecoration: 'line-through underline' },
-              attributes: {},
-            },
-            {
-              type: 'text',
-              text: ' example with both strike-through and underline.',
-            },
-          ],
-          styles: {
-            textAlign: 'justify',
-            margin: '20px',
-            padding: '15px',
-            backgroundColor: '#f9f9f9',
-            marginBottom: '5px',
-            marginTop: '5px',
-          },
+          text: 'Test paragraph',
+          styles: {},
           attributes: {},
-          metadata: {},
         },
       ];
 
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        const expectedText =
-          'Here is a combined decoration example with both strike-through and underline.';
-        expect(data.text.replace(/\n|\s+/g, ' ')).toContain(
-          expectedText.replace(/\s+/g, ' ')
-        );
-      }
+      const mockDocxBlob = new Blob(['mock docx content']);
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBlob);
+
+      // Mock mammoth conversion
+      mockMammoth.convertToHtml.mockResolvedValue({
+        value: '<p>Test paragraph</p>',
+        messages: [],
+      });
+
+      // Mock html2pdf chain - set up the fluent API mock
+      const mockOutputPdf = (jest.fn() as any).mockResolvedValue(
+        new Blob(['%PDF-mock'], { type: 'application/pdf' })
+      );
+      const mockInstance = {
+        set: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        outputPdf: mockOutputPdf,
+      };
+      mockHtml2pdf.mockReturnValue(mockInstance);
+
+      const result = await adapter.convert(elements);
+
+      expect(mockDocxAdapter.convert).toHaveBeenCalledWith(elements);
+      expect(mockMammoth.convertToHtml).toHaveBeenCalled();
+      expect(mockHtml2pdf).toHaveBeenCalled();
+      expect(result).toBeInstanceOf(Blob);
     });
 
-    it('should render three runs and combine line-through + underline on the second run (text content check)', async () => {
+    it('should detect browser environment and attempt browser conversion', async () => {
       const elements: DocumentElement[] = [
         {
           type: 'paragraph',
+          text: 'Test paragraph',
+          styles: {},
+          attributes: {},
+        },
+      ];
+
+      const mockDocxBlob = new Blob(['mock docx content']);
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBlob);
+
+      // Mock mammoth conversion
+      mockMammoth.convertToHtml.mockResolvedValue({
+        value: '<p>Test paragraph</p>',
+        messages: [],
+      });
+
+      // Mock html2pdf chain - set up the fluent API mock
+      const mockOutputPdf = (jest.fn() as any).mockResolvedValue(
+        new Blob(['%PDF-mock'], { type: 'application/pdf' })
+      );
+      const mockInstance = {
+        set: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        outputPdf: mockOutputPdf,
+      };
+      mockHtml2pdf.mockReturnValue(mockInstance);
+
+      const result = await adapter.convert(elements);
+
+      expect(mockDocxAdapter.convert).toHaveBeenCalledWith(elements);
+      expect(mockMammoth.convertToHtml).toHaveBeenCalled();
+      expect(result).toBeInstanceOf(Blob);
+    });
+  });
+
+  describe('Error handling', () => {
+    beforeEach(() => {
+      Object.defineProperty(globalThis, 'window', {
+        value: undefined,
+        writable: true,
+      });
+    });
+
+    it('should wrap DOCX adapter errors', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Test paragraph',
+          styles: {},
+          attributes: {},
+        },
+      ];
+
+      mockDocxAdapter.convert.mockRejectedValue(
+        new Error('DOCX conversion failed')
+      );
+
+      await expect(adapter.convert(elements)).rejects.toThrow(
+        'PDF conversion failed: DOCX conversion failed'
+      );
+    });
+
+    it('should handle LibreOffice conversion errors', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Test paragraph',
+          styles: {},
+          attributes: {},
+        },
+      ];
+
+      const mockDocxBuffer = Buffer.from('mock docx content');
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBuffer);
+
+      // Mock LibreOffice to fail
+      mockLibreOfficeConvert.mockImplementation(
+        (inputBuffer, format, undefined, callback) => {
+          process.nextTick(() =>
+            callback(new Error('LibreOffice failed'), Buffer.alloc(0))
+          );
+        }
+      );
+
+      await expect(adapter.convert(elements)).rejects.toThrow(
+        'PDF conversion failed'
+      );
+    });
+  });
+
+  describe('Integration with different element types', () => {
+    beforeEach(() => {
+      Object.defineProperty(globalThis, 'window', {
+        value: undefined,
+        writable: true,
+      });
+    });
+
+    it('should handle complex document structures', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'heading',
+          text: 'Test Heading',
+          level: 1,
+          styles: { fontWeight: 'bold' },
+          attributes: {},
+        },
+        {
+          type: 'paragraph',
           content: [
-            { type: 'text', text: 'Here is a ' },
             {
               type: 'text',
-              text: 'combined decoration',
-              styles: { textDecoration: 'line-through underline' },
-              attributes: {},
+              text: 'Bold text',
+              styles: { fontWeight: 'bold' },
             },
             {
               type: 'text',
-              text: ' example with both strike-through and underline.',
+              text: ' and italic text',
+              styles: { fontStyle: 'italic' },
             },
           ],
           styles: {},
           attributes: {},
-          metadata: {},
+        },
+        {
+          type: 'list',
+          listType: 'unordered',
+          content: [
+            {
+              type: 'list-item',
+              text: 'Item 1',
+              level: 0,
+              styles: {},
+            },
+            {
+              type: 'list-item',
+              text: 'Item 2',
+              level: 0,
+              styles: {},
+            },
+          ],
+          styles: {},
+          attributes: {},
         },
       ];
 
-      const buffer = (await adapter.convert(elements)) as Buffer;
-      const { parsedSuccessfully, data } = await checkPdfAndParse(buffer);
-      if (parsedSuccessfully) {
-        const expectedText =
-          'Here is a combined decoration example with both strike-through and underline.';
-        expect(data.text.replace(/\n|\s+/g, ' ')).toContain(
-          expectedText.replace(/\s+/g, ' ')
-        );
-      }
+      const mockDocxBuffer = Buffer.from('complex docx content');
+      const mockPdfBuffer = Buffer.from('%PDF-1.4\ncomplex pdf content');
+
+      mockDocxAdapter.convert.mockResolvedValue(mockDocxBuffer);
+
+      // Mock successful conversion
+      mockLibreOfficeConvert.mockImplementation(
+        (inputBuffer, format, undefined, callback) => {
+          process.nextTick(() => callback(null, mockPdfBuffer));
+        }
+      );
+
+      const result = await adapter.convert(elements);
+
+      expect(mockDocxAdapter.convert).toHaveBeenCalledWith(elements);
+      expect(result).toEqual(mockPdfBuffer);
+      expect(isPdf(result as Buffer)).toBe(true);
     });
   });
 });

@@ -39,7 +39,11 @@
     "html-to-document-core": "^0.2.0"
   },
   "dependencies": {
-    "pdf-lib": "^1.17.1"
+    "html-to-document-adapter-docx": "^0.2.4",
+    "html2pdf.js": "^0.10.2",
+    "libreoffice-convert": "^1.6.1",
+    "mammoth": "^1.6.0",
+    "zetajs": "^1.1.0"
   },
   "engines": {
     "node": ">=14"
