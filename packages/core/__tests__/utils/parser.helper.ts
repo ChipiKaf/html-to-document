@@ -22,7 +22,10 @@ export async function parseDocxDocument(
 
   // Parse the XML string into a JSON object
   const parser = new XMLParser({
-    ignoreAttributes: false, // Set this to true if you want to ignore attributes
+    ignoreAttributes: false, // Attributes are not ignored
+    parseTagValue: false, // `false` ensures that tag values are captured under '#text'
+    textNodeName: '#text', // Standard name for text node content
+    attributeNamePrefix: '@_', // Standard prefix for attributes
   });
   const jsonObj = parser.parse(documentXml);
   return jsonObj;

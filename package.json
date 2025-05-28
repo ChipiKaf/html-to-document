@@ -33,11 +33,15 @@
     "node": ">=14"
   },
   "devDependencies": {
+    "@asamuzakjp/css-color": "^3.2.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@types/blob-stream": "^0.1.33",
     "@types/colornames": "^1.1.4",
     "@types/jest": "^29.5.14",
     "@types/jsdom": "^21.1.7",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/pdfkit": "^0.13.4",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
     "eslint": "^9.22.0",
@@ -49,10 +53,9 @@
     "jest-environment-jsdom": "^29.7.0",
     "jszip": "^3.10.1",
     "rimraf": "^5.0.5",
-    "ts-jest": "^29.3.4",
-    "@types/pdf-parse": "^1.1.4",
-    "@types/pdfkit": "^0.13.4",
-    "@types/blob-stream": "^0.1.33"
+    "rrweb-cssom": "^0.8.0",
+    "tldts": "^7.0.7",
+    "ts-jest": "^29.3.4"
   },
   "version": "0.0.2"
 }
