@@ -98,15 +98,18 @@ export class DocxRenderer implements DocumentRenderer {
    */
   private async extractElementsFromBody(
     body: unknown
-  ): Promise<PositionedElement[]> {
+  ): Promise<{ elements: PositionedElement[]; pageCount: number }> {
     const elements: PositionedElement[] = [];
-    let currentY = 72; // Start after top margin
+    const DEFAULT_TOP_MARGIN = 72;
+    let currentY = DEFAULT_TOP_MARGIN;
     let elementCounter = 0;
+    let currentPageIndex = 0;
 
     // Helper to process different element types
     const processElement = (
       element: unknown,
-      type: ElementType
+      type: ElementType,
+      pageIdx: number, // Added pageIdx parameter
     ): PositionedElement | null => {
       const id = `element_${elementCounter++}`;
 
@@ -123,7 +126,9 @@ export class DocxRenderer implements DocumentRenderer {
 
       // Calculate approximate positioning and size
       const fontSize = style?.fontSize || 12;
-      const lineHeight = style?.lineHeight || fontSize * 1.2;
+      // Use explicit lineHeight if available and positive, otherwise estimate
+      const explicitLineHeight = style?.lineHeight && style.lineHeight > 0 ? style.lineHeight : null;
+      const calculatedLineHeight = explicitLineHeight || fontSize * 1.2;
 
       // Estimate width based on text length and font size
       const charWidth = fontSize * 0.6; // Approximate character width
@@ -132,7 +137,7 @@ export class DocxRenderer implements DocumentRenderer {
 
       // Calculate height based on content and line height
       const lines = Math.ceil(textWidth / 451.3) || 1;
-      const height = lines * lineHeight;
+      const height = lines * calculatedLineHeight;
 
       // Determine X position based on alignment
       let x = 72; // Left margin
@@ -146,7 +151,7 @@ export class DocxRenderer implements DocumentRenderer {
         id,
         position: { x, y: currentY },
         size: { width, height },
-        page: 0,
+        page: pageIdx, // Use passed pageIdx
         style,
         type,
         text,
@@ -164,6 +169,28 @@ export class DocxRenderer implements DocumentRenderer {
     // Process paragraphs
     const paragraphs = this.extractArrayElements(body as Record<string, unknown>, 'w:p');
     for (const para of paragraphs) {
+      let containsPageBreak = false;
+      const runs = this.extractArrayElements(para as Record<string, unknown>, 'w:r');
+      for (const run of runs) {
+        const breakElements = this.extractArrayElements(run as Record<string, unknown>, 'w:br');
+        for (const br of breakElements) {
+          if ((br as Record<string, unknown>)['@_w:type'] === 'page') {
+            containsPageBreak = true;
+            break;
+          }
+        }
+        if (containsPageBreak) break;
+      }
+
+      // If the paragraph's primary purpose is a page break (e.g., it's empty),
+      // apply the page break effect and skip adding it as a content element.
+      const paragraphText = this.extractTextFromElement(para as Record<string, unknown>);
+      if (containsPageBreak && paragraphText.trim() === '') {
+        currentPageIndex++;
+        currentY = DEFAULT_TOP_MARGIN;
+        continue; 
+      }
+      
       // Check if it's a heading
       const pPr = (para as Record<string, unknown>)['w:pPr'] as Record<string, unknown> | undefined;
       const pStyleObj = pPr?.['w:pStyle'] as Record<string, unknown> | undefined;
@@ -173,19 +200,27 @@ export class DocxRenderer implements DocumentRenderer {
         ? parseInt((pStyle as string).replace(/\D/g, '')) || 1
         : 0;
 
-      const element = processElement(para, isHeading ? 'heading' : 'paragraph');
+      const element = processElement(para, isHeading ? 'heading' : 'paragraph', currentPageIndex);
       if (element) {
         if (isHeading) {
           element.metadata = { ...element.metadata, level: headingLevel };
         }
         elements.push(element);
       }
+
+      // If a page break was found in a paragraph with content, apply the break *after* this paragraph.
+      if (containsPageBreak && paragraphText.trim() !== '') {
+        currentPageIndex++;
+        currentY = DEFAULT_TOP_MARGIN;
+      }
     }
 
     // Process tables
     const tables = this.extractArrayElements(body as Record<string, unknown>, 'w:tbl');
     for (const table of tables) {
-      const tableElement = processElement(table, 'table');
+      // TODO: Need to consider page breaks within tables or forcing table to next page if it doesn't fit.
+      // For now, tables don't explicitly cause page breaks themselves in this logic.
+      const tableElement = processElement(table, 'table', currentPageIndex);
       if (tableElement) {
         elements.push(tableElement);
 
@@ -194,7 +229,7 @@ export class DocxRenderer implements DocumentRenderer {
         for (const row of rows) {
           const cells = this.extractArrayElements(row as Record<string, unknown>, 'w:tc');
           for (const cell of cells) {
-            const cellElement = processElement(cell, 'table-cell');
+            const cellElement = processElement(cell, 'table-cell', currentPageIndex);
             if (cellElement) {
               elements.push(cellElement);
             }
@@ -203,7 +238,7 @@ export class DocxRenderer implements DocumentRenderer {
       }
     }
 
-    return elements;
+    return { elements, pageCount: currentPageIndex + 1 };
   }
 
   /**
@@ -269,8 +304,15 @@ export class DocxRenderer implements DocumentRenderer {
       if (spacing) {
         const before = spacing['@_w:before'] as number | undefined;
         const after = spacing['@_w:after'] as number | undefined;
+        const line = spacing['@_w:line'] as number | undefined;
+        const lineRule = spacing['@_w:lineRule'] as string | undefined;
+
         if (before && typeof before === 'number') style.marginTop = this.convertTwipsToPoints(before);
         if (after && typeof after === 'number') style.marginBottom = this.convertTwipsToPoints(after);
+
+        if (line && typeof line === 'number' && lineRule && (lineRule === 'exact' || lineRule === 'atLeast')) {
+          style.lineHeight = this.convertTwipsToPoints(line);
+        }
       }
     }
 

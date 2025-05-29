@@ -3,7 +3,6 @@ import {
   DocumentLayout,
   PositionedElement,
 } from '../spatial.types';
-import { ElementType } from '../../types';
 
 /**
  * PDF Document Renderer for extracting spatial layout information
@@ -28,20 +27,156 @@ export class PdfRenderer implements DocumentRenderer {
       // Import dynamically to avoid bundling issues
       const pdfParse = (await import('pdf-parse')).default;
 
-      // Parse the PDF to extract text and basic structure
-      const pdfData = await pdfParse(buffer);
+      const allElements: PositionedElement[] = [];
+      const pageDimensions: { width: number; height: number }[] = [];
 
-      // Extract positioned elements using a more sophisticated approach
-      const elements = await this.extractElementsFromPdf(buffer, pdfData as unknown as Record<string, unknown>);
+      // Custom pagerender function to process each page
+      const renderPage = async (pageData: any): Promise<PositionedElement[]> => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const pageIndex = pageData.pageInfo.pageIndex;
+        const viewport = pageData.pageInfo.view; // [x1, y1, x2, y2]
+        const pageWidth = viewport[2] - viewport[0];
+        const pageHeight = viewport[3] - viewport[1];
+        
+        // Store page dimensions
+        if (pageIndex >= pageDimensions.length) {
+          pageDimensions.length = pageIndex + 1;
+        }
+        pageDimensions[pageIndex] = { width: pageWidth, height: pageHeight };
+
+        const textContent = await pageData.getTextContent({
+          normalizeWhitespace: true,
+          disableCombineTextItems: false,
+        });
+        
+        const pageElements: PositionedElement[] = [];
+        textContent.items.forEach((item: any, itemIndex: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          const x = item.transform[4];
+          // PDF y-coordinate is from bottom-left. Transform to top-left.
+          // Assuming item.transform[5] is the y of the bottom-left corner of the text item.
+          const y = pageHeight - item.transform[5] - item.height;
+
+          const element: PositionedElement = {
+            id: `pdf_page_${pageIndex}_item_${itemIndex}`,
+            text: item.str,
+            position: { x, y },
+            size: { width: item.width, height: item.height },
+            page: pageIndex,
+            style: {
+              fontFamily: item.fontName || undefined,
+              fontSize: item.height, // Approximate font size from item height
+            },
+            type: 'paragraph', // Default to paragraph, can be improved later
+            metadata: {
+              sourceText: item.str,
+            },
+          };
+          pageElements.push(element);
+        });
+        return pageElements;
+      };
+
+      const options = {
+        pagerender: renderPage,
+      };
+
+      // Parse the PDF to extract text and basic structure
+      const pdfData = await pdfParse(buffer, options);
+
+      // After pdfParse, renderPage will have been called for each page.
+      // The elements are collected in the callback, so we need to gather them.
+      // This approach assumes renderPage populates a shared array or similar.
+      // For this implementation, pdfParse's resolved data doesn't directly contain elements from pagerender.
+      // We will process pdfData.text if needed or rely on elements collected by renderPage directly.
+      // However, pdf-parse's `pagerender` is more of a side-effect processor.
+      // The `pdfData` returned by `pdfParse` will still contain `text`, `numpages`, etc.
+      // The `allElements` array needs to be populated by `renderPage`.
+
+      // A slight refactor: `renderPage` will push to `allElements` directly.
+      // This is a common pattern when callbacks are used for side effects.
+      // Re-defining renderPage to capture `allElements` in its closure.
+      const renderPageWithClosure = async (pageData: any): Promise<void> => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const pageIndex = pageData.pageInfo.pageIndex;
+        const viewport = pageData.pageInfo.view; // [x1, y1, x2, y2]
+        // Make sure viewport is an array with at least 4 elements
+        if (!Array.isArray(viewport) || viewport.length < 4) {
+            console.warn(`Invalid viewport data for page ${pageIndex}`, viewport);
+            // Potentially use a default or last known good page size
+            // For now, skip processing this page if viewport is invalid
+            return;
+        }
+
+        const pageWidth = viewport[2] - viewport[0];
+        const pageHeight = viewport[3] - viewport[1];
+        
+        if (pageIndex >= pageDimensions.length) {
+          pageDimensions.length = pageIndex + 1;
+        }
+        pageDimensions[pageIndex] = { width: pageWidth, height: pageHeight };
+
+        const textContent = await pageData.getTextContent({
+          normalizeWhitespace: true,
+          disableCombineTextItems: false,
+        });
+
+        // First pass to calculate median item height for the page
+        const itemHeights = textContent.items
+          .map((item: any) => item.height) // eslint-disable-line @typescript-eslint/no-explicit-any
+          .filter((h: number) => h > 0)
+          .sort((a: number, b: number) => a - b);
+        
+        let pageMedianItemHeight = 12; // Default median height
+        if (itemHeights.length > 0) {
+          const mid = Math.floor(itemHeights.length / 2);
+          pageMedianItemHeight = itemHeights.length % 2 !== 0 ? itemHeights[mid] : (itemHeights[mid - 1] + itemHeights[mid]) / 2;
+        }
+        
+        textContent.items.forEach((item: any, itemIndex: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (!item.str || item.str.trim() === '') { // Skip empty items
+            return;
+          }
+          const x = item.transform[4];
+          const y = pageHeight - item.transform[5] - item.height;
+          
+          const inferredTypeResult = this._inferPdfElementType(item, pageMedianItemHeight);
+
+          const element: PositionedElement = {
+            id: `pdf_page_${pageIndex}_item_${itemIndex}`,
+            text: item.str,
+            position: { x, y },
+            size: { width: item.width, height: item.height },
+            page: pageIndex,
+            style: {
+              fontFamily: item.fontName !== 'undefined' ? item.fontName : undefined,
+              fontSize: item.height, 
+              bold: item.fontName && item.fontName.toLowerCase().includes('bold'),
+            },
+            type: inferredTypeResult.type, 
+            metadata: {
+              sourceText: item.str,
+              ...(inferredTypeResult.level && { headingLevel: inferredTypeResult.level }),
+            },
+          };
+          allElements.push(element);
+        });
+      };
+      
+      const optionsWithClosure = {
+        pagerender: renderPageWithClosure,
+      };
+      
+      // Re-run pdfParse with the closure-enabled pagerender
+      // pdfData will contain general info, allElements will be populated by pagerender
+      const parsedPdfData = await pdfParse(buffer, optionsWithClosure);
+
 
       // Create document layout
       const layout: DocumentLayout = {
-        elements,
-        pages: Array.from({ length: pdfData.numpages }, () => ({
-          width: 595.3, // A4 width in points (assumed)
-          height: 841.9, // A4 height in points (assumed)
-          margins: {
-            top: 72, // 1 inch in points
+        elements: allElements,
+        pages: Array.from({ length: parsedPdfData.numpages }, (_, i) => ({
+          width: pageDimensions[i]?.width || 595.3, // A4 width in points (fallback)
+          height: pageDimensions[i]?.height || 841.9, // A4 height in points (fallback)
+          margins: { // Margins might not be directly available, use defaults
+            top: 72, 
             right: 72,
             bottom: 72,
             left: 72,
@@ -50,8 +185,8 @@ export class PdfRenderer implements DocumentRenderer {
         metadata: {
           format: 'pdf',
           generatedAt: new Date(),
-          pdfInfo: pdfData.info,
-          pages: pdfData.numpages,
+          pdfInfo: parsedPdfData.info,
+          pages: parsedPdfData.numpages,
         },
       };
 
@@ -63,215 +198,51 @@ export class PdfRenderer implements DocumentRenderer {
     }
   }
 
-  /**
-   * Extract positioned elements from PDF
-   */
-  private async extractElementsFromPdf(
-    buffer: Buffer,
-    pdfData: Record<string, unknown>
-  ): Promise<PositionedElement[]> {
-    try {
-      // Try to use pdf2pic for more detailed extraction if available
-      const detailedElements = await this.extractWithPdfLib(buffer);
-      if (detailedElements.length > 0) {
-        return detailedElements;
-      }
-    } catch (error: unknown) {
-      console.warn(
-        'Advanced PDF parsing failed, falling back to basic text extraction:',
-        (error as Error).message
-      );
+  private _inferPdfElementType(
+    item: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    pageMedianItemHeight: number
+  ): { type: PositionedElement['type']; level?: number } {
+    let type: PositionedElement['type'] = 'paragraph';
+    let level: number | undefined = undefined;
+
+    const itemHeight = item.height;
+    const itemText = item.str || '';
+    const itemFontName = (item.fontName || '').toLowerCase();
+
+    // Heuristic 1: Significantly larger font size (item.height)
+    if (itemHeight > pageMedianItemHeight * 1.8) { // e.g. > 18pt if median is 10pt
+      type = 'heading';
+      level = 1; // Largest headings
+    } else if (itemHeight > pageMedianItemHeight * 1.4) { // e.g. > 14pt if median is 10pt
+      type = 'heading';
+      level = 2; // Secondary headings
+    } else if (itemHeight > pageMedianItemHeight * 1.15) { // e.g. > 11.5pt if median is 10pt
+        // Potentially smaller headings or emphasized text. Consider font weight.
+        if (itemFontName.includes('bold')) {
+            type = 'heading';
+            level = 3;
+        }
     }
-
-    // Fallback to basic text-based extraction
-    return this.extractBasicTextElements(pdfData);
-  }
-
-  /**
-   * Extract elements using pdf-lib for more detailed analysis
-   */
-  private async extractWithPdfLib(
-    buffer: Buffer
-  ): Promise<PositionedElement[]> {
-    try {
-      const { PDFDocument } = await import('pdf-lib');
-
-      const pdfDoc = await PDFDocument.load(buffer);
-      const pages = pdfDoc.getPages();
-      const elements: PositionedElement[] = [];
-
-      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-        // Extract text content and approximate positioning
-        // Note: pdf-lib doesn't provide direct text extraction with positioning,
-        // so this is a simplified approach
-
-        // For now, we'll create mock elements based on typical PDF structure
-        // In a real implementation, you'd need a more sophisticated PDF parser
-        // like pdf.js or pdfplumber (Python) called through a subprocess
-
-        const mockElements = this.createMockElementsForPage();
-        elements.push(...mockElements);
-      }
-
-      return elements;
-    } catch (error: unknown) {
-      throw new Error(`pdf-lib extraction failed: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * Create mock elements for a page (placeholder implementation)
-   * In a real scenario, you'd use a proper PDF text extraction library
-   */
-  private createMockElementsForPage(): PositionedElement[] {
-    // This is a placeholder implementation
-    // Real PDF text extraction requires specialized libraries
-    return [];
-  }
-
-  /**
-   * Basic text-based element extraction from pdf-parse results
-   */
-  private extractBasicTextElements(
-    pdfData: Record<string, unknown>
-  ): PositionedElement[] {
-    const elements: PositionedElement[] = [];
-    const text = (pdfData.text as string) || '';
-
-    if (!text || !text.trim()) return elements;
-
-    // Split text into lines and create positioned elements
-    const lines = text.split('\n').filter((line: string) => line.trim());
-    let currentY = 72; // Start after top margin
-    let elementCounter = 0;
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine) continue;
-
-      // Infer element type based on content patterns
-      const type = this.inferElementType(trimmedLine);
-
-      // Calculate approximate dimensions
-      const fontSize = this.estimateFontSize(trimmedLine, type);
-      const lineHeight = fontSize * 1.2;
-      const charWidth = fontSize * 0.6;
-      const width = Math.min(trimmedLine.length * charWidth, 451.3);
-      const height = lineHeight;
-
-      // Estimate positioning
-      let x = 72; // Default left margin
-      const alignment = this.estimateAlignment(trimmedLine);
-
-      if (alignment === 'center') {
-        x = (595.3 - width) / 2;
-      } else if (alignment === 'right') {
-        x = 595.3 - 72 - width;
-      }
-
-      const element: PositionedElement = {
-        id: `pdf_element_${elementCounter++}`,
-        position: { x, y: currentY },
-        size: { width, height },
-        page: 0, // For now, assume single page
-        style: {
-          fontSize,
-          alignment,
-          ...this.estimateStyle(trimmedLine, type),
-        },
-        type,
-        text: trimmedLine,
-        metadata: {
-          sourceText: trimmedLine,
-          lineNumber: elementCounter,
-        },
-      };
-
-      elements.push(element);
-      currentY += height + 6; // Add some spacing between elements
-    }
-
-    return elements;
-  }
-
-  /**
-   * Infer element type from text content
-   */
-  private inferElementType(text: string): ElementType {
-    // Simple heuristics to determine element type
-    const trimmed = text.trim();
-
-    // Check for heading patterns
-    if (
-      trimmed.length < 100 &&
-      /^[A-Z]/.test(trimmed) &&
-      !trimmed.endsWith('.')
-    ) {
-      return 'heading';
-    }
-
-    // Check for list patterns
-    if (/^(\d+\.|\*|-|•)\s/.test(trimmed)) {
-      return 'list-item';
-    }
-
-    // Default to paragraph
-    return 'paragraph';
-  }
-
-  /**
-   * Estimate font size based on element type and content
-   */
-  private estimateFontSize(text: string, type: ElementType): number {
-    switch (type) {
-      case 'heading':
-        // Larger font for headings
-        return text.length < 30 ? 18 : 14;
-      case 'list-item':
-        return 11;
-      default:
-        return 12;
-    }
-  }
-
-  /**
-   * Estimate text alignment from content patterns
-   */
-  private estimateAlignment(
-    text: string
-  ): 'left' | 'center' | 'right' | 'justify' {
-    const trimmed = text.trim();
-
-    // Simple heuristics for alignment detection
-    if (trimmed.length < 50 && /^[A-Z\s]+$/.test(trimmed)) {
-      // Short uppercase text might be centered (like titles)
-      return 'center';
-    }
-
-    // Default to left alignment
-    return 'left';
-  }
-
-  /**
-   * Estimate styling based on text patterns
-   */
-  private estimateStyle(
-    text: string,
-    type: ElementType
-  ): Partial<PositionedElement['style']> {
-    const style: Partial<PositionedElement['style']> = {};
-
-    // Headings are typically bold
+    
+    // Heuristic 2: Line length and content for headings (refine if already heading)
     if (type === 'heading') {
-      style.bold = true;
+      if (itemText.length > 120) { // Very long text is unlikely to be a heading
+        type = 'paragraph'; // Revert to paragraph
+        level = undefined;
+      }
+      // Optional: check for lack of punctuation at the end for headings (might be too restrictive)
+      // else if (itemText.endsWith('.') || itemText.endsWith(':') || itemText.endsWith(';')) {
+      //   type = 'paragraph';
+      //   level = undefined;
+      // }
     }
 
-    // Look for text patterns that might indicate styling
-    if (/[A-Z\s]{5,}/.test(text)) {
-      // Mostly uppercase might indicate emphasis
-      style.bold = true;
-    }
+    // Heuristic 3: Font weight from font name (if not already a heading by size)
+    // This is a weaker signal for 'heading' but can identify bold text.
+    // The bold style is now set in the main loop, so this specific check for 'heading' might be redundant
+    // unless we want to make 'bold paragraph' a 'heading level 4' or similar.
+    // For now, if it's not a heading by size, bold text remains a paragraph with bold style.
 
-    return style;
+    return { type, level };
   }
 }
