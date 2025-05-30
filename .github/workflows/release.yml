@@ -41,6 +41,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/adapters/docx --access public --provenance
 
+      # Publish default PDF adapter
+      - name: Publish html-to-document-adapter-pdf
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace packages/adapters/pdf --access public --provenance
+
       # Publish wrapper last
       - name: Publish html-to-document (wrapper)
         env:
