@@ -1,4 +1,3 @@
-
 # html-to-document-core
 
 **Core engine for converting HTML to document formats.**
@@ -22,14 +21,12 @@ https://www.npmjs.com/package/html-to-document
 
 ```ts
 import { init, Converter } from 'html-to-document-core';
-import { DocxAdapter } from 'html-to-document-adapter-docx'
+import { DocxAdapter } from 'html-to-document-adapter-docx';
 
 // Initialize with optional tags, middleware, and adapters
 const converter = init({
- adapters: {
-    register: [
-      { format: 'docx', adapter: DocxAdapter }
-    ],
+  adapters: {
+    register: [{ format: 'docx', adapter: DocxAdapter }],
   },
   tags: {
     defaultStyles: [
@@ -51,10 +48,8 @@ Or with the wrapper package:
 import { init, DocxAdapter } from 'html-to-document';
 // wrapper automatically includes core + DOCX adapter
 const converter = init({
- adapters: {
-    register: [
-      { format: 'docx', adapter: DocxAdapter }
-    ],
+  adapters: {
+    register: [{ format: 'docx', adapter: DocxAdapter }],
   },
   tags: {
     defaultStyles: [
@@ -85,9 +80,7 @@ import { DocxAdapter } from 'html-to-document-adapter-docx';
 
 const converter = init({
   adapters: {
-    register: [
-      { format: 'docx', adapter: DocxAdapter }
-    ],
+    register: [{ format: 'docx', adapter: DocxAdapter }],
   },
 });
 
@@ -113,6 +106,8 @@ const docxBuffer = await converter.convert(elements, 'docx');
   Add custom middleware for HTML preprocessing.
 - `registerConverter(format: string, adapter: IDocumentConverter): void`  
   Register a custom adapter.
+- `serialize(elements: DocumentElement[]): string`  
+  Serializes a DocumentElement[] back into an HTML string.
 
 ## Development
 

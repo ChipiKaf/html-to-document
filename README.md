@@ -1,12 +1,12 @@
-<!-- prettier-ignore-start -->
 [![npm version](https://img.shields.io/npm/v/html-to-document.svg)](https://www.npmjs.com/package/html-to-document)
 [![Build Status](https://github.com/ChipiKaf/html-to-document/actions/workflows/ci.yml/badge.svg)](https://github.com/ChipiKaf/html-to-document/actions)
 [![License: ISC](https://img.shields.io/npm/l/html-to-document.svg)](LICENSE)
-<!-- prettier-ignore-end -->
 
 # html‑to‑document
 
-> **Convert any HTML into production‑ready documents — DOCX today, PDF/XLSX.**
+Are you looking for a lightweight, extensible way to convert from HTML to any document format?
+
+> **Convert any HTML into production‑ready documents — DOCX today, PDF today, XLSX tomorrow.**
 
 `html‑to‑document` parses HTML into an intermediate, format‑agnostic tree and then feeds that tree to **adapters** (e.g. DOCX, PDF).  
 Write HTML → get Word, PDFs, spreadsheets, and more — all with one unified TypeScript API.
@@ -70,6 +70,9 @@ fs.writeFileSync('output.docx', buffer);
 
 ```ts
 import { init } from 'html-to-document';
+// DOCX adapter is included. For PDF support:
+// npm i html-to-document-adapter-pdf
+// Docs: https://www.npmjs.com/package/html-to-document-adapter-pdf
 import { DocxAdapter } from 'html-to-document-adapter-docx';
 
 const converter = init({
@@ -87,6 +90,9 @@ const converter = init({
 >   { format: 'docx', adapter: DocxAdapter },
 >   { format: 'pdf',  adapter: PdfAdapter },
 > ]
+> // To install PDF support, run:
+> // npm i html-to-document-adapter-pdf
+> // See docs: https://www.npmjs.com/package/html-to-document-adapter-pdf
 > ```
 
 The rest of the API stays the same—`convert(html, 'docx')`, `convert(html, 'pdf')`, etc.
@@ -111,6 +117,18 @@ console.log(elements); // => DocumentElement[]
 - **Style mappings:** fine‑tune CSS → DOCX/PDF with `StyleMapper`
 - **Tag handlers:** intercept `<custom-tag>` → your own `DocumentElement`
 - **Custom adapters:** implement `IDocumentConverter` to target new formats
+
+### Creating Your Own Adapter
+
+To create a new adapter from scratch in your own project:
+1. Install the core types:
+   ```bash
+   npm install html-to-document-core
+   ```
+   This package contains the necessary interfaces and type definitions like `DocumentElement`, `StyleMapper`, and `IDocumentConverter`.
+
+2. Implement your adapter based on the documentation here:  
+   [Custom Converters Guide](https://html-to-document.vercel.app/docs/api/converters)
 
 See the [Extensibility Guide](https://html-to-document.vercel.app/docs/api/converters).
 

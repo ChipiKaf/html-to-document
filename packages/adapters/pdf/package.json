@@ -1,7 +1,7 @@
 {
   "name": "html-to-document-adapter-pdf",
-  "version": "0.1.0",
-  "description": "PDF adapter for html-to-document-core — converts a DocumentElement tree into a .pdf Buffer using the pdf-lib library.",
+  "version": "0.2.5",
+  "description": "PDF adapter for html-to-document-core — converts a DocumentElement tree into .pdf using the html2pdf.js library.",
   "keywords": [
     "html-to-document",
     "pdf",
