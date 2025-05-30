@@ -23,7 +23,9 @@ describe('ConverterRegistry', () => {
   it('warns and returns undefined when converter not registered', () => {
     const spy = jest.spyOn(console, 'warn').mockImplementation();
     expect(registry.get('nonexistent')).toBeUndefined();
-    expect(spy).toHaveBeenCalledWith('Converter for nonexistent not registered');
+    expect(spy).toHaveBeenCalledWith(
+      'Converter for nonexistent not registered'
+    );
     spy.mockRestore();
   });
 

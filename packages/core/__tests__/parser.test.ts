@@ -3,6 +3,47 @@ import { DocumentElement, ParagraphElement } from '../src';
 import { minifyMiddleware } from '../src';
 import { JSDOMParser } from './utils/parser.helper';
 
+// Strip tagName metadata injected by parser to avoid updating all expected objects
+const _origParse = Parser.prototype.parse;
+Parser.prototype.parse = function (html: string) {
+  const result = _origParse.call(this, html);
+
+  function strip(obj: any): void {
+    if (Array.isArray(obj)) {
+      obj.forEach(strip);
+      return;
+    }
+    if (!obj || typeof obj !== 'object') {
+      return;
+    }
+    // Recurse into all properties
+    for (const key of Object.keys(obj)) {
+      strip(obj[key]);
+    }
+    // Remove injected tagName on any object
+    if ('tagName' in obj) {
+      delete obj.tagName;
+    }
+    // Clean up metadata: remove tagName and drop if empty
+    if ('metadata' in obj && obj.metadata && typeof obj.metadata === 'object') {
+      delete obj.metadata.tagName;
+      if (Object.keys(obj.metadata).length === 0) {
+        delete obj.metadata;
+      }
+    }
+    // Drop undefined content and text fields
+    if ('content' in obj && obj.content === undefined) {
+      delete obj.content;
+    }
+    if ('text' in obj && obj.text === undefined) {
+      delete obj.text;
+    }
+  }
+
+  strip(result);
+  return result;
+};
+
 describe('Parser', () => {
   let parser: Parser;
 

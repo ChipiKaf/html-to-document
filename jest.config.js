@@ -4,6 +4,11 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.base.json' }]
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(pdfjs-dist)/).*',
+  ],
+
+  // File extensions Jest should resolve
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 
   // Treat every workspace’s source as part of one test project

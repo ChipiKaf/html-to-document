@@ -1,4 +1,8 @@
-import { createTempFileName, isNodeEnvironment, isBrowserEnvironment } from '../src/pdf.util';
+import {
+  createTempFileName,
+  isNodeEnvironment,
+  isBrowserEnvironment,
+} from '../src/pdf.util';
 
 describe('pdf.util', () => {
   describe('createTempFileName', () => {
@@ -28,9 +32,9 @@ describe('pdf.util', () => {
         value: undefined,
         writable: true,
       });
-      
+
       expect(isNodeEnvironment()).toBe(true);
-      
+
       // Restore original window
       Object.defineProperty(globalThis, 'window', {
         value: originalWindow,
@@ -44,9 +48,9 @@ describe('pdf.util', () => {
         value: {},
         writable: true,
       });
-      
+
       expect(isNodeEnvironment()).toBe(false);
-      
+
       // Restore original window
       Object.defineProperty(globalThis, 'window', {
         value: originalWindow,
@@ -62,9 +66,9 @@ describe('pdf.util', () => {
         value: undefined,
         writable: true,
       });
-      
+
       expect(isBrowserEnvironment()).toBe(false);
-      
+
       // Restore original window
       Object.defineProperty(globalThis, 'window', {
         value: originalWindow,
@@ -78,9 +82,9 @@ describe('pdf.util', () => {
         value: {},
         writable: true,
       });
-      
+
       expect(isBrowserEnvironment()).toBe(true);
-      
+
       // Restore original window
       Object.defineProperty(globalThis, 'window', {
         value: originalWindow,

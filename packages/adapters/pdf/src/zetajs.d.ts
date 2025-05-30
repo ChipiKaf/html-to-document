@@ -20,5 +20,7 @@ declare module 'zetajs' {
     terminate(): Promise<void>;
   }
 
-  export function createZetaWorker(options: ZetaWorkerOptions): Promise<ZetaWorker>;
+  export function createZetaWorker(
+    options: ZetaWorkerOptions
+  ): Promise<ZetaWorker>;
 }

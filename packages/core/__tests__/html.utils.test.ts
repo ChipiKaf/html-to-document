@@ -13,7 +13,9 @@ import { DocumentElement } from '../src/types';
 describe('html.utils', () => {
   describe('parseStyles', () => {
     it('parses style string into object', () => {
-      const element = { getAttribute: () => 'color: red; font-size: 16px; ' } as any;
+      const element = {
+        getAttribute: () => 'color: red; font-size: 16px; ',
+      } as any;
       expect(parseStyles(element as HTMLElement)).toEqual({
         color: 'red',
         fontSize: '16px',
@@ -93,11 +95,17 @@ describe('html.utils', () => {
       const element: DocumentElement = {
         type: 'fragment',
         content: [
-          { type: 'attribute', name: 'foo', content: [{ type: 'text', text: 'nested' }] },
+          {
+            type: 'attribute',
+            name: 'foo',
+            content: [{ type: 'text', text: 'nested' }],
+          },
         ],
       } as any;
       const result = extractAttributesToMetadata(element);
-      expect(result.metadata).toEqual({ foo: [{ content: [{ type: 'text', text: 'nested' }] }] });
+      expect(result.metadata).toEqual({
+        foo: [{ content: [{ type: 'text', text: 'nested' }] }],
+      });
       expect(result.content).toBeUndefined();
     });
     it('returns element unchanged when no attributes present', () => {

@@ -2,6 +2,7 @@ import {
   DocumentElement,
   IConverterDependencies,
   IDocumentConverter,
+  toHtml,
 } from 'html-to-document-core';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
 
@@ -34,14 +35,13 @@ export class PDFAdapter implements IDocumentConverter {
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
     try {
       // Step 1: Convert to DOCX using the existing DocxAdapter
-      const docxResult = await this.docxAdapter.convert(elements);
-
-      // Step 2: Convert DOCX to PDF
+      const htmlString = toHtml(elements);
       if (typeof window !== 'undefined') {
-        // Browser environment - use alternative approach since libre-office-convert is Node-only
-        return await this.convertInBrowser(docxResult as Blob);
+        // Browser: feed HTML straight to html2pdf
+        return await this.convertHtmlInBrowser(htmlString);
       } else {
-        // Node.js environment - use libre-office-convert
+        // Node: fall back to DOCX ➜ PDF pathway (unchanged for now)
+        const docxResult = await this.docxAdapter.convert(elements);
         return await this.convertInNode(docxResult as Buffer);
       }
     } catch (error) {
@@ -68,58 +68,66 @@ export class PDFAdapter implements IDocumentConverter {
     }
   }
 
-  private async convertInBrowser(docxBlob: Blob): Promise<Blob> {
+  /**
+   * Places an empty <div class="html2pdf__page-break"> immediately before
+   * every <img> element so each image begins on a new PDF page.
+   */
+  private insertPageBreaks(html: string): string {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    doc.querySelectorAll('img').forEach((img) => {
+      const pageBreak = doc.createElement('div');
+      pageBreak.className = 'html2pdf__page-break';
+      img.parentNode?.insertBefore(pageBreak, img);
+    });
+    return doc.body.innerHTML;
+  }
+
+  private async convertHtmlInBrowser(html: string): Promise<Blob> {
     try {
-      // Dynamic imports for browser environment
-      const mammoth = await import('mammoth');
+      // Pre‑process HTML so each image starts on a fresh page
+      const processedHtml = this.insertPageBreaks(html);
+
       const html2pdfModule = (await import('html2pdf.js')) as {
         default?: Html2PdfExport;
       } & Record<string, unknown>;
 
-      // html2pdf.js can appear in several shapes depending on how it's bundled
-      //   1. The module itself *is* the callable factory   -> import('html2pdf.js') returns fn
-      //   2. It is the default export                     -> { default: fn }
-      //   3. A pre‑built builder object is exported       -> { set, from, outputPdf }
-      //   4. The builder object lives under `.default`    -> { default: { set, ... } }
-      //
-      // We normalise all of these to a *builder* object that has `.set`, `.from`, and `.outputPdf`.
       const maybeExport = html2pdfModule.default ?? html2pdfModule;
 
       let builder: Html2PdfBuilder;
       if (typeof maybeExport === 'function') {
-        // Classic usage: call the factory to obtain the builder chain
         builder = (maybeExport as (...args: never[]) => Html2PdfBuilder)();
       } else if (isHtml2PdfBuilder(maybeExport)) {
-        // Already a builder chain
         builder = maybeExport;
       } else {
         throw new Error(
           'html2pdf module did not export a callable factory or builder object'
         );
       }
-
-      // Step 1: Convert DOCX to HTML using mammoth
-      const arrayBuffer = await docxBlob.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      const html = result.value;
-
-      // Step 2: Convert HTML to PDF using html2pdf
-      const element = document.createElement('div');
-      element.innerHTML = html;
-
+      // wrap HTML string in a container for html2pdf
       const opt = {
         margin: 1,
         filename: 'document.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
+        // image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true, // allow cross‑origin images
+          allowTaint: false, // keep canvas clean when CORS succeeds
+          imageTimeout: 15000, // wait up to 15 s for images
+        },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       };
 
-      const pdfBlob = await builder.set(opt).from(element).outputPdf('blob');
+      const pdfBlob = await builder
+        .set(opt)
+        .from(processedHtml)
+        .outputPdf('blob');
       return pdfBlob as Blob;
     } catch (error) {
       throw new Error(
-        `Browser PDF conversion failed: ${error instanceof Error ? error.message : String(error)}`
+        `Browser PDF conversion failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }

@@ -107,6 +107,12 @@ export class Parser {
 
   parse(html: string) {
     const tree = this._parseHTML(html);
+    try {
+      Object.defineProperty(tree, '__originalHtml', {
+        value: html,
+        enumerable: false,
+      });
+    } catch {}
     return tree;
   }
 
@@ -250,10 +256,24 @@ export class Parser {
       attributes,
       content: children,
       text,
+      metadata: {
+        ...(options.metadata ?? {}),
+        tagName,
+      },
     });
+
+    // helper to guarantee tagName is always present
+    const ensureTagName = <T extends DocumentElement>(el: T): T => {
+      el.metadata = { tagName, ...(el.metadata ?? {}) };
+      return el;
+    };
+
     if (Array.isArray(result)) {
-      return result.map(extractAttributesToMetadata);
+      return result.map((el) => extractAttributesToMetadata(ensureTagName(el)));
     }
+
+    ensureTagName(result);
+
     if (result.type === 'fragment') {
       const wrapperStyles = result.styles || {};
       const wrapperAttrs = result.attributes || {};
@@ -263,6 +283,7 @@ export class Parser {
         attributes: { ...wrapperAttrs, ...el.attributes },
       }));
     }
+
     return extractAttributesToMetadata(result);
   }
 
@@ -346,22 +367,6 @@ export class Parser {
     const content: DocumentElement[] = [];
 
     doc.body.childNodes.forEach((child) => {
-      // If this is a <div>, inline its children instead of wrapping
-      // if (
-      //   child.nodeType === 1 &&
-      //   (child as HTMLElement).tagName.toLowerCase() === 'div'
-      // ) {
-      //   const divEl = child as HTMLElement;
-      //   const wrapperStyles = parseStyles(divEl);
-      //   const wrapperAttrs = parseAttributes(divEl);
-      //   const inner = this._parseHTML(divEl.innerHTML);
-      //   // merge wrapper styles/attrs into each child
-      //   inner.forEach((childElem) => {
-      //     childElem.styles = { ...wrapperStyles, ...childElem.styles };
-      //     childElem.attributes = { ...wrapperAttrs, ...childElem.attributes };
-      //   });
-      //   content.push(...inner);
-      // } else {
       const key = child.nodeName.toLowerCase();
       const result = this._parseElement(
         child,
