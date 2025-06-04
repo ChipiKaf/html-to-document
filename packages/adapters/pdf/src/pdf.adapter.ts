@@ -121,35 +121,29 @@ export class PDFAdapter implements IDocumentConverter {
 
     let remaining = PAGE_HEIGHT;
 
-    const walker = doc.createTreeWalker(
-      doc.body,
-      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
-      null
-    );
+    const elements = Array.from(doc.body.children);
 
-    while (walker.nextNode()) {
-      const node = walker.currentNode as HTMLElement | Text;
-      if (node.nodeType === 3) {
-        const txt = (node as Text).textContent ?? '';
-        const lines = Math.ceil(txt.trim().length / 80) || 1;
-        remaining -= lines * LINE_HEIGHT;
+    for (const el of elements) {
+      if (el.classList.contains('html2pdf__page-break')) {
+        remaining = PAGE_HEIGHT;
+        continue;
+      }
+
+      let elHeight = 0;
+
+      if (el.tagName.toLowerCase() === 'img') {
+        elHeight = imgHeights.get(el as HTMLImageElement) || 100;
       } else {
-        const el = node as HTMLElement;
-        if (el.classList.contains('html2pdf__page-break')) {
-          remaining = PAGE_HEIGHT;
-          continue;
-        }
+        const txt = el.textContent ?? '';
+        const lines = Math.ceil(txt.trim().length / 80) || 1;
+        elHeight = lines * LINE_HEIGHT;
+      }
 
-        if (el.tagName.toLowerCase() === 'img') {
-          const imgHeight = imgHeights.get(el as HTMLImageElement) || 100;
-
-          if (imgHeight > remaining) {
-            breakBefore.push(el);
-            remaining = PAGE_HEIGHT - imgHeight;
-          } else {
-            remaining -= imgHeight;
-          }
-        }
+      if (elHeight > remaining) {
+        breakBefore.push(el);
+        remaining = PAGE_HEIGHT - elHeight;
+      } else {
+        remaining -= elHeight;
       }
 
       if (remaining <= 0) {
