@@ -108,6 +108,7 @@ export class PDFAdapter implements IDocumentConverter {
     const PAGE_HEIGHT = 9 * 96; // letter page minus 1in margins -> px
     const LINE_HEIGHT = 16; // rough text line height in px
     const IMAGE_PADDING = 20; // extra padding for images
+    const ELEMENT_MARGIN = 16; // approximate top/bottom margin per block
 
     const breakBefore: Element[] = [];
 
@@ -128,7 +129,7 @@ export class PDFAdapter implements IDocumentConverter {
 
     const estimateHeight = (element: Element): number => {
       if (element.tagName.toLowerCase() === 'img') {
-        return imgHeights.get(element as HTMLImageElement) || 100;
+        return (imgHeights.get(element as HTMLImageElement) || 100) + ELEMENT_MARGIN;
       }
 
       const txt = element.textContent ?? '';
@@ -139,6 +140,7 @@ export class PDFAdapter implements IDocumentConverter {
       for (const img of innerImgs) {
         height += imgHeights.get(img as HTMLImageElement) || 100;
       }
+      height += ELEMENT_MARGIN;
 
       return height;
     };
@@ -153,7 +155,7 @@ export class PDFAdapter implements IDocumentConverter {
 
       const elHeight = estimateHeight(el);
 
-      if (elHeight > remaining) {
+      if (elHeight >= remaining) {
         breakBefore.push(el);
         remaining = PAGE_HEIGHT - elHeight;
       } else {
