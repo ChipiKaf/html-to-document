@@ -71,17 +71,69 @@ export class PDFAdapter implements IDocumentConverter {
   }
 
   /**
-   * Places an empty <div class="html2pdf__page-break"> immediately before
-   * every <img> element so each image begins on a new PDF page.
+   * Inserts a <div class="html2pdf__page-break"> before an <img> element only
+   * when the image would overflow the remaining space on the current page.
+   *
+   * The calculation is intentionally approximate – we rely on declared height
+   * attributes (falling back to a default) and assume a constant line height for
+   * text nodes. This ensures images aren't blindly pushed to a new page while
+   * avoiding complex layout calculations.
    */
   private insertPageBreaks(html: string): string {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    doc.querySelectorAll('img').forEach((img) => {
+
+    const PAGE_HEIGHT = 9 * 96; // letter page minus 1in margins -> px
+    const LINE_HEIGHT = 16; // rough text line height in px
+    const IMAGE_PADDING = 20; // extra padding for images
+
+    const breakBefore: Element[] = [];
+
+    let remaining = PAGE_HEIGHT;
+
+    const walker = doc.createTreeWalker(
+      doc.body,
+      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode as HTMLElement | Text;
+      if (node.nodeType === 3) {
+        const txt = (node as Text).textContent ?? '';
+        const lines = Math.ceil(txt.trim().length / 80) || 1;
+        remaining -= lines * LINE_HEIGHT;
+      } else {
+        const el = node as HTMLElement;
+        if (el.classList.contains('html2pdf__page-break')) {
+          remaining = PAGE_HEIGHT;
+          continue;
+        }
+
+        if (el.tagName.toLowerCase() === 'img') {
+          const attrHeight = parseInt(el.getAttribute('height') || '', 10);
+          const imgHeight = (isNaN(attrHeight) ? 100 : attrHeight) + IMAGE_PADDING;
+
+          if (imgHeight > remaining) {
+            breakBefore.push(el);
+            remaining = PAGE_HEIGHT - imgHeight;
+          } else {
+            remaining -= imgHeight;
+          }
+        }
+      }
+
+      if (remaining <= 0) {
+        remaining = PAGE_HEIGHT;
+      }
+    }
+
+    breakBefore.forEach((img) => {
       const pageBreak = doc.createElement('div');
       pageBreak.className = 'html2pdf__page-break';
       img.parentNode?.insertBefore(pageBreak, img);
     });
+
     return doc.body.innerHTML;
   }
 

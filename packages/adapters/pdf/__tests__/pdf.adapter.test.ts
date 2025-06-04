@@ -1,5 +1,6 @@
 import { PDFAdapter } from '../src/pdf.adapter';
 import { DocumentElement, StyleMapper } from 'html-to-document-core';
+import { JSDOM } from 'jsdom';
 import { jest } from '@jest/globals';
 
 // Mock the libreoffice-convert module
@@ -177,6 +178,30 @@ describe('PDFAdapter', () => {
 
       expect(result).toEqual(mockPdfBuffer);
       expect(isPdf(result as Buffer)).toBe(true);
+    });
+  });
+
+  describe('insertPageBreaks', () => {
+    beforeAll(() => {
+      const dom = new JSDOM('<!DOCTYPE html>');
+      (global as any).DOMParser = dom.window.DOMParser;
+      (global as any).NodeFilter = dom.window.NodeFilter;
+    });
+
+    it('should not insert a page break when image fits on current page', () => {
+      const input =
+        '<p>Intro</p><img src="a" height="300"><p>after</p>';
+      const result = (adapter as any).insertPageBreaks(input);
+      expect(result).not.toContain('html2pdf__page-break');
+    });
+
+    it('should insert a page break when image exceeds remaining space', () => {
+      const longText = Array(50)
+        .fill('<p>Line</p>')
+        .join('');
+      const input = `${longText}<img src="a" height="100">`;
+      const result = (adapter as any).insertPageBreaks(input);
+      expect(result).toContain('html2pdf__page-break');
     });
   });
 
