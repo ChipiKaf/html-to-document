@@ -27,15 +27,17 @@ function isHtml2PdfBuilder(obj: unknown): obj is Html2PdfBuilder {
 
 export class PDFAdapter implements IDocumentConverter {
   private docxAdapter: DocxAdapter;
+  private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
 
   constructor(dependencies: IConverterDependencies) {
     this.docxAdapter = new DocxAdapter(dependencies);
+    this._defaultStyles = { ...(dependencies.defaultStyles ?? {}) };
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
     try {
       // Step 1: Convert to DOCX using the existing DocxAdapter
-      const htmlString = toHtml(elements);
+      const htmlString = toHtml(elements, this._defaultStyles);
       if (typeof window !== 'undefined') {
         // Browser: feed HTML straight to html2pdf
         return await this.convertHtmlInBrowser(htmlString);

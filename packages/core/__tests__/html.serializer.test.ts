@@ -2,6 +2,7 @@ import { Parser } from '../src/parser';
 import { JSDOMParser } from './utils/parser.helper';
 import { toHtml } from '../src/utils/html.serializer';
 import { minifyMiddleware } from 'html-to-document-core';
+import { DocumentElement } from '../src/types';
 
 describe('html.serializer', () => {
   let parser: Parser;
@@ -292,6 +293,20 @@ describe('html.serializer', () => {
     // 2) check that other elements (e.g. <h1>) remain unchanged
     expect(transformed).toContain(
       '<h1 style="text-align: center; color: darkblue;">Complex Document Test</h1>'
+    );
+  });
+
+  it('applies default styles when serializing', () => {
+    const elements: DocumentElement[] = [
+      { type: 'paragraph', text: 'Hello', styles: {}, attributes: {} },
+    ];
+
+    const html = toHtml(elements, {
+      paragraph: { color: 'red', fontSize: '12px' },
+    });
+
+    expect(html).toContain(
+      '<p style="color: red; font-size: 12px;">Hello</p>'
     );
   });
 });
