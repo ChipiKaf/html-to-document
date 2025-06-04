@@ -108,6 +108,7 @@ export class PDFAdapter implements IDocumentConverter {
     const PAGE_HEIGHT = 9 * 96; // letter page minus 1in margins -> px
     const LINE_HEIGHT = 16; // rough text line height in px
     const IMAGE_PADDING = 20; // extra padding for images
+    const ELEMENT_MARGIN = 36; // approximate top/bottom margin per block
 
     const breakBefore: Element[] = [];
 
@@ -121,35 +122,46 @@ export class PDFAdapter implements IDocumentConverter {
 
     let remaining = PAGE_HEIGHT;
 
-    const walker = doc.createTreeWalker(
-      doc.body,
-      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
-      null
-    );
+    const container =
+      doc.body.children.length === 1
+        ? (doc.body.firstElementChild as HTMLElement)
+        : doc.body;
 
-    while (walker.nextNode()) {
-      const node = walker.currentNode as HTMLElement | Text;
-      if (node.nodeType === 3) {
-        const txt = (node as Text).textContent ?? '';
-        const lines = Math.ceil(txt.trim().length / 80) || 1;
-        remaining -= lines * LINE_HEIGHT;
+    const estimateHeight = (element: Element): number => {
+      if (element.tagName.toLowerCase() === 'img') {
+        return (
+          (imgHeights.get(element as HTMLImageElement) || 100) + ELEMENT_MARGIN
+        );
+      }
+
+      const txt = element.textContent ?? '';
+      const lines = Math.ceil(txt.trim().length / 80) || 1;
+      let height = lines * LINE_HEIGHT;
+
+      const innerImgs = Array.from(element.querySelectorAll('img'));
+      for (const img of innerImgs) {
+        height += imgHeights.get(img as HTMLImageElement) || 100;
+      }
+      height += ELEMENT_MARGIN;
+
+      return height;
+    };
+
+    const elements = Array.from(container.children);
+
+    for (const el of elements) {
+      if (el.classList.contains('html2pdf__page-break')) {
+        remaining = PAGE_HEIGHT;
+        continue;
+      }
+
+      const elHeight = estimateHeight(el);
+
+      if (elHeight >= remaining) {
+        breakBefore.push(el);
+        remaining = PAGE_HEIGHT - elHeight;
       } else {
-        const el = node as HTMLElement;
-        if (el.classList.contains('html2pdf__page-break')) {
-          remaining = PAGE_HEIGHT;
-          continue;
-        }
-
-        if (el.tagName.toLowerCase() === 'img') {
-          const imgHeight = imgHeights.get(el as HTMLImageElement) || 100;
-
-          if (imgHeight > remaining) {
-            breakBefore.push(el);
-            remaining = PAGE_HEIGHT - imgHeight;
-          } else {
-            remaining -= imgHeight;
-          }
-        }
+        remaining -= elHeight;
       }
 
       if (remaining <= 0) {

@@ -214,6 +214,14 @@ describe('PDFAdapter', () => {
       const result = await (adapter as any).insertPageBreaks(input);
       expect(result).toContain('html2pdf__page-break');
     });
+
+    it('should insert a page break before a block element that overflows', async () => {
+      const longText = Array(50).fill('<p>Line</p>').join('');
+      const bigPara = `<p>${'A'.repeat(500)}</p>`;
+      const input = `${longText}${bigPara}`;
+      const result = await (adapter as any).insertPageBreaks(input);
+      expect(result).toContain('html2pdf__page-break');
+    });
   });
 
   describe('Browser environment', () => {
