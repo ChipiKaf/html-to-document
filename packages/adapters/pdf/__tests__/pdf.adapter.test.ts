@@ -186,21 +186,32 @@ describe('PDFAdapter', () => {
       const dom = new JSDOM('<!DOCTYPE html>');
       (global as any).DOMParser = dom.window.DOMParser;
       (global as any).NodeFilter = dom.window.NodeFilter;
+      (global as any).Image = class {
+        onload: (() => void) | null = null;
+        naturalHeight = 400;
+        set src(_s: string) {
+          if (this.onload) this.onload();
+        }
+      };
     });
 
-    it('should not insert a page break when image fits on current page', () => {
-      const input =
-        '<p>Intro</p><img src="a" height="300"><p>after</p>';
-      const result = (adapter as any).insertPageBreaks(input);
+    it('should not insert a page break when image fits on current page', async () => {
+      const input = '<p>Intro</p><img src="a" height="300"><p>after</p>';
+      const result = await (adapter as any).insertPageBreaks(input);
       expect(result).not.toContain('html2pdf__page-break');
     });
 
-    it('should insert a page break when image exceeds remaining space', () => {
-      const longText = Array(50)
-        .fill('<p>Line</p>')
-        .join('');
+    it('should insert a page break when image exceeds remaining space', async () => {
+      const longText = Array(50).fill('<p>Line</p>').join('');
       const input = `${longText}<img src="a" height="100">`;
-      const result = (adapter as any).insertPageBreaks(input);
+      const result = await (adapter as any).insertPageBreaks(input);
+      expect(result).toContain('html2pdf__page-break');
+    });
+
+    it('should use natural height when no attribute provided', async () => {
+      const longText = Array(50).fill('<p>Line</p>').join('');
+      const input = `${longText}<img src="img.png">`;
+      const result = await (adapter as any).insertPageBreaks(input);
       expect(result).toContain('html2pdf__page-break');
     });
   });

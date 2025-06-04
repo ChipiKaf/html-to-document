@@ -79,7 +79,29 @@ export class PDFAdapter implements IDocumentConverter {
    * text nodes. This ensures images aren't blindly pushed to a new page while
    * avoiding complex layout calculations.
    */
-  private insertPageBreaks(html: string): string {
+  private async getImageHeight(img: HTMLImageElement): Promise<number> {
+    const attrHeight = parseInt(img.getAttribute('height') || '', 10);
+    if (!isNaN(attrHeight)) {
+      return attrHeight;
+    }
+
+    const styleAttr = img.getAttribute('style');
+    if (styleAttr) {
+      const match = /height\s*:\s*(\d+)/i.exec(styleAttr);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+    }
+
+    return await new Promise<number>((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve(probe.naturalHeight || 100);
+      probe.onerror = () => resolve(100);
+      probe.src = img.getAttribute('src') || '';
+    });
+  }
+
+  private async insertPageBreaks(html: string): Promise<string> {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
@@ -88,6 +110,14 @@ export class PDFAdapter implements IDocumentConverter {
     const IMAGE_PADDING = 20; // extra padding for images
 
     const breakBefore: Element[] = [];
+
+    // Pre-measure all images
+    const imgs = Array.from(doc.querySelectorAll('img')) as HTMLImageElement[];
+    const heights = await Promise.all(imgs.map((i) => this.getImageHeight(i)));
+    const imgHeights = new Map<HTMLImageElement, number>();
+    imgs.forEach((img, idx) =>
+      imgHeights.set(img, heights[idx] + IMAGE_PADDING)
+    );
 
     let remaining = PAGE_HEIGHT;
 
@@ -111,8 +141,7 @@ export class PDFAdapter implements IDocumentConverter {
         }
 
         if (el.tagName.toLowerCase() === 'img') {
-          const attrHeight = parseInt(el.getAttribute('height') || '', 10);
-          const imgHeight = (isNaN(attrHeight) ? 100 : attrHeight) + IMAGE_PADDING;
+          const imgHeight = imgHeights.get(el as HTMLImageElement) || 100;
 
           if (imgHeight > remaining) {
             breakBefore.push(el);
@@ -140,7 +169,7 @@ export class PDFAdapter implements IDocumentConverter {
   private async convertHtmlInBrowser(html: string): Promise<Blob> {
     try {
       // Pre‑process HTML so each image starts on a fresh page
-      const processedHtml = this.insertPageBreaks(html);
+      const processedHtml = await this.insertPageBreaks(html);
 
       const html2pdfModule = (await import('html2pdf.js')) as {
         default?: Html2PdfExport;
