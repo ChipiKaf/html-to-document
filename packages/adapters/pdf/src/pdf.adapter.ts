@@ -108,7 +108,7 @@ export class PDFAdapter implements IDocumentConverter {
     const PAGE_HEIGHT = 9 * 96; // letter page minus 1in margins -> px
     const LINE_HEIGHT = 16; // rough text line height in px
     const IMAGE_PADDING = 20; // extra padding for images
-    const ELEMENT_MARGIN = 16; // approximate top/bottom margin per block
+    const ELEMENT_MARGIN = 24; // approximate top/bottom margin per block
 
     const breakBefore: Element[] = [];
 
