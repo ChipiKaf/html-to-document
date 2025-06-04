@@ -6,6 +6,7 @@ import {
   TableCellElement,
   HeadingElement,
   ListElement,
+  IConverterDependencies,
 } from '../types';
 
 /**
@@ -14,13 +15,18 @@ import {
  * @param elements Array of DocumentElement to serialize.
  * @returns HTML string representing the original HTML.
  */
-export function toHtml(elements: DocumentElement[]): string {
+export function toHtml(
+  elements: DocumentElement[],
+  defaultStyles: IConverterDependencies['defaultStyles'] = {}
+): string {
   // If parser attached the original HTML, return it directly for exact round-trip
   // const original = (elements as any).__originalHtml;
   // if (typeof original === 'string') {
   //   return original;
   // }
-  const html = elements.map(elementToHtml).join('\n');
+  const html = elements
+    .map((el) => elementToHtml(el, defaultStyles))
+    .join('\n');
   return `<div>\n${html}\n</div>`;
 }
 
@@ -97,7 +103,10 @@ const voidTags = new Set([
   'wbr',
 ]);
 
-function elementToHtml(el: DocumentElement): string {
+function elementToHtml(
+  el: DocumentElement,
+  defaults: IConverterDependencies['defaultStyles'] = {}
+): string {
   // -----------------------------------------------------------------------
   // Resolve tag name
   // -----------------------------------------------------------------------
@@ -171,9 +180,13 @@ function elementToHtml(el: DocumentElement): string {
     attrs.push(`src="${encodeAttr((el as ImageElement).src)}"`);
   }
 
-  // 4. style attribute – filter out semantic defaults first
-  if (el.styles && Object.keys(el.styles).length) {
-    const filtered = filterStyles(tagName, el.styles);
+  // 4. style attribute – merge defaults and filter out semantic defaults first
+  const mergedStyles = {
+    ...(defaults?.[el.type] || {}),
+    ...(el.styles || {}),
+  } as Record<string, string | number>;
+  if (Object.keys(mergedStyles).length) {
+    const filtered = filterStyles(tagName, mergedStyles);
     const styleEntries = Object.entries(filtered).map(([k, v]) => {
       return `${camelToKebab(k)}: ${v}`;
     });
@@ -217,7 +230,9 @@ function elementToHtml(el: DocumentElement): string {
 
     (table.rows ?? []).forEach((row: TableRowElement) => {
       const isHeader = row.cells.every((c) => c.styles?.textAlign === 'center');
-      const cellsHtml = row.cells.map(cellToHtml).join('\n');
+      const cellsHtml = row.cells
+        .map((c) => cellToHtml(c, defaults))
+        .join('\n');
       const rowHtml = `<tr>\n${cellsHtml}\n</tr>`;
       (isHeader ? theadRows : tbodyRows).push(rowHtml);
     });
@@ -230,12 +245,12 @@ function elementToHtml(el: DocumentElement): string {
     }
     if (el.content && el.content.length) {
       inner += `\n${(el.content as DocumentElement[])
-        .map(elementToHtml)
+        .map((c) => elementToHtml(c, defaults))
         .join('\n')}`;
     }
     inner += '\n';
   } else if (Array.isArray(el.content) && el.content.length) {
-    inner = el.content.map(elementToHtml).join('');
+    inner = el.content.map((c) => elementToHtml(c, defaults)).join('');
   } else if (typeof el.text === 'string') {
     inner = encodeText(el.text);
   }
@@ -246,7 +261,10 @@ function elementToHtml(el: DocumentElement): string {
 /* -------------------------------------------------------------
  * helpers for table serialisation
  * ----------------------------------------------------------- */
-function cellToHtml(cell: TableCellElement): string {
+function cellToHtml(
+  cell: TableCellElement,
+  defaults: IConverterDependencies['defaultStyles'] = {}
+): string {
   const tag = cell.styles?.textAlign === 'center' ? 'th' : 'td';
   // basic attrs
   const attrs: string[] = [];
@@ -254,8 +272,12 @@ function cellToHtml(cell: TableCellElement): string {
     attrs.push(`colspan="${cell.colspan}"`);
   if (typeof cell.rowspan === 'number' && cell.rowspan > 1)
     attrs.push(`rowspan="${cell.rowspan}"`);
-  if (cell.styles && Object.keys(cell.styles).length) {
-    const styleEntries = Object.entries(filterStyles(tag, cell.styles)).map(
+  const merged = {
+    ...(defaults?.['table-cell'] || {}),
+    ...(cell.styles || {}),
+  } as Record<string, string | number>;
+  if (Object.keys(merged).length) {
+    const styleEntries = Object.entries(filterStyles(tag, merged)).map(
       ([k, v]) => `${camelToKebab(k)}: ${v}`
     );
     if (styleEntries.length) {
@@ -265,7 +287,7 @@ function cellToHtml(cell: TableCellElement): string {
   const attrString = attrs.length ? ' ' + attrs.join(' ') : '';
   const inner =
     Array.isArray(cell.content) && cell.content.length
-      ? cell.content.map(elementToHtml).join('')
+      ? cell.content.map((c) => elementToHtml(c, defaults)).join('')
       : typeof cell.text === 'string'
         ? encodeText(cell.text)
         : '';
