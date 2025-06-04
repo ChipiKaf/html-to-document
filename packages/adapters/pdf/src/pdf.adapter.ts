@@ -121,7 +121,29 @@ export class PDFAdapter implements IDocumentConverter {
 
     let remaining = PAGE_HEIGHT;
 
-    const elements = Array.from(doc.body.children);
+    const container =
+      doc.body.children.length === 1
+        ? (doc.body.firstElementChild as HTMLElement)
+        : doc.body;
+
+    const estimateHeight = (element: Element): number => {
+      if (element.tagName.toLowerCase() === 'img') {
+        return imgHeights.get(element as HTMLImageElement) || 100;
+      }
+
+      const txt = element.textContent ?? '';
+      const lines = Math.ceil(txt.trim().length / 80) || 1;
+      let height = lines * LINE_HEIGHT;
+
+      const innerImgs = Array.from(element.querySelectorAll('img'));
+      for (const img of innerImgs) {
+        height += imgHeights.get(img as HTMLImageElement) || 100;
+      }
+
+      return height;
+    };
+
+    const elements = Array.from(container.children);
 
     for (const el of elements) {
       if (el.classList.contains('html2pdf__page-break')) {
@@ -129,15 +151,7 @@ export class PDFAdapter implements IDocumentConverter {
         continue;
       }
 
-      let elHeight = 0;
-
-      if (el.tagName.toLowerCase() === 'img') {
-        elHeight = imgHeights.get(el as HTMLImageElement) || 100;
-      } else {
-        const txt = el.textContent ?? '';
-        const lines = Math.ceil(txt.trim().length / 80) || 1;
-        elHeight = lines * LINE_HEIGHT;
-      }
+      const elHeight = estimateHeight(el);
 
       if (elHeight > remaining) {
         breakBefore.push(el);
