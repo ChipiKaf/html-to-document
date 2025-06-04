@@ -13,8 +13,7 @@
     "prepare": "husky",
     "test:silent": "jest --runInBand --silent",
     "lint": "eslint 'packages/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
-    "format": "prettier --write 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'",
-    "release": "node scripts/release.js"
+    "format": "prettier --write 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "author": {
     "name": "Chipili Kafwilo",
