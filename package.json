@@ -13,7 +13,9 @@
     "prepare": "husky",
     "test:silent": "jest --runInBand --silent",
     "lint": "eslint 'packages/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
-    "format": "prettier --write 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'"
+    "format": "prettier --write 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "changelog:all": "node scripts/generate-changelog.js"
   },
   "author": {
     "name": "Chipili Kafwilo",
@@ -35,11 +37,15 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@types/blob-stream": "^0.1.33",
     "@types/colornames": "^1.1.4",
     "@types/jest": "^29.5.14",
     "@types/jsdom": "^21.1.7",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/pdfkit": "^0.13.4",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
+    "conventional-changelog-cli": "^5.0.0",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
@@ -49,10 +55,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "jszip": "^3.10.1",
     "rimraf": "^5.0.5",
-    "ts-jest": "^29.3.4",
-    "@types/pdf-parse": "^1.1.4",
-    "@types/pdfkit": "^0.13.4",
-    "@types/blob-stream": "^0.1.33"
+    "ts-jest": "^29.3.4"
   },
   "version": "0.0.2"
 }
