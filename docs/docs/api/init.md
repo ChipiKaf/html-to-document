@@ -14,15 +14,10 @@ The `init` function is your main entry point to configure and initialize the con
 Here's a minimal example to get started:
 
 ```ts
-import { init, DocxAdapter } from 'html-to-document';
+import { init } from 'html-to-document';
 
-const converter = init({
-  adapters: {
-    register: [
-      { format: 'docx', adapter: DocxAdapter },
-    ],
-  },
-});
+// DOCX adapter is included by default
+const converter = init();
 
 
 const html = '<h1>Hello</h1><p>This is a paragraph</p>';
