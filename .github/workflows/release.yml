@@ -29,26 +29,39 @@ jobs:
       - name: Build all workspaces
         run: npm run build
 
+      - name: Extract tag and package versions
+        id: versions
+        run: |
+          echo "tag=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          echo "core=$(jq -r '.version' packages/core/package.json)" >> "$GITHUB_OUTPUT"
+          echo "docx=$(jq -r '.version' packages/adapters/docx/package.json)" >> "$GITHUB_OUTPUT"
+          echo "pdf=$(jq -r '.version' packages/adapters/pdf/package.json)" >> "$GITHUB_OUTPUT"
+          echo "wrapper=$(jq -r '.version' packages/html-to-document/package.json)" >> "$GITHUB_OUTPUT"
+
       # Publish core first
       - name: Publish html-to-document-core
+        if: steps.versions.outputs.tag == steps.versions.outputs.core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/core --access public --provenance
 
       # Publish default DOCX adapter
       - name: Publish html-to-document-adapter-docx
+        if: steps.versions.outputs.tag == steps.versions.outputs.docx
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/adapters/docx --access public --provenance
 
       # Publish default PDF adapter
       - name: Publish html-to-document-adapter-pdf
+        if: steps.versions.outputs.tag == steps.versions.outputs.pdf
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/adapters/pdf --access public --provenance
 
       # Publish wrapper last
       - name: Publish html-to-document (wrapper)
+        if: steps.versions.outputs.tag == steps.versions.outputs.wrapper
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/html-to-document --access public --provenance
