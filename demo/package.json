@@ -14,8 +14,8 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
-    "html-to-document": "^0.2.8",
-    "html-to-document-adapter-pdf": "^0.2.8",
+    "html-to-document": "^0.2.9",
+    "html-to-document-adapter-pdf": "^0.2.9",
     "tinymce": "^7.8.0"
   }
 }
