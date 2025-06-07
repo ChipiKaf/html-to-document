@@ -21,11 +21,16 @@ npm install html-to-document
 Here's a minimal example to convert HTML into a DOCX file:
 
 ```ts
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 import fs from 'fs';
 
-// DOCX adapter is included by default
-const converter = init();
+const converter = init({
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
+});
 
 const html = '<h1>Hello World</h1>';
 const buffer = await converter.convert(html, 'docx');   // ↩️ Buffer in Node / Blob in browser

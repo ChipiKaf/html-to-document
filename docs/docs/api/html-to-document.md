@@ -24,10 +24,14 @@ import { init, Converter } from 'html-to-document';
 ## Quick Start
 
 ```ts
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 
-// DOCX adapter is included by default
 const converter = init({
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
   // Other configuration
 });
 

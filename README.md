@@ -50,11 +50,16 @@ npm install html-to-document
 
 ## 🚀 Quick Start
 ```ts
-import { init } from 'html-to-document';
+import { init, DocxAdapter } from 'html-to-document';
 import fs from 'fs';
 
-// DOCX adapter is included by default
-const converter = init();
+const converter = init({
+  adapters: {
+    register: [
+      { format: 'docx', adapter: DocxAdapter },
+    ],
+  },
+});
 
 const html = '<h1>Hello World</h1>';
 const buffer = await converter.convert(html, 'docx');   // ↩️ Buffer in Node / Blob in browser
@@ -68,12 +73,12 @@ import { init } from 'html-to-document';
 // DOCX adapter is included. For PDF support:
 // npm i html-to-document-adapter-pdf
 // Docs: https://www.npmjs.com/package/html-to-document-adapter-pdf
-import { PdfAdapter } from 'html-to-document-adapter-pdf';
+import { DocxAdapter } from 'html-to-document-adapter-docx';
 
 const converter = init({
   adapters: {
     register: [
-      { format: 'pdf', adapter: PdfAdapter },
+      { format: 'docx', adapter: DocxAdapter },
     ],
   },
 });
@@ -82,8 +87,8 @@ const converter = init({
 > **Tip:** you can bundle multiple adapters:
 > ```ts
 > register: [
+>   { format: 'docx', adapter: DocxAdapter },
 >   { format: 'pdf',  adapter: PdfAdapter },
->   // DOCX adapter is registered automatically
 > ]
 > // To install PDF support, run:
 > // npm i html-to-document-adapter-pdf
