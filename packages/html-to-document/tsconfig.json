@@ -6,7 +6,13 @@
     "declaration": true,
     "declarationMap": true,
     "esModuleInterop": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "paths": {
+      "html-to-document-core": ["../core/dist"],
+      "html-to-document-core/*": ["../core/dist/*"],
+      "html-to-document-adapter-docx": ["../adapters/docx/dist"],
+      "html-to-document-adapter-docx/*": ["../adapters/docx/dist/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.test.ts", "**/__tests__/**"]
