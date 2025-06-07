@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts",
-    "postinstall": "node ./set-html-to-document-dep.cjs",
+    "preinstall": "node ./set-html-to-document-dep.cjs",
     "build": "vite build",
     "preview": "vite preview"
   },
