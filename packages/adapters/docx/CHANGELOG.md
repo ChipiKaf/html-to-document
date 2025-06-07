@@ -1,3 +1,10 @@
+## <small>0.2.9 (2025-06-07)</small>
+
+* Fix TypeScript build output paths (#9) ([7b4747d](https://github.com/ChipiKaf/html-to-document/commit/7b4747d)), closes [#9](https://github.com/ChipiKaf/html-to-document/issues/9)
+
+
+
+
 # Changelog
 
 ## [0.2.8] - 2025-06-04
