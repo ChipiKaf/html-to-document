@@ -35,7 +35,7 @@
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "peerDependencies": {
-    "html-to-document-core": ">=^0.2.0"
+    "html-to-document-core": "^0.3.0"
   },
   "dependencies": {
     "docx": "^9.4.0",
