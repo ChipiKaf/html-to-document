@@ -57,6 +57,50 @@ const docxBuffer = await converter.convert(elements, 'docx');
 // Use `docxBuffer` to download or write to file.
 ```
 
+### How It Works
+
+`DocxAdapter` transforms the intermediate `DocumentElement[]` produced by
+`html-to-document` into a Word file using the
+[`docx`](https://www.npmjs.com/package/docx) library. During conversion each
+element becomes the appropriate DOCX node (paragraphs, runs, tables, images and
+so on) and styles are applied through the powerful `StyleMapper` system. The
+result is returned as a `Buffer` in Node.js or a `Blob` in the browser.
+
+### Page Sections, Headers & Footers
+
+You can control page breaks and per-page headers or footers directly from your
+HTML:
+
+```html
+<header>Global Header</header>
+<section class="page">
+  <header>Page 1 Header</header>
+  <p>First page</p>
+  <footer>Page 1 Footer</footer>
+</section>
+```
+
+Wrapping content with `<section class="page">` starts a new page. Any `<header>`
+or `<footer>` inside that section becomes the header or footer for that page
+only. Headers or footers outside of a page section act as globals. See the
+[DOCX Page Sections docs](https://html-to-document.vercel.app/docs/api/docx-pages)
+for more details.
+
+### Customising Styles
+
+Style mapping allows you to decide how CSS translates to DOCX. Provide mappings
+and defaults when initialising:
+
+```ts
+const converter = init({
+  adapters: {
+    register: [{ format: 'docx', adapter: DocxAdapter }],
+    defaultStyles: [{ format: 'docx', styles: { paragraph: { lineHeight: 1.5 } } }],
+    styleMappings: [{ format: 'docx', handlers: { textAlign: v => ({ alignment: v }) } }],
+  },
+});
+```
+
 ## API
 
 ### `DocxAdapter`
