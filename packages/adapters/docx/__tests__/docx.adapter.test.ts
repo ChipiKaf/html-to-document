@@ -6,7 +6,9 @@ import { StyleMapper } from 'html-to-document-core';
 import {
   JSDOMParser,
   parseDocxDocument,
+  parseDocxXml,
 } from '../../../core/__tests__/utils/parser.helper';
+import JSZip from 'jszip';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
@@ -1449,6 +1451,47 @@ describe('Docx.adapter.convert', () => {
         ? para['w:r'][0]['w:t']['#text']
         : para['w:r']['w:t']['#text'];
       expect(cellText).toBe('Centered Cell');
+    });
+  });
+
+  describe('Pages and headers/footers', () => {
+    it('should apply global and page-specific headers and footers', async () => {
+      let html = `
+        <header>Global Header</header>
+        <section class="page">
+          <header>Local Header</header>
+          <p>Page one</p>
+        </section>
+        <section class="page">
+          <p>Page two</p>
+        </section>
+        <footer>Global Footer</footer>
+      `;
+      html = await minifyMiddleware(html);
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const zip = await JSZip.loadAsync(buffer);
+      const headerFiles = Object.keys(zip.files).filter((f) =>
+        f.startsWith('word/header')
+      );
+      expect(headerFiles.length).toBeGreaterThanOrEqual(2);
+
+      const footerFiles = Object.keys(zip.files).filter((f) =>
+        f.startsWith('word/footer')
+      );
+      expect(footerFiles.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should insert a new section for page-break', async () => {
+      let html = '<p>A</p><section class="page-break"></section><p>B</p>';
+      html = await minifyMiddleware(html);
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+      const zip = await JSZip.loadAsync(buffer);
+      const xml = await zip.file('word/document.xml')!.async('text');
+      const count = (xml.match(/<w:sectPr/g) || []).length;
+      expect(count).toBe(2);
     });
   });
 });

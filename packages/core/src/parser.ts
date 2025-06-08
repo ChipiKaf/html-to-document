@@ -499,6 +499,21 @@ export class Parser {
           ...options,
         };
 
+      case 'header':
+        return { type: 'header', text, content: children, ...options };
+
+      case 'footer':
+        return { type: 'footer', text, content: children, ...options };
+
+      case 'section':
+        if ((element as HTMLElement).classList.contains('page-break')) {
+          return { type: 'page-break', ...options };
+        }
+        if ((element as HTMLElement).classList.contains('page')) {
+          return { type: 'page', text, content: children, ...options };
+        }
+        return { type: 'fragment', text, content: children, ...options };
+
       case 'span':
       case 'a':
         return { type: 'text', text, content: children, ...options };
