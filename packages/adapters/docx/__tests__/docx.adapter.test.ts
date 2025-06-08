@@ -1493,5 +1493,36 @@ describe('Docx.adapter.convert', () => {
       const count = (xml.match(/<w:sectPr/g) || []).length;
       expect(count).toBe(2);
     });
+
+    it('should wrap plain text headers and footers in a paragraph', async () => {
+      let html = `
+        <header>Plain Header</header>
+        <section class="page">
+          <p>Body</p>
+        </section>
+        <footer>Plain Footer</footer>
+      `;
+      html = await minifyMiddleware(html);
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const headerJson = await parseDocxXml(buffer, 'word/header1.xml');
+      const headerPara = Array.isArray(headerJson['w:hdr']['w:p'])
+        ? headerJson['w:hdr']['w:p'][0]
+        : headerJson['w:hdr']['w:p'];
+      const headerText = Array.isArray(headerPara['w:r'])
+        ? headerPara['w:r'][0]['w:t']['#text']
+        : headerPara['w:r']['w:t']['#text'];
+      expect(headerText).toBe('Plain Header');
+
+      const footerJson = await parseDocxXml(buffer, 'word/footer1.xml');
+      const footerPara = Array.isArray(footerJson['w:ftr']['w:p'])
+        ? footerJson['w:ftr']['w:p'][0]
+        : footerJson['w:ftr']['w:p'];
+      const footerText = Array.isArray(footerPara['w:r'])
+        ? footerPara['w:r'][0]['w:t']['#text']
+        : footerPara['w:r']['w:t']['#text'];
+      expect(footerText).toBe('Plain Footer');
+    });
   });
 });
