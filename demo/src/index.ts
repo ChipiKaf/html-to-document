@@ -1,6 +1,6 @@
 import { init, DocxAdapter } from 'html-to-document';
 import { PDFAdapter } from 'html-to-document-adapter-pdf';
-import { startContent1 } from './utils/constants';
+import { startContent3 } from './utils/constants';
 
 export const run: () => Promise<any> = async () => {
   const editorContainer = document.getElementById('editor');
@@ -108,7 +108,7 @@ export const run: () => Promise<any> = async () => {
     setup: (editor) => {
       editor.on('init', function () {
         console.log('TinyMCE editor is initialized');
-        editor.setContent(startContent1);
+        editor.setContent(startContent3);
 
         // Register a custom button on the toolbar named "docx".
         editor.ui.registry.addButton('docx', {
@@ -122,6 +122,7 @@ export const run: () => Promise<any> = async () => {
             try {
               // 2. Convert HTML to DOCX format (returns a Promise<Buffer>).
               const parsedContent = await converter.parse(htmlContent);
+              console.log(parsedContent);
               const docxBuffer = await converter.convert(parsedContent, 'docx');
 
               // 3. Create a Blob from the buffer.

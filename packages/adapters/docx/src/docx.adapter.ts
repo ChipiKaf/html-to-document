@@ -12,6 +12,9 @@ import {
   VerticalAlign,
   BorderStyle,
   IImageOptions,
+  Header,
+  Footer,
+  ISectionOptions,
 } from 'docx';
 import {
   AttributeElement,
@@ -44,13 +47,37 @@ export class DocxAdapter implements IDocumentConverter {
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
-    // Convert our intermediate representation into an array of docx children.
-    const childrenArrays = await Promise.all(
-      elements.map((el) => this.convertElement(el))
-    );
-    const children = childrenArrays.flat();
+    const { sections, globalHeader, globalFooter } =
+      this.organizeSections(elements);
 
-    // Create a docx Document with a single section.
+    const globalHeaderDocx = globalHeader
+      ? await this.convertHeader(globalHeader)
+      : undefined;
+    const globalFooterDocx = globalFooter
+      ? await this.convertFooter(globalFooter)
+      : undefined;
+
+    const docSections: ISectionOptions[] = [];
+    const sectionList = sections.length ? sections : [{ children: [] }];
+    for (const sec of sectionList) {
+      const childrenArrays = await Promise.all(
+        sec.children.map((el) => this.convertElement(el))
+      );
+      const children = childrenArrays.flat();
+      const header = sec.header
+        ? await this.convertHeader(sec.header)
+        : globalHeaderDocx;
+      const footer = sec.footer
+        ? await this.convertFooter(sec.footer)
+        : globalFooterDocx;
+      const options: ISectionOptions = {
+        children,
+        ...(header ? { headers: { default: header } } : {}),
+        ...(footer ? { footers: { default: footer } } : {}),
+      };
+      docSections.push(options);
+    }
+
     const doc = new Document({
       numbering: {
         config: [
@@ -101,11 +128,7 @@ export class DocxAdapter implements IDocumentConverter {
           },
         ],
       },
-      sections: [
-        {
-          children: children,
-        },
-      ],
+      sections: docSections,
     });
 
     // Pack the document to a Buffer.
@@ -609,6 +632,91 @@ export class DocxAdapter implements IDocumentConverter {
       },
       type: imageType,
     });
+  }
+
+  private organizeSections(elements: DocumentElement[]): {
+    sections: {
+      children: DocumentElement[];
+      header?: DocumentElement;
+      footer?: DocumentElement;
+    }[];
+    globalHeader?: DocumentElement;
+    globalFooter?: DocumentElement;
+  } {
+    const sections: {
+      children: DocumentElement[];
+      header?: DocumentElement;
+      footer?: DocumentElement;
+    }[] = [];
+    let current: {
+      children: DocumentElement[];
+      header?: DocumentElement;
+      footer?: DocumentElement;
+    } = { children: [] };
+    let globalHeader: DocumentElement | undefined;
+    let globalFooter: DocumentElement | undefined;
+
+    const pushCurrent = () => {
+      if (current.children.length) {
+        sections.push(current);
+        current = { children: [] };
+      }
+    };
+
+    for (const el of elements) {
+      switch (el.type) {
+        case 'header':
+          globalHeader = el;
+          break;
+        case 'footer':
+          globalFooter = el;
+          break;
+        case 'page-break':
+          pushCurrent();
+          break;
+        case 'page': {
+          pushCurrent();
+          const content = el.content || [];
+          const pageHeader = content.find((c) => c.type === 'header');
+          const pageFooter = content.find((c) => c.type === 'footer');
+          const children = content.filter(
+            (c) => c.type !== 'header' && c.type !== 'footer'
+          );
+          sections.push({ children, header: pageHeader, footer: pageFooter });
+          break;
+        }
+        default:
+          current.children.push(el);
+      }
+    }
+    pushCurrent();
+    return { sections, globalHeader, globalFooter };
+  }
+
+  private async convertHeader(el: DocumentElement): Promise<Header> {
+    const childrenArrays = await Promise.all(
+      (el.content || []).map((c) => this.convertElement(c))
+    );
+    const children = childrenArrays
+      .flat()
+      .filter(
+        (c): c is Paragraph | Table =>
+          c instanceof Paragraph || c instanceof Table
+      );
+    return new Header({ children });
+  }
+
+  private async convertFooter(el: DocumentElement): Promise<Footer> {
+    const childrenArrays = await Promise.all(
+      (el.content || []).map((c) => this.convertElement(c))
+    );
+    const children = childrenArrays
+      .flat()
+      .filter(
+        (c): c is Paragraph | Table =>
+          c instanceof Paragraph || c instanceof Table
+      );
+    return new Footer({ children });
   }
 
   private async convertTable(

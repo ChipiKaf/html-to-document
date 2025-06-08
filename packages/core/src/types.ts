@@ -40,6 +40,10 @@ export type ElementType =
   | 'table'
   | 'table-row'
   | 'table-cell'
+  | 'page'
+  | 'page-break'
+  | 'header'
+  | 'footer'
   | 'fragment'
   | 'attribute'
   | (string & {});
@@ -136,6 +140,31 @@ export interface ListItemElement extends BaseElement {
 }
 
 /**
+ * Represents a logical page section which may contain its own header and footer.
+ */
+export interface PageElement extends BaseElement {
+  type: 'page';
+  content?: DocumentElement[];
+}
+
+/** Represents a page break. */
+export interface PageBreakElement extends BaseElement {
+  type: 'page-break';
+}
+
+/** Represents a document header element. */
+export interface HeaderElement extends BaseElement {
+  type: 'header';
+  content?: DocumentElement[];
+}
+
+/** Represents a document footer element. */
+export interface FooterElement extends BaseElement {
+  type: 'footer';
+  content?: DocumentElement[];
+}
+
+/**
  * Union of all supported document element types in the intermediate representation.
  */
 export type DocumentElement =
@@ -149,6 +178,10 @@ export type DocumentElement =
   | TextElement
   | TableRowElement
   | TableCellElement
+  | PageElement
+  | PageBreakElement
+  | HeaderElement
+  | FooterElement
   | FragmentElement
   | AttributeElement
   | (BaseElement & {

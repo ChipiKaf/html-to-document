@@ -37,6 +37,7 @@ The stages are:
 | **Pluggable adapters** | Create and add your own adapter for PDF, XLSX, Markdown, etc. |
 | **Style mapping engine** | Define your own css mappings for the adapters and set per‑format defaults |
 | **Custom tag handlers** | Override or extend how any HTML tag is parsed |
+| **Page sections & headers** | Use `<section class="page">`, `<section class="page-break">`, `<header>` and `<footer>` to control pages in DOCX |
 | **Middleware pipeline** | Transform or sanitise HTML before parsing |
 
 ---
