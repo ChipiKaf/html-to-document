@@ -67,7 +67,15 @@ const buffer = await converter.convert(html, 'docx');   // ↩️ Buffer in Node
 fs.writeFileSync('output.docx', buffer);
 ```
 
-### Registering adapters manually  
+> **Headers & Footers**
+> 
+> When converting to **DOCX**, you can include `<header>` and `<footer>`
+> elements in your HTML. These will become page headers and footers in the
+> output document. See the
+> [html-to-document-adapter-docx](https://www.npmjs.com/package/html-to-document-adapter-docx)
+> package for complete usage details.
+
+### Registering adapters manually
 
 ```ts
 import { init } from 'html-to-document';
