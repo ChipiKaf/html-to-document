@@ -694,9 +694,21 @@ export class DocxAdapter implements IDocumentConverter {
   }
 
   private async convertHeader(el: DocumentElement): Promise<Header> {
-    const childrenArrays = await Promise.all(
+    let childrenArrays = await Promise.all(
       (el.content || []).map((c) => this.convertElement(c))
     );
+
+    if ((!el.content || el.content.length === 0) && el.text) {
+      const paragraphEl: DocumentElement = {
+        type: 'paragraph',
+        text: el.text,
+        styles: el.styles,
+        attributes: el.attributes,
+        metadata: { tagName: 'p' },
+      };
+      childrenArrays.push(await this.convertElement(paragraphEl));
+    }
+
     const children = childrenArrays
       .flat()
       .filter(
@@ -707,9 +719,21 @@ export class DocxAdapter implements IDocumentConverter {
   }
 
   private async convertFooter(el: DocumentElement): Promise<Footer> {
-    const childrenArrays = await Promise.all(
+    let childrenArrays = await Promise.all(
       (el.content || []).map((c) => this.convertElement(c))
     );
+
+    if ((!el.content || el.content.length === 0) && el.text) {
+      const paragraphEl: DocumentElement = {
+        type: 'paragraph',
+        text: el.text,
+        styles: el.styles,
+        attributes: el.attributes,
+        metadata: { tagName: 'p' },
+      };
+      childrenArrays.push(await this.convertElement(paragraphEl));
+    }
+
     const children = childrenArrays
       .flat()
       .filter(

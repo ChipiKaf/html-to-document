@@ -135,6 +135,18 @@ function elementToHtml(
       case 'table':
         tagName = 'table';
         break;
+      case 'header':
+        tagName = 'header';
+        break;
+      case 'footer':
+        tagName = 'footer';
+        break;
+      case 'page':
+        tagName = 'section';
+        break;
+      case 'page-break':
+        tagName = 'section';
+        break;
       case 'table-row':
         tagName = 'tr';
         break;
