@@ -47,9 +47,8 @@ export class DocxAdapter implements IDocumentConverter {
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
-    const { sections, globalHeader, globalFooter } = this.organizeSections(
-      elements
-    );
+    const { sections, globalHeader, globalFooter } =
+      this.organizeSections(elements);
 
     const globalHeaderDocx = globalHeader
       ? await this.convertHeader(globalHeader)
@@ -635,15 +634,25 @@ export class DocxAdapter implements IDocumentConverter {
     });
   }
 
-  private organizeSections(
-    elements: DocumentElement[]
-  ): {
-    sections: { children: DocumentElement[]; header?: DocumentElement; footer?: DocumentElement }[];
+  private organizeSections(elements: DocumentElement[]): {
+    sections: {
+      children: DocumentElement[];
+      header?: DocumentElement;
+      footer?: DocumentElement;
+    }[];
     globalHeader?: DocumentElement;
     globalFooter?: DocumentElement;
   } {
-    const sections: { children: DocumentElement[]; header?: DocumentElement; footer?: DocumentElement }[] = [];
-    let current: { children: DocumentElement[]; header?: DocumentElement; footer?: DocumentElement } = { children: [] };
+    const sections: {
+      children: DocumentElement[];
+      header?: DocumentElement;
+      footer?: DocumentElement;
+    }[] = [];
+    let current: {
+      children: DocumentElement[];
+      header?: DocumentElement;
+      footer?: DocumentElement;
+    } = { children: [] };
     let globalHeader: DocumentElement | undefined;
     let globalFooter: DocumentElement | undefined;
 
@@ -690,7 +699,10 @@ export class DocxAdapter implements IDocumentConverter {
     );
     const children = childrenArrays
       .flat()
-      .filter((c): c is Paragraph | Table => c instanceof Paragraph || c instanceof Table);
+      .filter(
+        (c): c is Paragraph | Table =>
+          c instanceof Paragraph || c instanceof Table
+      );
     return new Header({ children });
   }
 
@@ -700,7 +712,10 @@ export class DocxAdapter implements IDocumentConverter {
     );
     const children = childrenArrays
       .flat()
-      .filter((c): c is Paragraph | Table => c instanceof Paragraph || c instanceof Table);
+      .filter(
+        (c): c is Paragraph | Table =>
+          c instanceof Paragraph || c instanceof Table
+      );
     return new Footer({ children });
   }
 
