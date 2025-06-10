@@ -15,6 +15,7 @@ module.exports = {
   roots: [
     '<rootDir>/packages/core',
     '<rootDir>/packages/adapters',
+    '<rootDir>/packages/deconverters',
   ],
 
   // Resolve workspace names inside tests
@@ -23,6 +24,8 @@ module.exports = {
     '^html-to-document-adapter-docx$':
       '<rootDir>/packages/adapters/docx/src',
     '^html-to-document-adapter-pdf$': '<rootDir>/packages/adapters/pdf/src',
+    '^html-to-document-deconverter-pdf$':
+      '<rootDir>/packages/deconverters/pdf/src',
   },
 
   testMatch: ['**/__tests__/**/*.test.ts'],
