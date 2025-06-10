@@ -532,3 +532,15 @@ export type ConverterOptions = Omit<
 export interface IDocumentConverter {
   convert(elements: DocumentElement[]): Promise<Buffer | Blob>;
 }
+
+export interface IDocumentDeconverter {
+  deconvert(file: Buffer | Blob): Promise<DocumentElement[]>;
+}
+
+export type DeconverterProvider = new (
+  dependencies: IDeconverterDependencies
+) => IDocumentDeconverter;
+
+export interface IDeconverterDependencies {
+  [key: string]: unknown;
+}

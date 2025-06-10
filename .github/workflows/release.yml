@@ -36,6 +36,7 @@ jobs:
           echo "core=$(jq -r '.version' packages/core/package.json)" >> "$GITHUB_OUTPUT"
           echo "docx=$(jq -r '.version' packages/adapters/docx/package.json)" >> "$GITHUB_OUTPUT"
           echo "pdf=$(jq -r '.version' packages/adapters/pdf/package.json)" >> "$GITHUB_OUTPUT"
+          echo "pdfdeconv=$(jq -r '.version' packages/deconverters/pdf/package.json)" >> "$GITHUB_OUTPUT"
           echo "wrapper=$(jq -r '.version' packages/html-to-document/package.json)" >> "$GITHUB_OUTPUT"
 
       # Publish core first
@@ -58,6 +59,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace packages/adapters/pdf --access public --provenance
+
+      # Publish PDF deconverter
+      - name: Publish html-to-document-deconverter-pdf
+        if: steps.versions.outputs.tag == steps.versions.outputs.pdfdeconv
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace packages/deconverters/pdf --access public --provenance
 
       # Publish wrapper last
       - name: Publish html-to-document (wrapper)
