@@ -1,5 +1,7 @@
 import { init, DocxAdapter } from 'html-to-document';
 import { PDFAdapter } from 'html-to-document-adapter-pdf';
+import { Parser, toHtml } from 'html-to-document-core';
+import { PDFDeconverter } from 'html-to-document-deconverter-pdf';
 import { startContent3 } from './utils/constants';
 
 export const run: () => Promise<any> = async () => {
@@ -97,6 +99,7 @@ export const run: () => Promise<any> = async () => {
   });
 
   // Initialize editor
+  let editorInstance: any;
   tinymce.init({
     selector: 'textarea',
     height: window.innerHeight - 20,
@@ -106,6 +109,7 @@ export const run: () => Promise<any> = async () => {
     toolbar:
       'undo redo | formatselect | bold italic underline | bullist numlist | alignleft aligncenter alignright | link | table | code | docx pdf',
     setup: (editor) => {
+      editorInstance = editor;
       editor.on('init', function () {
         console.log('TinyMCE editor is initialized');
         editor.setContent(startContent3);
@@ -182,6 +186,30 @@ export const run: () => Promise<any> = async () => {
         });
       });
     },
+  });
+
+  const pdfDeconv = new PDFDeconverter();
+  const fileInput = document.getElementById('fileInput') as HTMLInputElement | null;
+  const deconvBtn = document.getElementById('deconvertBtn');
+  deconvBtn?.addEventListener('click', async () => {
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+
+    let elements;
+    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      elements = await pdfDeconv.deconvert(file);
+    } else if (file.name.endsWith('.docx')) {
+      const mammoth = await import('mammoth');
+      const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+      const parser = new Parser([], { parse: (html: string) => new DOMParser().parseFromString(html, 'text/html') });
+      elements = parser.parse(result.value);
+    } else {
+      alert('Unsupported file type');
+      return;
+    }
+
+    const html = toHtml(elements);
+    editorInstance.setContent(html);
   });
   const app = document.getElementById('app');
   if (!app) return;

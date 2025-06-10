@@ -4,20 +4,33 @@ import {
   Parser,
   IDOMParser,
 } from 'html-to-document-core';
-import { JSDOM } from 'jsdom';
-
-class JSDOMParser implements IDOMParser {
-  parse(html: string): Document {
-    const dom = new JSDOM(html);
-    return dom.window.document;
+// Dynamically create a DOM parser based on the execution environment so the
+// deconverter can run in both Node and the browser.
+function createDomParser(): IDOMParser {
+  if (typeof window === 'undefined') {
+    // Node environment - use jsdom.
+    const { JSDOM } = require('jsdom') as typeof import('jsdom');
+    return {
+      parse(html: string): Document {
+        const dom = new JSDOM(html);
+        return dom.window.document;
+      },
+    };
   }
+
+  // Browser environment - rely on DOMParser.
+  return {
+    parse(html: string): Document {
+      return new DOMParser().parseFromString(html, 'text/html');
+    },
+  };
 }
 
 export class PDFDeconverter implements IDocumentDeconverter {
   private _parser: Parser;
 
   constructor() {
-    this._parser = new Parser([], new JSDOMParser());
+    this._parser = new Parser([], createDomParser());
   }
 
   async deconvert(file: Buffer | Blob): Promise<DocumentElement[]> {
