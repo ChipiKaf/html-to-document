@@ -47,8 +47,8 @@
     "test": "echo \"no tests\""
   },
   "dependencies": {
-    "html-to-document-core": "^0.2.0",
-    "html-to-document-adapter-docx": "^0.2.0"
+    "html-to-document-core": "^0.3.0",
+    "html-to-document-adapter-docx": "^0.3.0"
   },
   "engines": {
     "node": ">=14"
