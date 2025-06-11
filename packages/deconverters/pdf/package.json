@@ -38,7 +38,8 @@
     "html-to-document-core": "^0.3.0"
   },
   "dependencies": {
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.3.31"
   },
   "devDependencies": {
     "pdfkit": "^0.16.0"
