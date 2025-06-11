@@ -37,7 +37,7 @@ export class PDFDeconverter implements IDocumentDeconverter {
   }
 
   async deconvert(file: Buffer | Blob): Promise<DocumentElement[]> {
-    let text: string;
+    let html = '';
 
     if (isNode) {
       // ─── Node: use pdf-parse (expects a Buffer) ────────────────────────────────
@@ -53,7 +53,14 @@ export class PDFDeconverter implements IDocumentDeconverter {
         data: Buffer
       ) => Promise<{ text: string }>;
       const data = await pdfParse(buffer);
-      text = data.text;
+      const text = data.text;
+
+      html = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((l) => `<p>${l}</p>`)
+        .join('');
     } else {
       // ─── Browser: use pdfjs-dist; expect a Blob/File from <input type="file"> ──
       if (!(file instanceof Blob)) {
@@ -63,7 +70,7 @@ export class PDFDeconverter implements IDocumentDeconverter {
       }
 
       // Dynamically load PDF‑JS along with its worker and wire them together
-      const [{ getDocument, GlobalWorkerOptions }, workerSrcModule] =
+      const [{ getDocument, GlobalWorkerOptions, TextLayer }, workerSrcModule] =
         await Promise.all([
           import('pdfjs-dist/legacy/build/pdf.mjs'),
           // ?url tells Vite (or webpack) to emit the worker file and give us its URL
@@ -78,26 +85,24 @@ export class PDFDeconverter implements IDocumentDeconverter {
       const uint8Array = new Uint8Array(await file.arrayBuffer());
       const pdf = await getDocument(uint8Array).promise;
 
-      let extracted = '';
+      const pageHtml: string[] = [];
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
-        const content = await page.getTextContent();
-        extracted +=
-          (content.items as any[])
-            .map((item) => ('str' in item ? (item as any).str : ''))
-            .join('\n') + '\n';
+        const viewport = page.getViewport({ scale: 1 });
+        const container = document.createElement('div');
+        const textLayer = new TextLayer({
+          textContentSource: page.streamTextContent({
+            includeMarkedContent: true,
+            disableNormalization: true,
+          }),
+          container,
+          viewport,
+        });
+        await textLayer.render();
+        pageHtml.push(`<section class="page">${container.innerHTML}</section>`);
       }
-      text = extracted;
+      html = pageHtml.join('');
     }
-
-    // Convert plain text to simple HTML paragraphs
-    const html = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => `<p>${l}</p>`)
-      .join('');
-    console.log(html);
 
     return this._parser.parse(html);
   }
