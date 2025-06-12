@@ -173,7 +173,7 @@ export class PDFDeconverter implements IDocumentDeconverter {
 
     // Regex helpers for bullets / numbers
     const bulletRE =
-      /^(?:[•·‣‧∙◦●▪‣‣]|[`•`]|[`·`]|[`‣`]|[`‧`]|[`∙`]|[`◦`]|[`●`]|[`▪`]|[`‣`]|[`—`]|[`–`]|[`‐`]|[`‑`]|[`‒`]|[`‾`]|[`‐`]|[`‿`]|[`⁃`]|[`·`]|[`‧`]|[`∙`]|[`◦`]|[`●`]|[`▪`]|[`‣`]|[`*`]|[`▪`]|[`—`]|[`–`])\s*/;
+      /^[\u2022\u2023\u2043\u25E6\u2024\u2027\uF0B7•·‣‧∙◦●▪*]\s*/;
     const numberedRE = /^\d+\s*(?:[.)]|‐|-|–|—)\s+/;
 
     const htmlParts: string[] = [];
