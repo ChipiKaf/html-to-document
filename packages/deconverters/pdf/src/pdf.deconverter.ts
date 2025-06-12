@@ -155,21 +155,26 @@ export class PDFDeconverter implements IDocumentDeconverter {
     }
 
     // ─── Fallback: untagged PDF – heuristic reconstruction ────────────────
-    const lines: { y: number; text: string }[] = [];
+    type Line = { y: number; items: { x: number; text: string }[] };
+    const lines: Line[] = [];
 
     for (const item of content.items as any[]) {
       const y = item.transform[5]; // baseline‑Y in device space
-      const line = lines.find((l) => Math.abs(l.y - y) < 2);
+      const x = item.transform[4]; // baseline‑X in device space
       const txt = item.str.trim();
+      const line = lines.find((l) => Math.abs(l.y - y) < 2);
       if (line) {
-        line.text += (txt ? ' ' : '') + txt;
+        line.items.push({ x, text: txt });
       } else {
-        lines.push({ y, text: txt });
+        lines.push({ y, items: [{ x, text: txt }] });
       }
     }
 
-    // Sort visual order: top → bottom
+    // Sort visual order: top → bottom and left → right for items
     lines.sort((a, b) => b.y - a.y);
+    for (const line of lines) {
+      line.items.sort((a, b) => a.x - b.x);
+    }
 
     // Regex helpers for bullets / numbers
     const bulletRE =
@@ -201,11 +206,41 @@ export class PDFDeconverter implements IDocumentDeconverter {
       }
     };
 
-    for (const { text } of lines) {
-      const trimmed = text.trim();
+    const splitIntoCells = (items: { x: number; text: string }[]): string[] => {
+      const cells: string[] = [];
+      if (items.length === 0) return cells;
+      let current = items[0].text;
+      let prevX = items[0].x;
+      for (let i = 1; i < items.length; i++) {
+        const it = items[i];
+        if (it.x - prevX > 20) {
+          cells.push(current.trim());
+          current = it.text;
+        } else {
+          current += (current ? ' ' : '') + it.text;
+        }
+        prevX = it.x;
+      }
+      cells.push(current.trim());
+      return cells.filter(Boolean);
+    };
+
+    let inTable = false;
+
+    const closeTable = () => {
+      if (inTable) {
+        htmlParts.push('</table>');
+        inTable = false;
+      }
+    };
+
+    for (const { items } of lines) {
+      const cells = splitIntoCells(items);
+      const trimmed = cells.join(' ').trim();
       if (!trimmed) continue;
 
       if (bulletRE.test(trimmed)) {
+        closeTable();
         if (!inUL) {
           closeOL();
           openUL();
@@ -217,6 +252,7 @@ export class PDFDeconverter implements IDocumentDeconverter {
       }
 
       if (numberedRE.test(trimmed)) {
+        closeTable();
         if (!inOL) {
           closeUL();
           openOL();
@@ -227,7 +263,23 @@ export class PDFDeconverter implements IDocumentDeconverter {
         continue;
       }
 
-      // Any other line: end list context if open and emit paragraph
+      if (cells.length > 1) {
+        closeUL();
+        closeOL();
+        if (!inTable) {
+          htmlParts.push('<table>');
+          inTable = true;
+        }
+        htmlParts.push(
+          '<tr>' +
+            cells.map((c) => `<td>${escapeHTML(c)}</td>`).join('') +
+          '</tr>'
+        );
+        continue;
+      }
+
+      // Any other line: end any open contexts and emit paragraph
+      closeTable();
       closeUL();
       closeOL();
       htmlParts.push(`<p>${escapeHTML(trimmed)}</p>`);
@@ -235,6 +287,7 @@ export class PDFDeconverter implements IDocumentDeconverter {
 
     closeUL();
     closeOL();
+    closeTable();
 
     return htmlParts.join('');
   }
