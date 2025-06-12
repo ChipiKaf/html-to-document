@@ -228,9 +228,44 @@ export class PDFDeconverter implements IDocumentDeconverter {
       }
     };
 
-    for (const { text } of lines) {
-      const trimmed = text.trim();
+    const splitCells = (line: string) =>
+      line.trim().split(/\s{2,}|\t+/).filter(Boolean);
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].text.trim();
       if (!trimmed) continue;
+
+      // ─── Table detection: look for consecutive lines with the same
+      // number of columns separated by two+ spaces or tabs ──────────────
+      const firstRow = splitCells(trimmed);
+      if (firstRow.length >= 2) {
+        const rows: string[][] = [firstRow];
+        let j = i + 1;
+        while (j < lines.length) {
+          const nextCells = splitCells(lines[j].text);
+          if (nextCells.length === firstRow.length) {
+            rows.push(nextCells);
+            j++;
+          } else {
+            break;
+          }
+        }
+        if (rows.length >= 2) {
+          closeUL();
+          closeOL();
+          htmlParts.push('<table>');
+          for (const row of rows) {
+            htmlParts.push('<tr>');
+            for (const cell of row) {
+              htmlParts.push(`<td>${escapeHTML(cell)}</td>`);
+            }
+            htmlParts.push('</tr>');
+          }
+          htmlParts.push('</table>');
+          i = j - 1;
+          continue;
+        }
+      }
 
       if (bulletRE.test(trimmed)) {
         if (!inUL) {
@@ -263,6 +298,6 @@ export class PDFDeconverter implements IDocumentDeconverter {
     closeUL();
     closeOL();
 
-    return htmlParts.join('');
+    return sanitizeTables(htmlParts.join(''));
   }
 }
