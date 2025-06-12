@@ -39,8 +39,15 @@ function sanitizeTables(html: string): string {
     const cellCounts = rows.map((r) => r.querySelectorAll('td,th').length);
     const maxCells = Math.max(...cellCounts, 0);
     const minCells = Math.min(...cellCounts, Infinity);
+    const multiCellRows = cellCounts.filter((c) => c > 1).length;
 
-    if (rows.length < 2 || maxCells <= 1 || maxCells - minCells > 1) {
+    const badShape =
+      rows.length < 2 ||
+      multiCellRows < 2 ||
+      minCells === 0 ||
+      maxCells > minCells * 3;
+
+    if (badShape) {
       const text = table.textContent || '';
       const p = doc.createElement('p');
       p.textContent = text.trim();
@@ -114,8 +121,6 @@ export class PDFDeconverter implements IDocumentDeconverter {
 
       html = htmlPages.join('');
     }
-
-    console.log(html);
 
     return this._parser.parse(html);
   }
