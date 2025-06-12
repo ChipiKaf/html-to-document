@@ -155,26 +155,52 @@ export class PDFDeconverter implements IDocumentDeconverter {
     }
 
     // ─── Fallback: untagged PDF – heuristic reconstruction ────────────────
-    const lines: { y: number; text: string }[] = [];
+    const lines: { y: number; items: { x: number; str: string }[] }[] = [];
 
     for (const item of content.items as any[]) {
       const y = item.transform[5]; // baseline‑Y in device space
-      const line = lines.find((l) => Math.abs(l.y - y) < 2);
-      const txt = item.str.trim();
-      if (line) {
-        line.text += (txt ? ' ' : '') + txt;
-      } else {
-        lines.push({ y, text: txt });
+      const x = item.transform[4]; // baseline‑X
+      const txt = item.str;
+
+      // Group glyphs that sit on roughly the same baseline into one line
+      let line = lines.find((l) => Math.abs(l.y - y) < 2);
+      if (!line) {
+        line = { y, items: [] };
+        lines.push(line);
       }
+      line.items.push({ x, str: txt });
     }
 
-    // Sort visual order: top → bottom
+    // Sort visual order: top → bottom, and within each line left → right
     lines.sort((a, b) => b.y - a.y);
+    lines.forEach((ln) => ln.items.sort((a, b) => a.x - b.x));
+
+    // Turn each line’s tokens into a single string, inserting a TAB when the
+    // horizontal gap between consecutive tokens is large (i.e. a new column).
+    const BIG_GAP = 30; // device‑space units; tweak if needed
+
+    const textLines: { text: string }[] = lines.map((ln) => {
+      let acc = '';
+      let lastX: number | null = null;
+
+      for (const t of ln.items) {
+        if (lastX !== null) {
+          const gap = t.x - lastX;
+          acc += gap > BIG_GAP ? '\t' : ' ';
+        }
+        acc += t.str;
+        // crude width estimate ≈ 6 units per character
+        lastX = t.x + t.str.length * 6;
+      }
+      return { text: acc };
+    });
 
     // Regex helpers for bullets / numbers
     const bulletRE =
       /^[\u2022\u2023\u2043\u25E6\u2024\u2027\uF0B7•·‣‧∙◦●▪*]\s*/;
     const numberedRE = /^\d+\s*(?:[.)]|‐|-|–|—)\s+/;
+    // Delimiter (2+ spaces or tabs) that often separates table columns
+    const tableDelimiterRE = /\s{2,}|\t+/;
 
     const htmlParts: string[] = [];
     let inUL = false;
@@ -201,7 +227,8 @@ export class PDFDeconverter implements IDocumentDeconverter {
       }
     };
 
-    for (const { text } of lines) {
+    for (let i = 0; i < textLines.length; i++) {
+      const { text } = textLines[i];
       const trimmed = text.trim();
       if (!trimmed) continue;
 
@@ -225,6 +252,51 @@ export class PDFDeconverter implements IDocumentDeconverter {
           `<li>${escapeHTML(trimmed.replace(numberedRE, '').trim())}</li>`
         );
         continue;
+      }
+
+      // ─── Heuristic table detection: lines with visible column gaps ─────────
+      if (tableDelimiterRE.test(trimmed)) {
+        // Collect consecutive lines that share the same column delimiter pattern
+        const tableRows: string[][] = [];
+        let k = i;
+
+        while (
+          k < textLines.length &&
+          tableDelimiterRE.test(textLines[k].text.trim())
+        ) {
+          const cells = textLines[k].text
+            .trim()
+            .split(tableDelimiterRE)
+            .map((c) => escapeHTML(c.trim()));
+          tableRows.push(cells);
+          k++;
+        }
+
+        const firstCols = tableRows[0].length;
+        const rowsWithSameCols = tableRows.filter(
+          (r) => r.length === firstCols
+        ).length;
+
+        // New rule: we only accept a block as a table if the dominant column
+        // count is at least 3 (to avoid justified‑text artifacts),
+        // there are ≥2 rows with that count, and the count is not excessive.
+        if (firstCols >= 3 && firstCols <= 10 && rowsWithSameCols >= 2) {
+          // Close any open list context before emitting a table
+          closeUL();
+          closeOL();
+
+          htmlParts.push('<table>');
+          for (const row of tableRows) {
+            htmlParts.push('<tr>');
+            row.forEach((cell) => htmlParts.push(`<td>${cell}</td>`));
+            htmlParts.push('</tr>');
+          }
+          htmlParts.push('</table>');
+
+          // Skip the lines we've just consumed
+          i = k - 1;
+          continue;
+        }
       }
 
       // Any other line: end list context if open and emit paragraph
