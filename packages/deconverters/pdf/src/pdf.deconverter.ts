@@ -29,6 +29,28 @@ function createDomParser(): IDOMParser {
 // Runtime‑agnostic flag
 const isNode = typeof window === 'undefined';
 
+function sanitizeTables(html: string): string {
+  const { parse } = createDomParser();
+  const doc = parse(html);
+  const tables = Array.from(doc.querySelectorAll('table'));
+
+  for (const table of tables) {
+    const rows = Array.from(table.querySelectorAll('tr'));
+    const cellCounts = rows.map((r) => r.querySelectorAll('td,th').length);
+    const maxCells = Math.max(...cellCounts, 0);
+    const minCells = Math.min(...cellCounts, Infinity);
+
+    if (rows.length < 2 || maxCells <= 1 || maxCells - minCells > 1) {
+      const text = table.textContent || '';
+      const p = doc.createElement('p');
+      p.textContent = text.trim();
+      table.replaceWith(p);
+    }
+  }
+
+  return doc.body.innerHTML;
+}
+
 export class PDFDeconverter implements IDocumentDeconverter {
   private _parser: Parser;
 
@@ -151,7 +173,7 @@ export class PDFDeconverter implements IDocumentDeconverter {
         }
       };
 
-      return walk(struct);
+      return sanitizeTables(walk(struct));
     }
 
     // ─── Fallback: untagged PDF – heuristic reconstruction ────────────────
