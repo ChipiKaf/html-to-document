@@ -69,41 +69,173 @@ export class PDFDeconverter implements IDocumentDeconverter {
         );
       }
 
-      // Dynamically load PDF‑JS along with its worker and wire them together
-      const [{ getDocument, GlobalWorkerOptions, TextLayer }, workerSrcModule] =
-        await Promise.all([
-          import('pdfjs-dist/legacy/build/pdf.mjs'),
-          // ?url tells Vite (or webpack) to emit the worker file and give us its URL
-          import('pdfjs-dist/legacy/build/pdf.worker.mjs?url'),
-        ]);
+      // Modern pdfjs imports for browser
+      const { getDocument, GlobalWorkerOptions } = await import(
+        'pdfjs-dist/build/pdf.mjs'
+      );
+      const workerSrcModule = (
+        await import('pdfjs-dist/build/pdf.worker.mjs?url')
+      ).default;
 
-      // pdfjs needs to know where the worker lives at runtime
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      GlobalWorkerOptions.workerSrc = workerSrcModule.default as string;
+      GlobalWorkerOptions.workerSrc = workerSrcModule;
 
-      const uint8Array = new Uint8Array(await file.arrayBuffer());
-      const pdf = await getDocument(uint8Array).promise;
+      const uint8 = new Uint8Array(await file.arrayBuffer());
+      const pdf = await getDocument(uint8).promise;
 
-      const pageHtml: string[] = [];
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1 });
-        const container = document.createElement('div');
-        const textLayer = new TextLayer({
-          textContentSource: page.streamTextContent({
-            includeMarkedContent: true,
-            disableNormalization: true,
-          }),
-          container,
-          viewport,
-        });
-        await textLayer.render();
-        pageHtml.push(`<section class="page">${container.innerHTML}</section>`);
+      let htmlPages: string[] = [];
+
+      for (let n = 1; n <= pdf.numPages; n++) {
+        const page = await pdf.getPage(n);
+        const pageHtml = await this.pageToHTML(page);
+        htmlPages.push(`<section class="page">${pageHtml}</section>`);
       }
-      html = pageHtml.join('');
+
+      html = htmlPages.join('');
     }
 
+    console.log(html);
+
     return this._parser.parse(html);
+  }
+
+  private async pageToHTML(page: any): Promise<string> {
+    const [struct, content] = await Promise.all([
+      page.getStructTree?.(),
+      page.getTextContent({ includeMarkedContent: true }),
+    ]);
+
+    const escapeHTML = (str: string) =>
+      str.replace(
+        /[&<>"']/g,
+        (m) =>
+          ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+          })[m] || m
+      );
+
+    if (struct) {
+      const itemById = Object.fromEntries(
+        content.items.map((it: any, idx: number) => [`${idx}`, it])
+      );
+
+      const walk = (node: any): string => {
+        if (node.type === 'content') {
+          return escapeHTML(itemById[node.id].str);
+        }
+        const children = node.children.map(walk).join('');
+        switch (node.role) {
+          case 'H1':
+            return `<h1>${children}</h1>`;
+          case 'H2':
+            return `<h2>${children}</h2>`;
+          case 'L':
+            return `<ul>${children}</ul>`;
+          case 'LI':
+            return `<li>${children}</li>`;
+          case 'Table':
+            return `<table>${children}</table>`;
+          case 'TR':
+            return `<tr>${children}</tr>`;
+          case 'TH':
+            return `<th>${children}</th>`;
+          case 'TD':
+            return `<td>${children}</td>`;
+          case 'Span':
+            return children;
+          default:
+            return `<p>${children}</p>`;
+        }
+      };
+
+      return walk(struct);
+    }
+
+    // ─── Fallback: untagged PDF – heuristic reconstruction ────────────────
+    const lines: { y: number; text: string }[] = [];
+
+    for (const item of content.items as any[]) {
+      const y = item.transform[5]; // baseline‑Y in device space
+      const line = lines.find((l) => Math.abs(l.y - y) < 2);
+      const txt = item.str.trim();
+      if (line) {
+        line.text += (txt ? ' ' : '') + txt;
+      } else {
+        lines.push({ y, text: txt });
+      }
+    }
+
+    // Sort visual order: top → bottom
+    lines.sort((a, b) => b.y - a.y);
+
+    // Regex helpers for bullets / numbers
+    const bulletRE =
+      /^(?:[•·‣‧∙◦●▪‣‣]|[`•`]|[`·`]|[`‣`]|[`‧`]|[`∙`]|[`◦`]|[`●`]|[`▪`]|[`‣`]|[`—`]|[`–`]|[`‐`]|[`‑`]|[`‒`]|[`‾`]|[`‐`]|[`‿`]|[`⁃`]|[`·`]|[`‧`]|[`∙`]|[`◦`]|[`●`]|[`▪`]|[`‣`]|[`*`]|[`▪`]|[`—`]|[`–`])\s*/;
+    const numberedRE = /^\d+\s*(?:[.)]|‐|-|–|—)\s+/;
+
+    const htmlParts: string[] = [];
+    let inUL = false;
+    let inOL = false;
+
+    const openUL = () => {
+      htmlParts.push('<ul>');
+      inUL = true;
+    };
+    const closeUL = () => {
+      if (inUL) {
+        htmlParts.push('</ul>');
+        inUL = false;
+      }
+    };
+    const openOL = () => {
+      htmlParts.push('<ol>');
+      inOL = true;
+    };
+    const closeOL = () => {
+      if (inOL) {
+        htmlParts.push('</ol>');
+        inOL = false;
+      }
+    };
+
+    for (const { text } of lines) {
+      const trimmed = text.trim();
+      if (!trimmed) continue;
+
+      if (bulletRE.test(trimmed)) {
+        if (!inUL) {
+          closeOL();
+          openUL();
+        }
+        htmlParts.push(
+          `<li>${escapeHTML(trimmed.replace(bulletRE, '').trim())}</li>`
+        );
+        continue;
+      }
+
+      if (numberedRE.test(trimmed)) {
+        if (!inOL) {
+          closeUL();
+          openOL();
+        }
+        htmlParts.push(
+          `<li>${escapeHTML(trimmed.replace(numberedRE, '').trim())}</li>`
+        );
+        continue;
+      }
+
+      // Any other line: end list context if open and emit paragraph
+      closeUL();
+      closeOL();
+      htmlParts.push(`<p>${escapeHTML(trimmed)}</p>`);
+    }
+
+    closeUL();
+    closeOL();
+
+    return htmlParts.join('');
   }
 }
