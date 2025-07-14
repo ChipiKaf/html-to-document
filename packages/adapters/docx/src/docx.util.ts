@@ -49,6 +49,10 @@ export async function handleChildren(
     await Promise.all(
       children.map((child) => {
         const handler = handlerMap[child.type] || handlerMap.custom;
+        if (!handler) {
+          // TODO: Better handling here
+          return [];
+        }
         // Always pass a Styles object (never undefined)
         return handler(child, mergeStyles(mergedStyles, ...extraStyles));
       })

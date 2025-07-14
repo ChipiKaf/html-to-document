@@ -246,10 +246,10 @@ export class DocxAdapter implements IDocumentConverter {
           if (isPreviousInline && isInline(child)) {
             if (Array.isArray(child)) {
               child.forEach((c) => {
-                acc[acc.length - 1].addChildElement(c);
+                acc[acc.length - 1]?.addChildElement(c);
               });
             } else {
-              acc[acc.length - 1].addChildElement(child);
+              acc[acc.length - 1]?.addChildElement(child);
             }
           } else if (isInline(child)) {
             acc.push(
@@ -462,7 +462,7 @@ export class DocxAdapter implements IDocumentConverter {
         const isPreviousInline =
           currentIndex > 0 && prevChild && isInline(prevChild);
         if (isPreviousInline && isInline(child)) {
-          acc[acc.length - 1].addChildElement(child);
+          acc[acc.length - 1]?.addChildElement(child);
         } else if (isInline(child)) {
           acc.push(
             new Paragraph({
@@ -530,8 +530,8 @@ export class DocxAdapter implements IDocumentConverter {
       if (!matches || matches.length < 3) {
         throw new Error('Invalid data URI');
       }
-      imageType = matches[1].split('/')[1] as IImageOptions['type']; // e.g. "image/png" becomes "png"
-      const base64Data = matches[2];
+      imageType = matches[1]!.split('/')[1] as IImageOptions['type']; // e.g. "image/png" becomes "png"
+      const base64Data = matches[2]!;
       dataBuffer = toBinaryBuffer(base64Data, 'base64');
     } else if (
       src.startsWith('http://') ||
@@ -805,14 +805,16 @@ export class DocxAdapter implements IDocumentConverter {
     for (let i = 0; i < numRows; i++) {
       let colIndex = 0;
       const row = el.rows[i];
+      if (!row) continue;
 
       for (const cell of row.cells) {
-        while (colIndex < numCols && grid[i][colIndex] !== null) colIndex++;
+        const currentRow = grid[i]!;
+        while (colIndex < numCols && currentRow[colIndex] !== null) colIndex++;
         if (colIndex >= numCols) break;
         const colSpan = cell.colspan || 1;
         const rowSpan = cell.rowspan || 1;
 
-        grid[i][colIndex] = {
+        currentRow[colIndex] = {
           cell,
           horizontal: false,
           verticalMerge: false,
@@ -821,7 +823,7 @@ export class DocxAdapter implements IDocumentConverter {
 
         // Mark for horizontal merges
         for (let k = 1; k < colSpan; k++) {
-          grid[i][colIndex + k] = {
+          currentRow[colIndex + k] = {
             cell,
             horizontal: true,
             verticalMerge: false,
@@ -832,7 +834,8 @@ export class DocxAdapter implements IDocumentConverter {
         // Mark for vertical merge
         if (rowSpan > 1) {
           for (let r = i + 1; r < i + rowSpan && r < numRows; r++) {
-            grid[r][colIndex] = {
+            const nextRow = grid[r]!;
+            nextRow[colIndex] = {
               cell,
               horizontal: false,
               verticalMerge: true,
@@ -849,7 +852,7 @@ export class DocxAdapter implements IDocumentConverter {
       const cells: TableCell[] = [];
       let j = 0;
       while (j < numCols) {
-        const gridCell = grid[i][j];
+        const gridCell = grid[i]?.[j];
         if (!gridCell) {
           cells.push(
             new TableCell({
@@ -904,10 +907,10 @@ export class DocxAdapter implements IDocumentConverter {
                   if (isPreviousInline && isInline(child)) {
                     if (Array.isArray(child)) {
                       child.forEach((c) => {
-                        acc[acc.length - 1].addChildElement(c);
+                        acc[acc.length - 1]?.addChildElement(c);
                       });
                     } else {
-                      acc[acc.length - 1].addChildElement(child);
+                      acc[acc.length - 1]?.addChildElement(child);
                     }
                   } else if (isInline(child)) {
                     acc.push(
@@ -959,7 +962,7 @@ export class DocxAdapter implements IDocumentConverter {
           j += colSpan;
         }
       }
-      const rowStyles = el.rows[i].styles || {};
+      const rowStyles = el.rows[i]?.styles || {};
       tableRows.push(
         new TableRow({
           children: cells,

@@ -221,7 +221,7 @@ export class Parser {
     const shouldWalk =
       tagName === 'div' ||
       !(
-        element.childNodes.length === 1 && element.childNodes[0].nodeType === 3
+        element.childNodes.length === 1 && element.childNodes[0]?.nodeType === 3
       );
     if (shouldWalk) {
       const { isList, newLevel } = getListLevel(tagName, options);
