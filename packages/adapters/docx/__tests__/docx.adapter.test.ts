@@ -1525,4 +1525,15 @@ describe('Docx.adapter.convert', () => {
       expect(footerText).toBe('Plain Footer');
     });
   });
+
+  it('inline handler should fall back to text if no handler was found', async () => {
+    const html =
+      '<p><strong><em>Fallback</em> <custom>text</custom></strong></p>';
+
+    const elements = parser.parse(html);
+    const buffer = await adapter.convert(elements);
+    const json = await parseDocxDocument(buffer);
+
+    expect(json['w:document']['w:body']['w:p']).toBeDefined();
+  });
 });

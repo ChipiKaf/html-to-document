@@ -177,6 +177,7 @@ export class DocxAdapter implements IDocumentConverter {
   > = {
     text: this.convertText.bind(this),
     image: this.convertImage.bind(this),
+    custom: this.convertText.bind(this), // fallback
   };
 
   /**
