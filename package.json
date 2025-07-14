@@ -15,6 +15,7 @@
     "test:silent": "jest --runInBand --silent",
     "lint": "eslint 'packages/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
     "format": "prettier --write 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'",
+    "format:check": "prettier 'packages/**/*.{ts,tsx,js,jsx,json,css,md}'",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "changelog:all": "node scripts/generate-changelog.js"
   },
