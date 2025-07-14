@@ -288,7 +288,7 @@ export class StyleMapper {
           const px = parseFloat(widthPart);
           if (!isNaN(px) && parts.length >= 2) {
             // parse color as last part
-            const colorPart = parts.slice(2).join(' ') || parts[1];
+            const colorPart = parts.slice(2).join(' ') || (parts[1] ?? '');
             const color = colorConversion(colorPart);
             return {
               outline: {

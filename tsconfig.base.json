@@ -2,14 +2,23 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "html-to-document-core": ["packages/core/src"],
-      "html-to-document-core/*": ["packages/core/src/*"],
-      "html-to-document-adapter-*": ["packages/adapters/*/src"],
-      "html-to-document-deconverter-*": ["packages/deconverters/*/src"]
+      "html-to-document-core": [
+        "packages/core/src"
+      ],
+      "html-to-document-core/*": [
+        "packages/core/src/*"
+      ],
+      "html-to-document-adapter-*": [
+        "packages/adapters/*/src"
+      ],
+      "html-to-document-deconverter-*": [
+        "packages/deconverters/*/src"
+      ]
     },
     "target": "ES2024",
     "module": "ESNext",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "moduleResolution": "node",
     "skipLibCheck": true

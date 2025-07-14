@@ -170,7 +170,7 @@ function elementToHtml(
   // 1. normal attributes (respect insertion order ― no sorting!)
   if (el.attributes) {
     Object.keys(el.attributes).forEach((key) => {
-      const val = el.attributes![key];
+      const val = el.attributes![key]!;
       attrs.push(`${key}="${encodeAttr(val)}"`);
     });
   }

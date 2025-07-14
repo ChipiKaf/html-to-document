@@ -89,7 +89,7 @@ export class PDFAdapter implements IDocumentConverter {
     if (styleAttr) {
       const match = /height\s*:\s*(\d+)/i.exec(styleAttr);
       if (match) {
-        return parseInt(match[1], 10);
+        return parseInt(match[1]!, 10);
       }
     }
 
@@ -117,7 +117,7 @@ export class PDFAdapter implements IDocumentConverter {
     const heights = await Promise.all(imgs.map((i) => this.getImageHeight(i)));
     const imgHeights = new Map<HTMLImageElement, number>();
     imgs.forEach((img, idx) =>
-      imgHeights.set(img, heights[idx] + IMAGE_PADDING)
+      imgHeights.set(img, heights[idx]! + IMAGE_PADDING)
     );
 
     let remaining = PAGE_HEIGHT;

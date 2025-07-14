@@ -43,7 +43,8 @@ function parseHTML(input: string): Node[] {
         stack.pop();
       } else {
         const tagMatch = token.match(/^<\s*([a-zA-Z0-9]+)/);
-        const tagName = tagMatch ? tagMatch[1].toLowerCase() : '';
+        const tagName =
+          tagMatch?.[1] !== undefined ? tagMatch[1].toLowerCase() : '';
         const isSelfClosing = /\/>$/.test(token) || voidElements.has(tagName);
         const node: Node = {
           type: 'tag',
@@ -53,12 +54,12 @@ function parseHTML(input: string): Node[] {
           children: [],
         };
         const parent = stack[stack.length - 1];
-        if (parent.type === 'tag') parent.children.push(node);
+        if (parent?.type === 'tag') parent.children.push(node);
         if (!isSelfClosing) stack.push(node);
       }
     } else {
       const parent = stack[stack.length - 1];
-      if (parent.type === 'tag') {
+      if (parent?.type === 'tag') {
         parent.children.push({ type: 'text', content: token });
       }
     }
@@ -108,9 +109,9 @@ function processNodes(nodes: Node[], parentTag?: string): string {
   }
 
   // Otherwise, smart trimming around block tags
-  for (let i = 0; i < processed.length; i++) {
-    const item = processed[i];
-    if (item.type !== 'text') continue;
+  processed.forEach((item, i) => {
+    // const item = processed[i];
+    if (item.type !== 'text') return;
 
     const prev = processed[i - 1];
     const next = processed[i + 1];
@@ -128,7 +129,7 @@ function processNodes(nodes: Node[], parentTag?: string): string {
     if (i === processed.length - 1 && trimEdges) {
       item.text = item.text.replace(/\s+$/, '');
     }
-  }
+  });
 
   // Join, dropping purely-empty text nodes
   return processed

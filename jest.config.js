@@ -2,11 +2,12 @@
 module.exports = {
   testEnvironment: 'node',
   transform: {
-    '^.+\\.(t|j)sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.base.json' }]
+    '^.+\\.(t|j)sx?$': [
+      'ts-jest',
+      { tsconfig: '<rootDir>/tsconfig.test.json' },
+    ],
   },
-  transformIgnorePatterns: [
-    '/node_modules/(?!(pdfjs-dist)/).*',
-  ],
+  transformIgnorePatterns: ['/node_modules/(?!(pdfjs-dist)/).*'],
 
   // File extensions Jest should resolve
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
@@ -21,8 +22,7 @@ module.exports = {
   // Resolve workspace names inside tests
   moduleNameMapper: {
     '^html-to-document-core$': '<rootDir>/packages/core/src',
-    '^html-to-document-adapter-docx$':
-      '<rootDir>/packages/adapters/docx/src',
+    '^html-to-document-adapter-docx$': '<rootDir>/packages/adapters/docx/src',
     '^html-to-document-adapter-pdf$': '<rootDir>/packages/adapters/pdf/src',
     '^html-to-document-deconverter-pdf$':
       '<rootDir>/packages/deconverters/pdf/src',
@@ -35,3 +35,4 @@ module.exports = {
   // Use project-local cache directory to avoid OS temp permission issues
   cacheDirectory: '<rootDir>/.jest-cache',
 };
+
