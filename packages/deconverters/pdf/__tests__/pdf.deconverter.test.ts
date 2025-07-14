@@ -1,7 +1,9 @@
 import { PDFDeconverter } from '../src/pdf.deconverter';
 import fs from 'fs';
 
-const samplePdf = fs.readFileSync('node_modules/pdf-parse/test/data/04-valid.pdf');
+const samplePdf = fs.readFileSync(
+  'node_modules/pdf-parse/test/data/04-valid.pdf'
+);
 
 describe('PDFDeconverter', () => {
   it('converts a PDF Buffer to DocumentElement[]', async () => {

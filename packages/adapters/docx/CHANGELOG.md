@@ -1,25 +1,31 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
-* docs: document headers and update docx adapter guide (#13) ([b9c42e0](https://github.com/ChipiKaf/html-to-document/commit/b9c42e0)), closes [#13](https://github.com/ChipiKaf/html-to-document/issues/13)
-* Add page sections and headers to docx adapter (#11) ([2f190c6](https://github.com/ChipiKaf/html-to-document/commit/2f190c6)), closes [#11](https://github.com/ChipiKaf/html-to-document/issues/11)
-* Fix built-in docx adapter (#10) ([25ec976](https://github.com/ChipiKaf/html-to-document/commit/25ec976)), closes [#10](https://github.com/ChipiKaf/html-to-document/issues/10)
+- docs: document headers and update docx adapter guide (#13) ([b9c42e0](https://github.com/ChipiKaf/html-to-document/commit/b9c42e0)), closes [#13](https://github.com/ChipiKaf/html-to-document/issues/13)
+- Add page sections and headers to docx adapter (#11) ([2f190c6](https://github.com/ChipiKaf/html-to-document/commit/2f190c6)), closes [#11](https://github.com/ChipiKaf/html-to-document/issues/11)
+- Fix built-in docx adapter (#10) ([25ec976](https://github.com/ChipiKaf/html-to-document/commit/25ec976)), closes [#10](https://github.com/ChipiKaf/html-to-document/issues/10)
 
 ## <small>0.2.9 (2025-06-07)</small>
 
-* Fix TypeScript build output paths (#9) ([7b4747d](https://github.com/ChipiKaf/html-to-document/commit/7b4747d)), closes [#9](https://github.com/ChipiKaf/html-to-document/issues/9)
+- Fix TypeScript build output paths (#9) ([7b4747d](https://github.com/ChipiKaf/html-to-document/commit/7b4747d)), closes [#9](https://github.com/ChipiKaf/html-to-document/issues/9)
 
 ## [0.2.8] - 2025-06-04
 
 ## [0.2.7] - 2025-05-30
+
 ### Changed
+
 - Updated documentation to give more details of how the package works
 
 ## [0.2.6] - 2025-05-30
+
 ### Changed
+
 - Updated documentation to give more details of how the package works
 
 ## [0.2.5] - 2025-05-30
+
 ### Changed
+
 - Updated documentation to give more details of how the package works
 
 ## [0.2.4] - 2025-05-20

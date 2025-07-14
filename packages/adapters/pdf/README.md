@@ -1,5 +1,3 @@
-
-
 # html-to-document-adapter-pdf
 
 **PDF adapter for the html-to-document core library.**
@@ -7,7 +5,7 @@
 ## Installation
 
 ```bash
-# Install this adapter (This assumes you have already installed 
+# Install this adapter (This assumes you have already installed
 html-to-document or html-to-document-core) :
 
 npm install html-to-document-adapter-pdf
