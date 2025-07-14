@@ -305,8 +305,6 @@ describe('html.serializer', () => {
       paragraph: { color: 'red', fontSize: '12px' },
     });
 
-    expect(html).toContain(
-      '<p style="color: red; font-size: 12px;">Hello</p>'
-    );
+    expect(html).toContain('<p style="color: red; font-size: 12px;">Hello</p>');
   });
 });

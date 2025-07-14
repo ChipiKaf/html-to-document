@@ -95,8 +95,12 @@ and defaults when initialising:
 const converter = init({
   adapters: {
     register: [{ format: 'docx', adapter: DocxAdapter }],
-    defaultStyles: [{ format: 'docx', styles: { paragraph: { lineHeight: 1.5 } } }],
-    styleMappings: [{ format: 'docx', handlers: { textAlign: v => ({ alignment: v }) } }],
+    defaultStyles: [
+      { format: 'docx', styles: { paragraph: { lineHeight: 1.5 } } },
+    ],
+    styleMappings: [
+      { format: 'docx', handlers: { textAlign: (v) => ({ alignment: v }) } },
+    ],
   },
 });
 ```

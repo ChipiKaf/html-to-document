@@ -30,7 +30,9 @@ export class PDFDeconverter implements IDocumentDeconverter {
       throw new Error('Unsupported input type');
     }
 
-    const pdfParse = require('pdf-parse') as (data: Buffer) => Promise<{ text: string }>;
+    const pdfParse = require('pdf-parse') as (
+      data: Buffer
+    ) => Promise<{ text: string }>;
     const data = await pdfParse(buffer);
     const html = data.text
       .split(/\r?\n/) // split on newlines
