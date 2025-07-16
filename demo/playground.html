@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Html to document - Playground</title>
+    <style>
+      .playground {
+        display: grid;
+        height: 100vh;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #editor-input {
+        height: 100%;
+        border-right: 1px solid #ccc;
+
+        display: flex;
+        flex-direction: column;
+
+        textarea {
+          flex-grow: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="playground">
+      <div id="editor-input">
+        <div>HTML Input</div>
+        <textarea id="input-html"></textarea>
+      </div>
+      <div id="output">
+        <pre id="output-json"></pre>
+      </div>
+    </div>
+    <script type="module" src="/src/playground.ts"></script>
+  </body>
+</html>
