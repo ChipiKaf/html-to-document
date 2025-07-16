@@ -1,49 +1,41 @@
 import {
   Document,
   Paragraph,
-  TextRun,
   Packer,
-  HeadingLevel,
   ImageRun,
-  Table,
-  TableRow,
-  TableCell,
-  ExternalHyperlink,
-  VerticalAlign,
-  BorderStyle,
   IImageOptions,
   Header,
   Footer,
   ISectionOptions,
+  Table,
 } from 'docx';
 import {
-  AttributeElement,
   DocumentElement,
-  GridCell,
-  HeadingElement,
   ImageElement,
-  LineElement,
-  ListElement,
-  ListItemElement,
-  ParagraphElement,
   Styles,
-  TableElement,
-  TextElement,
   IConverterDependencies,
   StyleMapper,
   IDocumentConverter,
 } from 'html-to-document-core';
 
 import { NumberFormat, AlignmentType } from 'docx';
-import { handleChildren, isInline, toBinaryBuffer } from './docx.util';
+import { toBinaryBuffer } from './docx.util';
+import { ElementConverter } from './element-converters/converter';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
+  private _docxElementConverter: ElementConverter;
 
   constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
     this._mapper = styleMapper;
     this._defaultStyles = { ...defaultStyles };
+
+    const docxElementConverter = new ElementConverter({
+      styleMapper: this._mapper,
+      defaultStyles: this._defaultStyles,
+    });
+    this._docxElementConverter = docxElementConverter;
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -139,47 +131,6 @@ export class DocxAdapter implements IDocumentConverter {
     }
   }
 
-  private handlers: Record<
-    string,
-    (
-      el: DocumentElement,
-      styles: { [key: string]: string | number }
-    ) => Promise<
-      | Paragraph
-      | Table
-      | TextRun
-      | ImageRun
-      | ExternalHyperlink
-      | (Paragraph | Table | TextRun | ImageRun | ExternalHyperlink)[]
-    >
-  > = {
-    paragraph: this.convertParagraph.bind(this),
-    heading: this.convertHeading.bind(this),
-    list: this.convertList.bind(this),
-    line: this.convertLine.bind(this),
-    image: this.convertImage.bind(this),
-    table: this.convertTable.bind(this),
-    text: this.convertText.bind(this),
-    custom: this.convertParagraph.bind(this), // fallback
-  };
-
-  private inlineHandlers: Record<
-    string,
-    (
-      el: DocumentElement,
-      styles: { [key: string]: string | number }
-    ) => Promise<
-      | TextRun
-      | ImageRun
-      | ExternalHyperlink
-      | (TextRun | ImageRun | ExternalHyperlink)[]
-    >
-  > = {
-    text: this.convertText.bind(this),
-    image: this.convertImage.bind(this),
-    custom: this.convertText.bind(this), // fallback
-  };
-
   /**
    * Converts a DocumentElement (or an array of them) into an array of docx elements.
    */
@@ -187,320 +138,15 @@ export class DocxAdapter implements IDocumentConverter {
     el: DocumentElement
   ): Promise<(Paragraph | Table)[]> {
     switch (el.type) {
-      case 'paragraph':
-        const paragraphs = [
-          ...(await this.convertParagraph(el as ParagraphElement)).flat(),
-        ];
-        return paragraphs;
-
-      case 'heading':
-        return [await this.convertHeading(el as HeadingElement)];
-
-      case 'list':
-        return await this.convertList(el as ListElement);
-
-      case 'line':
-        return await this.convertLine(el as LineElement);
-
       case 'image':
         return [
           new Paragraph({
             children: [await this.convertImage(el as ImageElement)],
           }),
         ];
-
-      case 'table':
-        return [...(await this.convertTable(el as TableElement))];
-
-      default:
-        return [
-          ...(await this.convertParagraph(el as ParagraphElement)).flat(),
-        ];
-    }
-  }
-
-  private async convertParagraph(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<(Paragraph | Table)[]> {
-    const el = _el as ParagraphElement;
-    // If there are nested inline children, create multiple text runs.
-    const mergedStyles = {
-      ...this._defaultStyles?.[el.type],
-      ...styles,
-      ...el.styles,
-    };
-    if (el.content && el.content.length > 0) {
-      let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-      const childResults = await handleChildren(
-        this.handlers,
-        el.content,
-        mergedStyles,
-        styles ?? {},
-        el.styles ?? {}
-      );
-      return childResults.reduce<(Paragraph | Table)[]>(
-        (acc, child, currentIndex) => {
-          const isPreviousInline =
-            currentIndex > 0 && prevChild && isInline(prevChild);
-          if (isPreviousInline && isInline(child)) {
-            if (Array.isArray(child)) {
-              child.forEach((c) => {
-                acc[acc.length - 1]?.addChildElement(c);
-              });
-            } else {
-              acc[acc.length - 1]?.addChildElement(child);
-            }
-          } else if (isInline(child)) {
-            acc.push(
-              new Paragraph({
-                // run: { ...this._mapper.mapStyles(mergedStyles, el) },
-                children: Array.isArray(child) ? [...child] : [child],
-                ...this._mapper.mapStyles(mergedStyles, el),
-              })
-            );
-          } else if (child instanceof ImageRun) {
-            acc.push(
-              new Paragraph({
-                children: [child],
-                ...this._mapper.mapStyles(mergedStyles, el),
-              })
-            );
-          } else {
-            acc.push(child as Paragraph | Table);
-          }
-          prevChild = child;
-          return acc;
-        },
-        []
-      );
-    }
-    // Otherwise, if no nested children, simply create one TextRun.
-    return [
-      new Paragraph({
-        ...this._mapper.mapStyles(mergedStyles, el),
-        children: [
-          new TextRun({
-            text: el.text || '',
-            ...this._mapper.mapStyles(mergedStyles, el),
-          }),
-        ],
-      }),
-    ];
-  }
-
-  private async convertLine(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<Paragraph[]> {
-    const el = _el as LineElement;
-    // If there are nested inline children, create multiple text runs.
-    const mergedStyles = {
-      ...this._defaultStyles?.[el.type],
-      ...styles,
-      ...el.styles,
-    };
-    return [
-      new Paragraph({
-        border: {
-          bottom: {
-            style: BorderStyle.SINGLE,
-            size: 6, // Thickness of the line (in eighths of a point)
-            color: '808080', // Color can be set explicitly, e.g., "000000"
-            space: 1, // Space between the text (if any) and the line
-          },
-        },
-        ...this._mapper.mapStyles(mergedStyles, el),
-      }),
-    ];
-  }
-
-  private async convertHeading(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<Paragraph> {
-    const el = _el as HeadingElement;
-    const level = el.level && el.level >= 1 && el.level <= 6 ? el.level : 1;
-    const mergedStyles = {
-      ...this._defaultStyles?.[el.type],
-      ...styles,
-      ...el.styles,
-    };
-
-    if (el.content && el.content.length > 0) {
-      const children = await handleChildren(
-        this.handlers,
-        el.content,
-        mergedStyles,
-        styles ?? {},
-        el.styles ?? {}
-      );
-
-      // @To-do: This may not work well in case of overlap... Check how to separate inline from block styles
-      return new Paragraph({
-        heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
-        children,
-        run: {
-          ...this._mapper.mapStyles(mergedStyles, el),
-        },
-        ...this._mapper.mapStyles(mergedStyles, el),
-      });
     }
 
-    return new Paragraph({
-      heading: HeadingLevel[`HEADING_${level}` as keyof typeof HeadingLevel],
-      children: [
-        new TextRun({
-          text: el.text,
-          color: '000000',
-          ...this._mapper.mapStyles(mergedStyles, el),
-        }),
-      ],
-      ...this._mapper.mapStyles(mergedStyles, el),
-    });
-  }
-
-  private async convertText(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<(TextRun | ImageRun | ExternalHyperlink)[]> {
-    const el = _el as TextElement;
-    const mergedStyles = {
-      ...this._defaultStyles?.[el.type],
-      ...styles,
-      ...el.styles,
-    };
-    if (el.content && el.content.length > 0) {
-      const allChildren = await handleChildren(
-        this.inlineHandlers,
-        el.content,
-        mergedStyles,
-        styles ?? {},
-        el.styles ?? {}
-      );
-      // Only allow inline elements
-      return allChildren.filter(
-        (c): c is TextRun | ImageRun | ExternalHyperlink =>
-          c instanceof TextRun ||
-          c instanceof ImageRun ||
-          c instanceof ExternalHyperlink
-      );
-    }
-    if (el.attributes?.href) {
-      const { href } = el.attributes!;
-      return [
-        new ExternalHyperlink({
-          children: [
-            new TextRun({
-              text: el.text || '',
-              ...this._mapper.mapStyles(mergedStyles, el),
-              style: 'Hyperlink',
-            }),
-          ],
-          link: href as string,
-        }),
-      ];
-    }
-    return [
-      new TextRun({
-        text: el.text || '',
-        break: (el.metadata?.break as number) || undefined,
-        ...this._mapper.mapStyles(mergedStyles, el),
-      }),
-    ];
-  }
-
-  private async convertList(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<Paragraph[]> {
-    const el = _el as ListElement;
-    const mergedStyles = { ...this._defaultStyles?.[el.type] };
-    return (
-      await Promise.all(
-        el.content.map((child) => {
-          child['metadata'] = {
-            ...child['metadata'],
-            reference: `${el.listType}${
-              el.markerStyle && el.markerStyle !== ''
-                ? `-${el.markerStyle}`
-                : ''
-            }`,
-          };
-          return this._convertListItem(child, {
-            ...mergedStyles,
-            ...styles,
-            ...el.styles,
-          });
-        })
-      )
-    ).flat();
-  }
-
-  private async _convertListItem(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<Paragraph[]> {
-    const el = _el as ListItemElement;
-    const mergedStyles = {
-      ...this._defaultStyles?.[el.type],
-      ...styles,
-      ...el.styles,
-    };
-    // If there are nested inline children, create multiple text runs.
-    if (el.content && el.content.length > 0) {
-      // Merge parent's styles into each child (child style overrides parent's if provided)
-      let prevChild: Paragraph | Table | TextRun | ImageRun | ExternalHyperlink;
-      const childResults = await handleChildren(
-        this.handlers,
-        el.content,
-        mergedStyles,
-        styles ?? {},
-        el.styles ?? {}
-      );
-      return childResults.reduce<Paragraph[]>((acc, child, currentIndex) => {
-        const isPreviousInline =
-          currentIndex > 0 && prevChild && isInline(prevChild);
-        if (isPreviousInline && isInline(child)) {
-          acc[acc.length - 1]?.addChildElement(child);
-        } else if (isInline(child)) {
-          acc.push(
-            new Paragraph({
-              numbering: {
-                reference: (el.metadata?.reference as string) || '',
-                level: el.level,
-              },
-              run: {
-                ...this._mapper.mapStyles(mergedStyles, el),
-              },
-              children: [child],
-              ...this._mapper.mapStyles(mergedStyles, el),
-            })
-          );
-        } else {
-          acc.push(child as Paragraph);
-        }
-        prevChild = child;
-        return acc;
-      }, []);
-    }
-    return [
-      new Paragraph({
-        numbering: {
-          reference: (el.metadata?.reference as string) || '',
-          level: el.level,
-        },
-        run: {
-          ...this._mapper.mapStyles(mergedStyles, el),
-        },
-        children: [
-          new TextRun({
-            text: el.text,
-            ...this._mapper.mapStyles(mergedStyles, el),
-          }),
-        ],
-      }),
-    ];
+    return this._docxElementConverter.convertBlock(el);
   }
 
   // Note: Ensure this function can use asynchronous operations
@@ -742,253 +388,5 @@ export class DocxAdapter implements IDocumentConverter {
           c instanceof Paragraph || c instanceof Table
       );
     return new Footer({ children });
-  }
-
-  private async convertTable(
-    _el: DocumentElement,
-    styles: Styles = {}
-  ): Promise<(Table | Paragraph)[]> {
-    const captions: { side: string; paragraph: Paragraph }[] = [];
-    const el = _el as TableElement;
-    const mergedStyles = {
-      ...(this._defaultStyles?.[el.type] ?? {}),
-      ...styles,
-      ...el.styles,
-    };
-    // --- begin colgroup support ---
-    // let widths: ITableWidthProperties[] = [];
-    let stylesCol: Record<string, unknown>[] = [];
-    if (Array.isArray(el.metadata?.colgroup)) {
-      const [colgroupMeta] = el.metadata.colgroup as AttributeElement[];
-      stylesCol =
-        (colgroupMeta?.metadata as { col: DocumentElement[] })?.col.map(
-          (col) => {
-            return this._mapper.mapStyles(col.styles || {}, col);
-          }
-        ) ?? [];
-    }
-
-    if (Array.isArray(el.metadata?.caption)) {
-      const caption = el.metadata.caption as AttributeElement[];
-      captions.push(
-        ...caption.map((c) => ({
-          side: (c.styles?.captionSide || 'top') as string,
-          paragraph: new Paragraph({
-            children: [
-              new TextRun({
-                text: c.text,
-                ...this._mapper.mapStyles(c.styles || {}, c),
-              }),
-            ],
-            ...this._mapper.mapStyles(c.styles || {}, c),
-          }),
-        }))
-      );
-    }
-    // --- end colgroup support ---
-    const numRows = el.rows.length;
-
-    let numCols = 0;
-
-    for (const row of el.rows) {
-      let colCount = 0;
-      for (const cell of row.cells) {
-        colCount += cell.colspan ? cell.colspan : 1;
-      }
-      numCols = Math.max(numCols, colCount);
-    }
-
-    const grid: (GridCell | null)[][] = Array.from({ length: numRows }, () => {
-      return Array(numCols).fill(null);
-    });
-
-    for (let i = 0; i < numRows; i++) {
-      let colIndex = 0;
-      const row = el.rows[i];
-      if (!row) continue;
-
-      for (const cell of row.cells) {
-        const currentRow = grid[i]!;
-        while (colIndex < numCols && currentRow[colIndex] !== null) colIndex++;
-        if (colIndex >= numCols) break;
-        const colSpan = cell.colspan || 1;
-        const rowSpan = cell.rowspan || 1;
-
-        currentRow[colIndex] = {
-          cell,
-          horizontal: false,
-          verticalMerge: false,
-          isMaster: true,
-        };
-
-        // Mark for horizontal merges
-        for (let k = 1; k < colSpan; k++) {
-          currentRow[colIndex + k] = {
-            cell,
-            horizontal: true,
-            verticalMerge: false,
-            isMaster: false,
-          };
-        }
-
-        // Mark for vertical merge
-        if (rowSpan > 1) {
-          for (let r = i + 1; r < i + rowSpan && r < numRows; r++) {
-            const nextRow = grid[r]!;
-            nextRow[colIndex] = {
-              cell,
-              horizontal: false,
-              verticalMerge: true,
-              isMaster: false,
-            };
-          }
-          colIndex += colSpan;
-        }
-      }
-    }
-    // Build the TableRows objects
-    const tableRows: TableRow[] = [];
-    for (let i = 0; i < numRows; i++) {
-      const cells: TableCell[] = [];
-      let j = 0;
-      while (j < numCols) {
-        const gridCell = grid[i]?.[j];
-        if (!gridCell) {
-          cells.push(
-            new TableCell({
-              verticalAlign: VerticalAlign.CENTER,
-              ...(stylesCol[j] || {}),
-              children: [
-                new Paragraph({
-                  children: [new TextRun({ text: '' })],
-                }),
-              ],
-            })
-          );
-          j++;
-        } else if (gridCell.horizontal) {
-          j++;
-          continue;
-        } else if (gridCell.verticalMerge) {
-          cells.push(
-            new TableCell({
-              verticalMerge: 'continue',
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  children: [new TextRun({ text: '' })],
-                }),
-              ],
-            })
-          );
-          j++;
-        } else {
-          const originalCell = gridCell.cell;
-          const colSpan = originalCell?.colspan ? originalCell.colspan : 1;
-          const rowSpan = originalCell?.rowspan ? originalCell.rowspan : 1;
-          const verticalMerge = rowSpan > 1 ? 'restart' : undefined;
-          let prevChild:
-            | Paragraph
-            | Table
-            | TextRun
-            | ImageRun
-            | ExternalHyperlink;
-          const cellContent: (Paragraph | Table)[] =
-            originalCell?.content && originalCell.content?.length > 0
-              ? (
-                  await handleChildren(this.handlers, originalCell.content, {
-                    ...this._defaultStyles?.[originalCell?.type],
-                    ...styles,
-                    ...originalCell.styles,
-                  })
-                ).reduce<(Paragraph | Table)[]>((acc, child, currentIndex) => {
-                  const isPreviousInline =
-                    currentIndex > 0 && prevChild && isInline(prevChild);
-                  if (isPreviousInline && isInline(child)) {
-                    if (Array.isArray(child)) {
-                      child.forEach((c) => {
-                        acc[acc.length - 1]?.addChildElement(c);
-                      });
-                    } else {
-                      acc[acc.length - 1]?.addChildElement(child);
-                    }
-                  } else if (isInline(child)) {
-                    acc.push(
-                      new Paragraph({
-                        run: {
-                          ...this._mapper.mapStyles(
-                            {
-                              ...originalCell.styles,
-                              // ...mergedStyles,
-                            },
-                            originalCell
-                          ),
-                        },
-                        children: Array.isArray(child) ? [...child] : [child],
-                        ...this._mapper.mapStyles(
-                          {
-                            ...originalCell.styles,
-                            // ...mergedStyles,
-                          },
-                          originalCell
-                        ),
-                      })
-                    );
-                  } else {
-                    acc.push(child as Paragraph | Table);
-                  }
-                  prevChild = child;
-                  return acc;
-                }, [])
-              : [new Paragraph('')];
-          cells.push(
-            new TableCell({
-              children: cellContent,
-              columnSpan: colSpan > 1 ? colSpan : undefined,
-              verticalMerge: verticalMerge,
-              verticalAlign: VerticalAlign.CENTER,
-              ...stylesCol[j],
-              ...this._mapper.mapStyles(
-                {
-                  ...(originalCell
-                    ? this._defaultStyles?.[originalCell.type]
-                    : {}),
-                  ...originalCell?.styles,
-                },
-                originalCell!
-              ),
-            })
-          );
-          j += colSpan;
-        }
-      }
-      const rowStyles = el.rows[i]?.styles || {};
-      tableRows.push(
-        new TableRow({
-          children: cells,
-          ...this._mapper.mapStyles(
-            {
-              ...(this._defaultStyles?.['table-row'] ?? {}),
-              // ...mergedStyles,
-              ...rowStyles,
-            },
-            el
-          ),
-        })
-      );
-    }
-    const rawStyles = this._mapper.mapStyles(
-      { ...mergedStyles, ...el.styles },
-      el
-    );
-
-    return [
-      ...captions.filter((c) => c.side === 'top').map((c) => c.paragraph),
-      new Table({
-        ...rawStyles,
-        rows: tableRows,
-      }),
-      ...captions.filter((c) => c.side === 'bottom').map((c) => c.paragraph),
-    ];
   }
 }
