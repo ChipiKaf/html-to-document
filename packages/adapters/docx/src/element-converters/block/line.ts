@@ -1,9 +1,8 @@
 import { BorderStyle, FileChild, Paragraph } from 'docx';
 import { DocumentElement, LineElement, Styles } from 'html-to-document-core';
-import { IElementConverter } from '../block-converter.interface';
-import { ElementConverterDependencies } from '../types';
+import { ElementConverterDependencies, IBlockConverter } from '../types';
 
-export class LineConverter implements IElementConverter<LineElement> {
+export class LineConverter implements IBlockConverter<LineElement> {
   isMatch(element: DocumentElement): element is LineElement {
     return element.type === 'line';
   }
@@ -13,7 +12,6 @@ export class LineConverter implements IElementConverter<LineElement> {
     element: LineElement,
     cascadedStyles: Styles = {}
   ): FileChild[] {
-    // Paragraph element must only have inline children or else it could corrupt the document structure.
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...cascadedStyles,

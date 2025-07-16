@@ -6,12 +6,20 @@ import {
   Styles,
 } from 'html-to-document-core';
 import { ParagraphConverter } from './block/paragraph';
-import { IElementConverter } from './block-converter.interface';
-import { ElementConverterDependencies } from './types';
+import {
+  ElementConverterDependencies,
+  IBlockConverter,
+  IInlineConverter,
+} from './types';
+import { LinkConverter } from './inline/link';
+import { TextConverter } from './inline/text';
+import { LineConverter } from './block/line';
+import { ListConverter } from './block/list';
+import { HeadingConverter } from './block/heading';
 
 export class ElementConverter {
-  private readonly blockConverters: IElementConverter[];
-  private readonly inlineConverters: never[];
+  private readonly blockConverters: IBlockConverter[];
+  private readonly inlineConverters: IInlineConverter[];
   private readonly styleMapper: StyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
 
@@ -23,11 +31,21 @@ export class ElementConverter {
     styleMapper,
     defaultStyles,
   }: {
-    blockConverters?: IElementConverter[];
-    inlineConverters?: never[];
+    blockConverters?: IBlockConverter[];
+    inlineConverters?: IInlineConverter[];
   } & IConverterDependencies) {
-    this.blockConverters = [...blockConverters, new ParagraphConverter()];
-    this.inlineConverters = inlineConverters;
+    this.blockConverters = [
+      ...blockConverters,
+      new ParagraphConverter(),
+      new LineConverter(),
+      new ListConverter(),
+      new HeadingConverter(),
+    ];
+    this.inlineConverters = [
+      ...inlineConverters,
+      new LinkConverter(),
+      new TextConverter(),
+    ];
     this.styleMapper = styleMapper;
     this.defaultStyles = defaultStyles;
 
@@ -58,6 +76,15 @@ export class ElementConverter {
     element: DocumentElement,
     cascadedStyles: Styles = {}
   ): ParagraphChild[] {
-    return [];
+    const converter = this.inlineConverters.find((c) => c.isMatch(element));
+    if (!converter) {
+      return [];
+    }
+
+    return converter.convertEement(
+      this.elementConverterDependencies,
+      element,
+      cascadedStyles
+    );
   }
 }

@@ -4,10 +4,9 @@ import {
   ParagraphElement,
   Styles,
 } from 'html-to-document-core';
-import { IElementConverter } from '../block-converter.interface';
-import { ElementConverterDependencies } from '../types';
+import { ElementConverterDependencies, IBlockConverter } from '../types';
 
-export class ParagraphConverter implements IElementConverter<ParagraphElement> {
+export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
   isMatch(element: DocumentElement): element is ParagraphElement {
     return element.type === 'paragraph';
   }
