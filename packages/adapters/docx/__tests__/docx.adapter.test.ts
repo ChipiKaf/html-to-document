@@ -1501,6 +1501,55 @@ describe('Docx.adapter.convert', () => {
     });
   });
 
+  describe('Ids', () => {
+    it('should generate a bookmark around inline elements that has an id attribute', async () => {
+      const html = '<p>Text <span id="bookmark">with bookmark</span> end.</p>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+
+      const body = json['w:document']['w:body'];
+      const paragraph = body['w:p'];
+
+      const runs = Array.isArray(paragraph['w:r'])
+        ? paragraph['w:r']
+        : [paragraph['w:r']];
+
+      expect(runs).toHaveLength(3);
+
+      expect(runs[1]['w:t']['#text']).toBe('with bookmark');
+
+      expect(paragraph['w:bookmarkStart']).toBeDefined();
+      expect(paragraph['w:bookmarkStart']['@_w:id']).toBe('1');
+
+      // TODO: check end of bookmark
+    });
+
+    it('should generate a bookmark around inline elements within a paragraph that has an id attribute', async () => {
+      const html =
+        '<p id="bookmark">Here is <strong>some <em>text</em></strong></p>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+
+      const body = json['w:document']['w:body'];
+      const paragraph = body['w:p'];
+
+      const runs = Array.isArray(paragraph['w:r'])
+        ? paragraph['w:r']
+        : [paragraph['w:r']];
+
+      expect(runs).toHaveLength(3);
+
+      expect(runs[0]['w:t']['#text']).toBe('Here is');
+
+      expect(paragraph['w:bookmarkStart']).toBeDefined();
+      expect(paragraph['w:bookmarkStart']['@_w:id']).toBe('0');
+    });
+  });
+
   describe('Pages and headers/footers', () => {
     it('should apply global and page-specific headers and footers', async () => {
       let html = `

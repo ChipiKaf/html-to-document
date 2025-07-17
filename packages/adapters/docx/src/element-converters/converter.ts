@@ -17,6 +17,7 @@ import { LineConverter } from './block/line';
 import { ListConverter } from './block/list';
 import { HeadingConverter } from './block/heading';
 import { TableConverter } from './block/table';
+import { IdInlineConverter } from './fallthrough/id';
 
 export class ElementConverter {
   private readonly blockConverters: IBlockConverter[];
@@ -47,6 +48,7 @@ export class ElementConverter {
     this.textConverter = new TextConverter();
     this.inlineConverters = [
       ...inlineConverters,
+      new IdInlineConverter(),
       new LinkConverter(),
       this.textConverter,
     ];
