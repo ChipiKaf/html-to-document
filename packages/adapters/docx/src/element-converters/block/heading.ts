@@ -1,4 +1,10 @@
-import { FileChild, HeadingLevel, Paragraph } from 'docx';
+import {
+  Bookmark,
+  FileChild,
+  HeadingLevel,
+  Paragraph,
+  ParagraphChild,
+} from 'docx';
 import { DocumentElement, HeadingElement, Styles } from 'html-to-document-core';
 import { ElementConverterDependencies, IBlockConverter } from '../types';
 
@@ -17,7 +23,7 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
       ...cascadedStyles,
       ...element.styles,
     };
-    const children = converter.convertInlineTextOrContent(
+    const children: ParagraphChild[] = converter.convertInlineTextOrContent(
       element,
       mergedStyles
     );

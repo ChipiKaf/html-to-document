@@ -1546,7 +1546,58 @@ describe('Docx.adapter.convert', () => {
       expect(runs[0]['w:t']['#text']).toBe('Here is');
 
       expect(paragraph['w:bookmarkStart']).toBeDefined();
-      expect(paragraph['w:bookmarkStart']['@_w:id']).toBe('0');
+      expect(paragraph['w:bookmarkStart']['@_w:name']).toBe('bookmark');
+      expect(paragraph['w:bookmarkStart']['@_w:id']).toBe('1');
+    });
+
+    it('should generate a bookmark around inline elements within a paragraph that has an id attribute and another block as the first child', async () => {
+      // const html =
+      //   '<p id="bookmark"><h1>Hi</h1> <strong>some <em>text</em></strong></p>';
+      // const elements = parser.parse(html);
+
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          attributes: { id: 'bookmark' },
+          content: [
+            {
+              type: 'heading',
+              level: 1,
+              content: [{ type: 'text', text: 'Hi' }],
+            },
+            {
+              type: 'text',
+              text: 'some ',
+              styles: { fontWeight: 'bold' },
+            },
+            {
+              type: 'text',
+              text: 'text',
+              styles: { fontStyle: 'italic', fontWeight: 'bold' },
+            },
+          ],
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+
+      const body = json['w:document']['w:body'];
+      const paragraphs = body['w:p'];
+
+      expect(paragraphs).toHaveLength(2);
+
+      expect(paragraphs[0]['w:r']).toBeDefined();
+      expect(paragraphs[0]['w:r']['w:t']['#text']).toBe('Hi');
+      // And that the heading has a bookmark
+      expect(paragraphs[0]['w:bookmarkStart']).toBeDefined();
+      expect(paragraphs[0]['w:bookmarkStart']['@_w:name']).toBe('bookmark');
+      expect(paragraphs[0]['w:bookmarkStart']['@_w:id']).toBe('1');
+
+      // expect(runs[0]['w:t']['#text']).toBe('Here is');
+      //
+      // expect(paragraphs['w:bookmarkStart']).toBeDefined();
+      // expect(paragraphs['w:bookmarkStart']['@_w:id']).toBe('1');
     });
   });
 
