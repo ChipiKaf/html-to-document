@@ -225,6 +225,52 @@ describe('Docx.adapter.convert', () => {
       expect(runProps['w:sz']['@_w:val']).toBe('30'); // Font size (20px → 30 half-points)
       expect(runProps['w:color']['@_w:val']).toBe('00FF00'); // Text color
     });
+
+    it('should render a heading with mixed styles', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'heading',
+          level: 3,
+          styles: {
+            fontWeight: 'bold',
+            fontStyle: 'italic',
+            textDecoration: 'underline',
+            color: '#FF0000',
+          },
+          attributes: {},
+          content: [
+            {
+              type: 'text',
+              text: 'Mixed',
+              styles: { fontWeight: 'bold', fontStyle: 'normal' },
+            },
+            {
+              type: 'text',
+              text: ' Styles',
+              styles: {
+                fontStyle: 'italic',
+              },
+            },
+          ],
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const heading = jsonDocument['w:document']['w:body']['w:p'];
+
+      // Paragraph-level properties
+      expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading3');
+
+      expect(heading['w:r']).toHaveLength(2); // Two runs for mixed styles
+      expect(heading['w:r'][0]['w:t']['#text']).toBe('Mixed');
+      expect(heading['w:r'][0]['w:rPr']['w:b']).toBeDefined(); // Bold
+
+      // TODO: ???
+      // expect(heading['w:r'][1]['w:t']['#text']).toBe(' Styles');
+      // expect(heading['w:r'][1]['w:t']['#text']).toBe('Styles');
+      expect(heading['w:r'][1]['w:rPr']['w:i']).toBeDefined(); // Italic
+    });
   });
 
   describe('Paragraph styles', () => {
@@ -251,6 +297,7 @@ describe('Docx.adapter.convert', () => {
       const jsonDocument = await parseDocxDocument(buffer);
       const paragraphs = jsonDocument['w:document']['w:body']['w:p'];
 
+      expect(paragraphs).toHaveLength(2);
       expect(paragraphs[0]['w:r']['w:rPr']).toHaveProperty('w:b');
       expect(paragraphs[0]['w:r']['w:t']['#text']).toBe('Text only');
 

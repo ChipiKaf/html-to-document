@@ -36,14 +36,22 @@ import {
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { handleChildren, isInline, toBinaryBuffer } from './docx.util';
+import { ElementConverter } from './element-converters/converter';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
+  private _docxElementConverter: ElementConverter;
 
   constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
     this._mapper = styleMapper;
     this._defaultStyles = { ...defaultStyles };
+
+    const docxElementConverter = new ElementConverter({
+      styleMapper: this._mapper,
+      defaultStyles: this._defaultStyles,
+    });
+    this._docxElementConverter = docxElementConverter;
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -187,20 +195,20 @@ export class DocxAdapter implements IDocumentConverter {
     el: DocumentElement
   ): Promise<(Paragraph | Table)[]> {
     switch (el.type) {
-      case 'paragraph':
-        const paragraphs = [
-          ...(await this.convertParagraph(el as ParagraphElement)).flat(),
-        ];
-        return paragraphs;
-
-      case 'heading':
-        return [await this.convertHeading(el as HeadingElement)];
-
-      case 'list':
-        return await this.convertList(el as ListElement);
-
-      case 'line':
-        return await this.convertLine(el as LineElement);
+      // case 'paragraph':
+      //   const paragraphs = [
+      //     ...(await this.convertParagraph(el as ParagraphElement)).flat(),
+      //   ];
+      //   return paragraphs;
+      //
+      // case 'heading':
+      //   return [await this.convertHeading(el as HeadingElement)];
+      //
+      // case 'list':
+      //   return await this.convertList(el as ListElement);
+      //
+      // case 'line':
+      //   return await this.convertLine(el as LineElement);
 
       case 'image':
         return [
@@ -213,9 +221,10 @@ export class DocxAdapter implements IDocumentConverter {
         return [...(await this.convertTable(el as TableElement))];
 
       default:
-        return [
-          ...(await this.convertParagraph(el as ParagraphElement)).flat(),
-        ];
+        return this._docxElementConverter.convertBlock(el);
+      // return [
+      //   ...(await this.convertParagraph(el as ParagraphElement)).flat(),
+      // ];
     }
   }
 

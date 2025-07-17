@@ -31,8 +31,10 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     //     converter.convertInline(child, mergedStyles)
     //   ) ?? [];
 
-    return element.content.flatMap((element) => {
-      return this.convertListItem(dependencies, element, mergedStyles);
+    return element.content.flatMap((child) => {
+      child.metadata ??= {};
+      child.metadata.reference = `${element.listType}${element.markerStyle ? `-${element.markerStyle}` : ''}`;
+      return this.convertListItem(dependencies, child, mergedStyles);
     });
   }
 
@@ -47,22 +49,41 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
       ...element.styles,
     };
 
-    const children =
-      element.content?.flatMap((child) =>
-        converter.convertInline(child, mergedStyles)
-      ) ?? [];
+    // const children =
+    //   element.content?.flatMap((child) =>
+    //     converter.convertInline(child, mergedStyles)
+    //   ) ?? [];
+    //
+    // return [
+    //   new Paragraph({
+    //     numbering: {
+    //       reference: (element.metadata?.reference as string) || '',
+    //       level: element.level,
+    //     },
+    //     run: {
+    //       ...styleMapper.mapStyles(mergedStyles, element),
+    //     },
+    //     children,
+    //   }),
+    // ];
 
-    return [
-      new Paragraph({
-        numbering: {
-          reference: (element.metadata?.reference as string) || '',
-          level: element.level,
-        },
-        run: {
-          ...styleMapper.mapStyles(mergedStyles, element),
-        },
-        children,
-      }),
-    ];
+    return converter.convertToBlocks({
+      cascadedStyles: mergedStyles,
+      element,
+      wrapInlineElements: (inlines) => {
+        return [
+          new Paragraph({
+            numbering: {
+              reference: (element.metadata?.reference as string) || '',
+              level: element.level,
+            },
+            run: {
+              ...styleMapper.mapStyles(mergedStyles, element),
+            },
+            children: inlines,
+          }),
+        ];
+      },
+    });
   }
 }

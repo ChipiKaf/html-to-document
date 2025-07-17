@@ -22,16 +22,18 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
       ...cascadedStyles,
       ...element.styles,
     };
-    const children =
-      element.content?.flatMap((child) =>
-        converter.convertInline(child, mergedStyles)
-      ) ?? [];
 
-    return [
-      new Paragraph({
-        children,
-        ...styleMapper.mapStyles(mergedStyles, element),
-      }),
-    ];
+    return converter.convertToBlocks({
+      element,
+      cascadedStyles: mergedStyles,
+      wrapInlineElements: (inlines) => {
+        return [
+          new Paragraph({
+            children: inlines,
+            ...styleMapper.mapStyles(mergedStyles, element),
+          }),
+        ];
+      },
+    });
   }
 }

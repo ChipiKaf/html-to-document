@@ -20,6 +20,7 @@ import { HeadingConverter } from './block/heading';
 export class ElementConverter {
   private readonly blockConverters: IBlockConverter[];
   private readonly inlineConverters: IInlineConverter[];
+  private readonly textConverter: IInlineConverter<DocumentElement>;
   private readonly styleMapper: StyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
 
@@ -41,10 +42,11 @@ export class ElementConverter {
       new ListConverter(),
       new HeadingConverter(),
     ];
+    this.textConverter = new TextConverter();
     this.inlineConverters = [
       ...inlineConverters,
       new LinkConverter(),
-      new TextConverter(),
+      this.textConverter,
     ];
     this.styleMapper = styleMapper;
     this.defaultStyles = defaultStyles;
@@ -56,11 +58,17 @@ export class ElementConverter {
     } as const;
   }
 
+  private findBlockConverter(
+    element: DocumentElement
+  ): IBlockConverter | undefined {
+    return this.blockConverters.find((converter) => converter.isMatch(element));
+  }
+
   public convertBlock(
     element: DocumentElement,
     cascadedStyles: Styles = {}
   ): FileChild[] {
-    const converter = this.blockConverters.find((c) => c.isMatch(element));
+    const converter = this.findBlockConverter(element);
     if (!converter) {
       return [];
     }
@@ -86,5 +94,96 @@ export class ElementConverter {
       element,
       cascadedStyles
     );
+  }
+
+  public convertText(
+    element: DocumentElement,
+    cascadedStyles: Styles = {}
+  ): ParagraphChild[] {
+    return this.textConverter.convertEement(
+      this.elementConverterDependencies,
+      element,
+      cascadedStyles
+    );
+  }
+
+  public convertInlineTextOrContent(
+    element: DocumentElement,
+    cascadedStyles: Styles = {}
+  ): ParagraphChild[] {
+    if (element.content && element.content.length > 0) {
+      return element.content.flatMap((child) =>
+        this.convertInline(child, cascadedStyles)
+      );
+    }
+
+    return this.convertText(element, cascadedStyles);
+  }
+
+  /**
+   */
+  public convertToBlocks(options: {
+    element: DocumentElement;
+    cascadedStyles?: Styles;
+    wrapInlineElements: (elements: ParagraphChild[]) => FileChild[];
+  }): FileChild[] {
+    const { element, cascadedStyles = {}, wrapInlineElements } = options;
+
+    if (!element.content || element.content.length <= 0) {
+      // If the provided element has no content it probably has text and we can convert it inline or directly with the text converter?
+      const inlineElements = this.convertInline(element, cascadedStyles);
+      return wrapInlineElements(inlineElements);
+    }
+
+    const partitioned = element.content.map((child) => {
+      const blockConverter = this.findBlockConverter(child);
+
+      if (blockConverter) {
+        const blocks = this.convertBlock(child, cascadedStyles);
+        return {
+          type: 'blocks',
+          blocks,
+        } as const;
+      }
+
+      const inlineElements = this.convertInline(child, cascadedStyles);
+
+      return {
+        type: 'inline',
+        inlineElements,
+      } as const;
+    });
+
+    const partitionedWithMergedInlines = partitioned.reduce(
+      (acc, item) => {
+        if (item.type === 'blocks') {
+          acc.push(item);
+          return acc;
+        }
+
+        const previousItem = acc[acc.length - 1];
+
+        if (!previousItem || previousItem.type === 'blocks') {
+          acc.push(item);
+          return acc;
+        }
+
+        // At this point both are inline and we can merge them
+        previousItem.inlineElements.push(...item.inlineElements);
+
+        return acc;
+      },
+      [] as typeof partitioned
+    );
+
+    const wrapped = partitionedWithMergedInlines.flatMap((item) => {
+      if (item.type === 'blocks') {
+        return item.blocks;
+      }
+
+      return wrapInlineElements(item.inlineElements);
+    });
+
+    return wrapped;
   }
 }

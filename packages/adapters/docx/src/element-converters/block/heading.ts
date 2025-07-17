@@ -1,4 +1,4 @@
-import { FileChild, HeadingLevel, Paragraph, TextRun } from 'docx';
+import { FileChild, HeadingLevel, Paragraph } from 'docx';
 import { DocumentElement, HeadingElement, Styles } from 'html-to-document-core';
 import { ElementConverterDependencies, IBlockConverter } from '../types';
 
@@ -17,10 +17,11 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
       ...cascadedStyles,
       ...element.styles,
     };
-    const children =
-      element.content?.flatMap((child) =>
-        converter.convertInline(child, mergedStyles)
-      ) ?? [];
+    const children = converter.convertInlineTextOrContent(
+      element,
+      mergedStyles
+    );
+
     const level =
       Number.isInteger(element.level) &&
       element.level >= 1 &&
@@ -29,22 +30,6 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
         : 1;
     const heading = HeadingLevel[`HEADING_${level}`];
     const mappedStyles = styleMapper.mapStyles(mergedStyles, element);
-
-    if (!element.content || element.content.length <= 0) {
-      return [
-        new Paragraph({
-          heading,
-          children: [
-            new TextRun({
-              text: element.text,
-              color: '000000',
-              ...mappedStyles,
-            }),
-          ],
-          ...styleMapper.mapStyles(mergedStyles, element),
-        }),
-      ];
-    }
 
     // TODO: This may not work well in case of overlap... Check how to separate inline from block styles
     return [

@@ -6,11 +6,11 @@ type DocumentElementType = TextElement;
 
 export class TextConverter implements IInlineConverter<DocumentElementType> {
   isMatch(element: DocumentElement): element is DocumentElementType {
-    return element.type === 'text';
+    return true || element.type === 'text';
   }
 
   convertEement(
-    { styleMapper, defaultStyles }: ElementConverterDependencies,
+    { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): ParagraphChild[] {
@@ -20,7 +20,11 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
       ...element.styles,
     };
 
-    // TODO: Check if there are multiple children in element.content???
+    if (element.content && element.content.length > 0) {
+      return element.content.flatMap((content) => {
+        return converter.convertInline(content, mergedStyles);
+      });
+    }
 
     return [
       new TextRun({
