@@ -16,6 +16,7 @@ import { TextConverter } from './inline/text';
 import { LineConverter } from './block/line';
 import { ListConverter } from './block/list';
 import { HeadingConverter } from './block/heading';
+import { TableConverter } from './block/table';
 
 export class ElementConverter {
   private readonly blockConverters: IBlockConverter[];
@@ -37,10 +38,11 @@ export class ElementConverter {
   } & IConverterDependencies) {
     this.blockConverters = [
       ...blockConverters,
-      new ParagraphConverter(),
       new LineConverter(),
       new ListConverter(),
       new HeadingConverter(),
+      new TableConverter(),
+      new ParagraphConverter(),
     ];
     this.textConverter = new TextConverter();
     this.inlineConverters = [
