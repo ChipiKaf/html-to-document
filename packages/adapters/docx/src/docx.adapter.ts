@@ -144,10 +144,9 @@ export class DocxAdapter implements IDocumentConverter {
             children: [await this.convertImage(el as ImageElement)],
           }),
         ];
-
-      default:
-        return this._docxElementConverter.convertBlock(el);
     }
+
+    return this._docxElementConverter.convertBlock(el);
   }
 
   // Note: Ensure this function can use asynchronous operations
