@@ -8,7 +8,7 @@ export class LineConverter implements IBlockConverter<LineElement> {
   }
 
   convertEement(
-    { styleMapper, defaultStyles }: ElementConverterDependencies,
+    { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
     element: LineElement,
     cascadedStyles: Styles = {}
   ): FileChild[] {
@@ -18,8 +18,15 @@ export class LineConverter implements IBlockConverter<LineElement> {
       ...element.styles,
     };
 
+    const children = converter.runFallthroughWrapConvertedChildren(
+      element,
+      converter.convertInlineTextOrContent(element, mergedStyles),
+      mergedStyles
+    );
+
     return [
       new Paragraph({
+        children,
         border: {
           bottom: {
             style: BorderStyle.SINGLE,
