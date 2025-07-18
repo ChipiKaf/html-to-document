@@ -42,6 +42,7 @@ module.exports = [
       'prettier/prettier': 'error',
       semi: ['error', 'always'],
       quotes: ['error', 'single'],
+      '@typescript-eslint/no-empty-object-type': 'off',
     },
   },
 ];

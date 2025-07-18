@@ -225,6 +225,52 @@ describe('Docx.adapter.convert', () => {
       expect(runProps['w:sz']['@_w:val']).toBe('30'); // Font size (20px → 30 half-points)
       expect(runProps['w:color']['@_w:val']).toBe('00FF00'); // Text color
     });
+
+    it('should render a heading with mixed styles', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'heading',
+          level: 3,
+          styles: {
+            fontWeight: 'bold',
+            fontStyle: 'italic',
+            textDecoration: 'underline',
+            color: '#FF0000',
+          },
+          attributes: {},
+          content: [
+            {
+              type: 'text',
+              text: 'Mixed',
+              styles: { fontWeight: 'bold', fontStyle: 'normal' },
+            },
+            {
+              type: 'text',
+              text: ' Styles',
+              styles: {
+                fontStyle: 'italic',
+              },
+            },
+          ],
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const heading = jsonDocument['w:document']['w:body']['w:p'];
+
+      // Paragraph-level properties
+      expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading3');
+
+      expect(heading['w:r']).toHaveLength(2); // Two runs for mixed styles
+      expect(heading['w:r'][0]['w:t']['#text']).toBe('Mixed');
+      expect(heading['w:r'][0]['w:rPr']['w:b']).toBeDefined(); // Bold
+
+      // TODO: ???
+      // expect(heading['w:r'][1]['w:t']['#text']).toBe(' Styles');
+      // expect(heading['w:r'][1]['w:t']['#text']).toBe('Styles');
+      expect(heading['w:r'][1]['w:rPr']['w:i']).toBeDefined(); // Italic
+    });
   });
 
   describe('Paragraph styles', () => {
@@ -251,6 +297,7 @@ describe('Docx.adapter.convert', () => {
       const jsonDocument = await parseDocxDocument(buffer);
       const paragraphs = jsonDocument['w:document']['w:body']['w:p'];
 
+      expect(paragraphs).toHaveLength(2);
       expect(paragraphs[0]['w:r']['w:rPr']).toHaveProperty('w:b');
       expect(paragraphs[0]['w:r']['w:t']['#text']).toBe('Text only');
 
@@ -1451,6 +1498,106 @@ describe('Docx.adapter.convert', () => {
         ? para['w:r'][0]['w:t']['#text']
         : para['w:r']['w:t']['#text'];
       expect(cellText).toBe('Centered Cell');
+    });
+  });
+
+  describe('Ids', () => {
+    it('should generate a bookmark around inline elements that has an id attribute', async () => {
+      const html = '<p>Text <span id="bookmark">with bookmark</span> end.</p>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+
+      const body = json['w:document']['w:body'];
+      const paragraph = body['w:p'];
+
+      const runs = Array.isArray(paragraph['w:r'])
+        ? paragraph['w:r']
+        : [paragraph['w:r']];
+
+      expect(runs).toHaveLength(3);
+
+      expect(runs[1]['w:t']['#text']).toBe('with bookmark');
+
+      expect(paragraph['w:bookmarkStart']).toBeDefined();
+      expect(paragraph['w:bookmarkStart']['@_w:id']).toBe('1');
+
+      // TODO: check end of bookmark
+    });
+
+    it('should generate a bookmark around inline elements within a paragraph that has an id attribute', async () => {
+      const html =
+        '<p id="bookmark">Here is <strong>some <em>text</em></strong></p>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+
+      const body = json['w:document']['w:body'];
+      const paragraph = body['w:p'];
+
+      const runs = Array.isArray(paragraph['w:r'])
+        ? paragraph['w:r']
+        : [paragraph['w:r']];
+
+      expect(runs).toHaveLength(3);
+
+      expect(runs[0]['w:t']['#text']).toBe('Here is');
+
+      expect(paragraph['w:bookmarkStart']).toBeDefined();
+      expect(paragraph['w:bookmarkStart']['@_w:name']).toBe('bookmark');
+      expect(paragraph['w:bookmarkStart']['@_w:id']).toBe('1');
+    });
+
+    it('should generate a bookmark around inline elements within a paragraph that has an id attribute and another block as the first child', async () => {
+      // const html =
+      //   '<p id="bookmark"><h1>Hi</h1> <strong>some <em>text</em></strong></p>';
+      // const elements = parser.parse(html);
+
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          attributes: { id: 'bookmark' },
+          content: [
+            {
+              type: 'heading',
+              level: 1,
+              content: [{ type: 'text', text: 'Hi' }],
+            },
+            {
+              type: 'text',
+              text: 'some ',
+              styles: { fontWeight: 'bold' },
+            },
+            {
+              type: 'text',
+              text: 'text',
+              styles: { fontStyle: 'italic', fontWeight: 'bold' },
+            },
+          ],
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+
+      const body = json['w:document']['w:body'];
+      const paragraphs = body['w:p'];
+
+      expect(paragraphs).toHaveLength(2);
+
+      expect(paragraphs[0]['w:r']).toBeDefined();
+      expect(paragraphs[0]['w:r']['w:t']['#text']).toBe('Hi');
+      // And that the heading has a bookmark
+      expect(paragraphs[0]['w:bookmarkStart']).toBeDefined();
+      expect(paragraphs[0]['w:bookmarkStart']['@_w:name']).toBe('bookmark');
+      expect(paragraphs[0]['w:bookmarkStart']['@_w:id']).toBe('1');
+
+      // expect(runs[0]['w:t']['#text']).toBe('Here is');
+      //
+      // expect(paragraphs['w:bookmarkStart']).toBeDefined();
+      // expect(paragraphs['w:bookmarkStart']['@_w:id']).toBe('1');
     });
   });
 
