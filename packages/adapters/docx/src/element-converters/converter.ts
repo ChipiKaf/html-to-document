@@ -71,10 +71,24 @@ export class ElementConverter {
     } as const;
   }
 
+  /**
+   * Finds the first block converter that matches the given element.
+   */
   private findBlockConverter(
     element: DocumentElement
   ): IBlockConverter | undefined {
     return this.blockConverters.find((converter) => converter.isMatch(element));
+  }
+
+  /**
+   * Finds the first inline converter that matches the given element.
+   */
+  private findInlineConverter(
+    element: DocumentElement
+  ): IInlineConverter | undefined {
+    return this.inlineConverters.find((converter) =>
+      converter.isMatch(element)
+    );
   }
 
   private findFallthroughWrapConvertedChildren(element: DocumentElement) {
@@ -97,6 +111,9 @@ export class ElementConverter {
     );
   }
 
+  /**
+   * Converts a block element by finding a matching converter and running it's convert method.
+   */
   public convertBlock(
     element: DocumentElement,
     cascadedStyles: Styles = {}
@@ -113,11 +130,14 @@ export class ElementConverter {
     );
   }
 
+  /**
+   * Converts an inline element by finding a matching converter and running it's convert method.
+   */
   public convertInline(
     element: DocumentElement,
     cascadedStyles: Styles = {}
   ): ParagraphChild[] {
-    const converter = this.inlineConverters.find((c) => c.isMatch(element));
+    const converter = this.findInlineConverter(element);
     if (!converter) {
       return [];
     }
@@ -129,6 +149,9 @@ export class ElementConverter {
     );
   }
 
+  /**
+   * Uses the text converter to convert the given element
+   */
   public convertText(
     element: DocumentElement,
     cascadedStyles: Styles = {}
@@ -140,6 +163,10 @@ export class ElementConverter {
     );
   }
 
+  /**
+   * Finds all fallthrough converters that match the given element and runs their `fallthroughWrapConvertedChildren` method.
+   * This can be used to wrap converted children with additional elements or styles. Such as wrapping inline elements in a `Bookmark`.
+   */
   public runFallthroughWrapConvertedChildren(
     element: DocumentElement,
     inlineChildren: ParagraphChild[],
@@ -160,6 +187,11 @@ export class ElementConverter {
     }, inlineChildren);
   }
 
+  /**
+   * Runs all fallthrough converters that match the given element and have a `fallthroughAttributesNestedBlock` method.
+   * This is used to apply additional attributes or styles to nested blocks within the element.
+   * For example, this can be used to apply styles or attributes to nested blocks that are not directly supported by the block converter.
+   */
   public runFallthroughNestedBlock(
     dependencies: ElementConverterDependencies,
     element: DocumentElement,
@@ -183,6 +215,10 @@ export class ElementConverter {
     }, childBlock);
   }
 
+  /**
+   * If an element only can have inline children, you can use this method.
+   * It will convert nested blocks to inline elements as well.
+   */
   public convertInlineTextOrContent(
     element: DocumentElement,
     cascadedStyles: Styles = {}
@@ -208,6 +244,8 @@ export class ElementConverter {
   }
 
   /**
+   * Some elements might have nested bloks.
+   * You can use this method to convert the element to blocks and wrapping all inline element "chunks" in a block as well.
    */
   public convertToBlocks(options: {
     element: DocumentElement;
