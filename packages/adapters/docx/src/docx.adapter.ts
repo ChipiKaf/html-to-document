@@ -21,20 +21,27 @@ import {
 import { NumberFormat, AlignmentType } from 'docx';
 import { toBinaryBuffer } from './docx.util';
 import { ElementConverter } from './element-converters/converter';
+import { Config } from './docx.types';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
   private _docxElementConverter: ElementConverter;
 
-  constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
+  constructor(
+    { styleMapper, defaultStyles }: IConverterDependencies,
+    config?: Config
+  ) {
     this._mapper = styleMapper;
     this._defaultStyles = { ...defaultStyles };
 
-    const docxElementConverter = new ElementConverter({
-      styleMapper: this._mapper,
-      defaultStyles: this._defaultStyles,
-    });
+    const docxElementConverter = new ElementConverter(
+      {
+        styleMapper: this._mapper,
+        defaultStyles: this._defaultStyles,
+      },
+      config
+    );
     this._docxElementConverter = docxElementConverter;
   }
 

@@ -1,4 +1,8 @@
-import { IDocumentConverter } from './types';
+import {
+  AdapterProvider,
+  AdapterRegistration,
+  IDocumentConverter,
+} from './types';
 import {
   ConverterOptions,
   DocumentElement,
@@ -39,8 +43,8 @@ export class Converter {
     this._middlewareManager.use(mw);
   }
 
-  public registerConverter(name: string, converter: IDocumentConverter) {
-    this._registry.register(name, converter);
+  public registerConverter(format: string, converter: IDocumentConverter) {
+    this._registry.register(format, converter);
   }
 
   /**
@@ -86,12 +90,24 @@ export class Converter {
   }
 }
 
+/**
+ * A helper function that provides type inference for creating registrations.
+ * Using this function is key to ensuring the `config` object is correctly typed.
+ */
+// for extends it should be okay to use any as it will allow everything to be inferred whereas using unknown would not result in the correct types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const createRegistration = <T extends AdapterProvider<any>>(
+  registration: AdapterRegistration<T>
+): AdapterRegistration<T> => {
+  return registration;
+};
+
 export const init = (options: InitOptions = {}) => {
   const { middleware, tags, adapters, domParser } = options;
 
   // Initialize registered adapters and inject style mapper
   const registerAdapters = adapters?.register?.map(
-    ({ format, adapter: Adapter }) => {
+    ({ format, adapter: Adapter, config }) => {
       const mapper = adapters?.styleMappings?.find(
         (map) => map.format === format
       );
@@ -103,13 +119,16 @@ export const init = (options: InitOptions = {}) => {
       }
 
       // Instantiate Adapters passed in
-      const adapter = new Adapter({
-        styleMapper,
-        defaultStyles:
-          adapters?.defaultStyles?.find(
-            ({ format: nFormat }) => nFormat === format
-          )?.styles || {},
-      });
+      const adapter = new Adapter(
+        {
+          styleMapper,
+          defaultStyles:
+            adapters?.defaultStyles?.find(
+              ({ format: nFormat }) => nFormat === format
+            )?.styles || {},
+        },
+        config
+      );
       return { format, adapter, styleMapper };
     }
   );
