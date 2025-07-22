@@ -358,8 +358,9 @@ export type StyleMapping = Partial<
 /**
  * Constructor type for adapter providers, given converter dependencies.
  */
-export type AdapterProvider = new (
-  dependencies: IConverterDependencies
+export type AdapterProvider<T = unknown> = new (
+  dependencies: IConverterDependencies,
+  config?: T
 ) => IDocumentConverter;
 
 // export type ConverterOptions = {
@@ -384,6 +385,19 @@ export type AdapterProvider = new (
 //   /** Optional DOM parser to use */
 //   domParser?: IDOMParser;
 // };
+
+export type AdapterRegistration<T extends AdapterProvider = AdapterProvider> = {
+  /** The document format this adapter handles (e.g. 'docx', 'pdf'). */
+  format: Formats;
+
+  /** The adapter provider class for this format. */
+  adapter: T;
+
+  /**
+   * Custom configuration for the Adapter.
+   */
+  config?: ConstructorParameters<T>[1];
+};
 
 /**
  * Initialization options for the document conversion module.
@@ -495,12 +509,8 @@ export type InitOptions = {
      *     { format: 'pdf', adapter: PdfAdapter }
      *   ]
      */
-    register?: {
-      /** The document format this adapter handles (e.g. 'docx', 'pdf'). */
-      format: Formats;
-      /** The adapter provider implementation for this format. */
-      adapter: AdapterProvider;
-    }[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    register?: AdapterRegistration<AdapterProvider<any>>[];
   };
   /** Optional DOM parser to use */
   domParser?: IDOMParser;
