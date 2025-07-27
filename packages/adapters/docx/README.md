@@ -158,7 +158,7 @@ const converter = init({
 });
 ```
 
-*📖 For more on writing custom element converters, see the Custom Converters guide:*
+_📖 For more on writing custom element converters, see the Custom Converters guide:_
 [https://html-to-document.vercel.app/docs/api/converters](https://html-to-document.vercel.app/docs/api/converters)
 
 ## API
