@@ -67,6 +67,31 @@ const buffer = await converter.convert(html, 'docx');   // ↩️ Buffer in Node
 fs.writeFileSync('output.docx', buffer);
 ```
 
+### Customizing Block, Inline & Fallthrough Converters
+
+You can provide adapter-specific configuration to register custom element converters when initializing. For example, with `DocxAdapter`:
+
+```ts
+const converter = init({
+  adapters: {
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        config: {
+          blockConverters: [new MyBlockConverter()],
+          inlineConverters: [new MyInlineConverter()],
+          fallthroughConverters: [new MyFallthroughConverter()],
+        },
+      },
+    ],
+  },
+});
+```
+
+*📖 For more on writing custom element converters, see the Custom Converters guide:*
+[https://html-to-document.vercel.app/docs/api/converters](https://html-to-document.vercel.app/docs/api/converters)
+
 > **Headers & Footers**
 > 
 > When converting to **DOCX**, you can include `<header>` and `<footer>`
@@ -87,7 +112,16 @@ import { DocxAdapter } from 'html-to-document-adapter-docx';
 const converter = init({
   adapters: {
     register: [
-      { format: 'docx', adapter: DocxAdapter },
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        // Optional adapter-specific config:
+        // config: {
+        //   blockConverters: [...],
+        //   inlineConverters: [...],
+        //   fallthroughConverters: [...],
+        // },
+      },
     ],
   },
 });

@@ -73,6 +73,68 @@ export class PlainTextAdapter implements IDocumentConverter {
 
 You can build on this to support more types like tables, images, and lists.
 
+## Element Converter Examples
+
+You can also register custom block, inline, and fallthrough converters by
+implementing the respective interfaces. Below is a generic example:
+
+```ts
+import {
+  IBlockConverter,
+  IInlineConverter,
+  IFallthroughConvertedChildrenWrapperConverter,
+  ElementConverterDependencies,
+} from 'html-to-document-core';
+import {
+  DocumentElement,
+  HeadingElement,
+  TextElement,
+  Styles,
+} from 'html-to-document-core';
+
+// Block converter: handles heading elements
+class HeadingBlockConverter implements IBlockConverter<HeadingElement> {
+  isMatch(el: DocumentElement): el is HeadingElement {
+    return el.type === 'heading';
+  }
+  convertEement(
+    deps: ElementConverterDependencies,
+    el: HeadingElement,
+    styles: Styles = {}
+  ) {
+    // implement conversion logic for headings
+    return [];
+  }
+}
+
+// Inline converter: handles bold text nodes
+class BoldInlineConverter implements IInlineConverter<TextElement> {
+  isMatch(el: DocumentElement): el is TextElement {
+    return el.type === 'text' && el.styles.fontWeight === 'bold';
+  }
+  convertEement(deps: ElementConverterDependencies, el: TextElement, styles: Styles) {
+    // implement conversion logic for bold text
+    return [];
+  }
+}
+
+// Fallthrough converter: wraps converted children based on attributes
+class IdFallthroughConverter implements IFallthroughConvertedChildrenWrapperConverter {
+  isMatch(el: DocumentElement): boolean {
+    return Boolean(el.attributes?.id);
+  }
+  fallthroughWrapConvertedChildren(
+    deps: ElementConverterDependencies,
+    el: DocumentElement,
+    children: any[],
+    styles: Styles,
+    index?: number
+  ) {
+    // implement fallthrough logic
+    return children;
+  }
+}
+```
 
 ## Register During Initialization (Recommended)
 
@@ -85,7 +147,12 @@ const converter = init({
   adapters: {
     // Register your adapter
     register: [
-      { format: 'md', adapter: MyAdapter },
+      {
+        format: 'md',
+        adapter: MyAdapter,
+        // Optional adapter-specific configuration:
+        // config: { /* adapter options */ },
+      },
     ],
   },
 });
@@ -96,7 +163,14 @@ You can also supply default styles and style mappings for your custom adapter:
 ```ts
 const converter = init({
   adapters: {
-    register: [ { format: 'md', adapter: MyAdapter } ],
+    register: [
+      {
+        format: 'md',
+        adapter: MyAdapter,
+        // Optional adapter-specific configuration:
+        // config: { /* adapter options */ },
+      },
+    ],
     defaultStyles: [
       { format: 'md', styles: { paragraph: { marginBottom: 8, lineHeight: 1.6 } } },
     ],

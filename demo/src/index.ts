@@ -41,6 +41,7 @@ export const run: () => Promise<any> = async () => {
         {
           format: 'docx',
           adapter: DocxAdapter,
+          config: {},
         },
         {
           format: 'pdf',

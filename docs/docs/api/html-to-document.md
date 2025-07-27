@@ -52,7 +52,7 @@ Initialize a new [`Converter`](./types) instance.
 - **options**: [`InitOptions`](./types) (optional)
   - `middleware?: [`Middleware`](./types)[]` – custom middleware functions.
   - `tags?: { tagHandlers?: [`TagHandlerObject`](./types)[]; defaultStyles?: ...; defaultAttributes?: ... }` – custom tag handlers and default tag options.
-  - `adapters?: { defaultStyles?: ...; styleMappings?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types) }[] }` – register adapters and style mappings.
+- `adapters?: { defaultStyles?: ...; styleMappings?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object }[] }` – register adapters, style mappings, and adapter-specific config.
   - `clearMiddleware?: boolean` – clear default middleware.
   - `domParser?: [`IDOMParser`](./types)` – custom DOM parser implementation.
 
