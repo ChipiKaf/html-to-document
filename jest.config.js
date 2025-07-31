@@ -17,6 +17,7 @@ module.exports = {
     '<rootDir>/packages/core',
     '<rootDir>/packages/adapters',
     '<rootDir>/packages/deconverters',
+    '<rootDir>/packages/e2e-tests',
   ],
 
   // Resolve workspace names inside tests
@@ -35,4 +36,3 @@ module.exports = {
   // Use project-local cache directory to avoid OS temp permission issues
   cacheDirectory: '<rootDir>/.jest-cache',
 };
-

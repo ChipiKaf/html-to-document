@@ -7,7 +7,8 @@
     "packages/core",
     "packages/adapters/*",
     "packages/deconverters/*",
-    "packages/html-to-document"
+    "packages/html-to-document",
+    "packages/e2e-tests"
   ],
   "scripts": {
     "build:bun": "bun run '--filter=!demo' build ",

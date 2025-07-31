@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "html-to-document": ["../html-to-document/dist"],
+      "html-to-document/*": ["../html-to-document/dist/*"],
+      "html-to-document-core": ["../core/dist"],
+      "html-to-document-core/*": ["../core/dist/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/__tests__/**"]
+}
