@@ -21,6 +21,20 @@
   "publishConfig": {
     "access": "public"
   },
+  "exports": {
+    ".": {
+      "default": {
+        "import": "./dist/index.js",
+        "require": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./src/index.ts",
+        "types": "./src/index.ts"
+      }
+    }
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -29,13 +43,14 @@
     "CHANGELOG.md"
   ],
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
     "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "peerDependencies": {
-    "html-to-document-core": "^0.3.0"
+    "html-to-document-core": "workspace:^"
   },
   "dependencies": {
     "docx": "^9.4.0",
@@ -47,6 +62,7 @@
   },
   "devDependencies": {
     "@types/probe-image-size": "^7.2.5",
+    "html-to-document-core": "workspace:^",
     "ts-toolbelt": "^9.6.0"
   }
 }

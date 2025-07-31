@@ -113,16 +113,16 @@ const docxBuffer = await converter.convert(elements, 'docx');
 
 ```bash
 # At repo root
-npm install
-npm run build
+bun install
+bun run build
 
 # To test core only
 cd packages/core
-npm test
+bun run test
 
 # Lint and format
-npm run lint
-npm run format
+bun run lint
+bun run format
 ```
 
 ## License

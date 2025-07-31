@@ -11,17 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
+      - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
-        run: npm ci
+        run: bun install
       - name: Lint
-        run: npm run lint
+        run: bun run lint
       - name: Format
-        run: npm run format:check
+        run: bun run format:check
       - name: Build
-        run: npm run build
+        run: bun run build
+      - name: Typecheck
+        run: bun run typecheck
       - name: Test
-        run: npm run test
+        run: bun run test

@@ -76,6 +76,7 @@ describe('Docx.adapter.convert', () => {
       ]).buffer; // This represents a PNG header.
 
       beforeEach(() => {
+        // @ts-ignore
         global.fetch = jest.fn().mockResolvedValue({
           ok: true,
           arrayBuffer: async () => fakeArrayBuffer,

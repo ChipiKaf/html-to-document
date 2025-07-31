@@ -5,11 +5,7 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": false,
-    "paths": {
-      "html-to-document-core": ["../../core/dist"],
-      "html-to-document-core/*": ["../../core/dist/*"]
-    }
+    "sourceMap": false
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.test.ts", "**/__tests__/**"]
