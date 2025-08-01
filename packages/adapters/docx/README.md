@@ -15,6 +15,9 @@ npm install html-to-document-core html-to-document-adapter-docx
 For full documentation on the wrapper package, see:  
 https://www.npmjs.com/package/html-to-document
 
+For detailed API documentation and examples, including custom converters, visit:
+https://html-to-document.vercel.app/docs/api/converters
+
 ## Usage
 
 ```ts
@@ -27,7 +30,18 @@ import { init, DocxAdapter } from 'html-to-document';
 
 const converter = init({
   adapters: {
-    register: [{ format: 'docx', adapter: DocxAdapter }],
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        // Optional adapter-specific configuration:
+        // config: {
+        //   blockConverters: [...],     // custom block converters
+        //   inlineConverters: [...],    // custom inline converters
+        //   fallthroughConverters: [...], // custom fallthrough converters
+        // },
+      },
+    ],
     defaultStyles: [
       {
         format: 'docx',
@@ -94,7 +108,18 @@ and defaults when initialising:
 ```ts
 const converter = init({
   adapters: {
-    register: [{ format: 'docx', adapter: DocxAdapter }],
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        // Optional adapter-specific configuration:
+        // config: {
+        //   blockConverters: [...],
+        //   inlineConverters: [...],
+        //   fallthroughConverters: [...],
+        // },
+      },
+    ],
     defaultStyles: [
       { format: 'docx', styles: { paragraph: { lineHeight: 1.5 } } },
     ],
@@ -104,6 +129,37 @@ const converter = init({
   },
 });
 ```
+
+### Custom Element Converters
+
+You can override or extend the built-in block, inline, and fallthrough converters for `DocxAdapter` by passing a `config` object when registering:
+
+```ts
+import { init } from 'html-to-document-core';
+import { DocxAdapter } from 'html-to-document-adapter-docx';
+import { MyBlockConverter } from './my-block-converter';
+import { MyInlineConverter } from './my-inline-converter';
+import { MyFallthroughConverter } from './my-fallthrough-converter';
+
+const converter = init({
+  adapters: {
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        config: {
+          blockConverters: [new MyBlockConverter()],
+          inlineConverters: [new MyInlineConverter()],
+          fallthroughConverters: [new MyFallthroughConverter()],
+        },
+      },
+    ],
+  },
+});
+```
+
+_📖 For more on writing custom element converters, see the Custom Converters guide:_
+[https://html-to-document.vercel.app/docs/api/converters](https://html-to-document.vercel.app/docs/api/converters)
 
 ## API
 

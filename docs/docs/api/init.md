@@ -101,7 +101,7 @@ Customize how HTML tags are parsed and styled before conversion.
 
 ```ts
 {
-  register?: { format: string; adapter: AdapterProvider }[];
+  register?: { format: string; adapter: AdapterProvider; config?: object }[];
   defaultStyles?: { format: string; styles: Record<ElementType, Styles> }[];
   styleMappings?: { format: string; handlers: StyleMapping }[];
 }
@@ -129,6 +129,24 @@ Controls which adapters are registered and how CSS styles map to document proper
   init({ adapters: {
     styleMappings: [
       { format: 'docx', handlers: { fontWeight: (v) => ({ bold: v === 'bold' }) } },
+    ],
+  } });
+  ```
+
+- **config:** Optional adapter-specific configuration object for each registered adapter. For example, the built-in `DocxAdapter` supports custom block, inline, and fallthrough converters:
+
+  ```ts
+  init({ adapters: {
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        config: {
+          blockConverters: [new MyBlockConverter()],
+          inlineConverters: [new MyInlineConverter()],
+          fallthroughConverters: [new MyFallthroughConverter()],
+        },
+      },
     ],
   } });
   ```
