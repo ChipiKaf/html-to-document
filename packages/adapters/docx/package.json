@@ -1,6 +1,6 @@
 {
   "name": "html-to-document-adapter-docx",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "DOCX adapter for html-to-document-core — converts a DocumentElement tree into a .docx Buffer using the docx library.",
   "keywords": [
     "html-to-document",

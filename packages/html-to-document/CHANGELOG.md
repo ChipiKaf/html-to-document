@@ -1,5 +1,11 @@
 # html-to-document
 
+## 0.4.1
+
+### Patch Changes
+
+- Fix dependency issues
+
 ## 0.4.0
 
 ### Minor Changes

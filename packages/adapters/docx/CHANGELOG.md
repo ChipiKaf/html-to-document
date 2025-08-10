@@ -1,5 +1,11 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.4.1
+
+### Patch Changes
+
+- Fix dependency issues
+
 ## 0.4.0
 
 ### Minor Changes
