@@ -1,76 +1,55 @@
-name: Release & Publish (monorepo)
+name: Release (Changesets)
 on:
   push:
-    tags:
-      - 'v*.*.*' # e.g. v0.2.0
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
   id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
+    name: Version & Publish
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: oven-sh/setup-bun@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
 
-      - name: Install dependencies (all workspaces except demo and docs)
-        run: bun install '--filter=!demo' '--filter=!docs'
+      - name: Install dependencies (root)
+        run: bun install
 
       - name: Build all workspaces
         run: bun run build
 
-      - name: Extract tag and package versions
-        id: versions
+      - name: Configure npm auth (token + provenance)
         run: |
-          echo "tag=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          echo "core=$(jq -r '.version' packages/core/package.json)" >> "$GITHUB_OUTPUT"
-          echo "docx=$(jq -r '.version' packages/adapters/docx/package.json)" >> "$GITHUB_OUTPUT"
-          echo "pdf=$(jq -r '.version' packages/adapters/pdf/package.json)" >> "$GITHUB_OUTPUT"
-          echo "pdfdeconv=$(jq -r '.version' packages/deconverters/pdf/package.json)" >> "$GITHUB_OUTPUT"
-          echo "wrapper=$(jq -r '.version' packages/html-to-document/package.json)" >> "$GITHUB_OUTPUT"
-
-      # Publish core first
-      - name: Publish html-to-document-core
-        if: steps.versions.outputs.tag == steps.versions.outputs.core
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          echo "provenance=true" >> ~/.npmrc
         env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: packages/core
-        # TODO: Add --provenance once bun supports it https://github.com/oven-sh/bun/issues/15601
-        run: bun publish --access public
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Publish default DOCX adapter
-      - name: Publish html-to-document-adapter-docx
-        if: steps.versions.outputs.tag == steps.versions.outputs.docx
+      - name: Create Release PR or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: bunx @changesets/cli version
+          publish: bunx @changesets/cli publish
+          commit: 'chore: version packages'
+          title: 'Release: version packages'
         env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: packages/adapters/docx
-        run: bun publish --access public
-
-      # Publish default PDF adapter
-      - name: Publish html-to-document-adapter-pdf
-        if: steps.versions.outputs.tag == steps.versions.outputs.pdf
-        env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: packages/adapters/pdf
-        run: bun publish --access public
-
-      # Publish PDF deconverter
-      - name: Publish html-to-document-deconverter-pdf
-        if: steps.versions.outputs.tag == steps.versions.outputs.pdfdeconv
-        env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: packages/deconverters/pdf
-        run: bun publish --access public
-
-      # Publish wrapper last
-      - name: Publish html-to-document (wrapper)
-        if: steps.versions.outputs.tag == steps.versions.outputs.wrapper
-        env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: packages/html-to-document
-        run: bun publish --access public
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
