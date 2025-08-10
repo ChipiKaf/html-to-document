@@ -33,7 +33,9 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
 
     return element.content.flatMap((child) => {
       child.metadata ??= {};
-      child.metadata.reference = `${element.listType}${element.markerStyle ? `-${element.markerStyle}` : ''}`;
+      child.metadata.reference = `${element.listType}${
+        element.markerStyle ? `-${element.markerStyle}` : ''
+      }`;
       return this.convertListItem(dependencies, child, mergedStyles);
     });
   }

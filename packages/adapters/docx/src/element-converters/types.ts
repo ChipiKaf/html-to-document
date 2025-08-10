@@ -16,7 +16,7 @@ interface IIsMatch<T extends DocumentElement> {
 
 export interface IElementConverter<
   T extends DocumentElement,
-  Output extends FileChild[] | ParagraphChild[],
+  Output extends FileChild[] | ParagraphChild[]
 > extends IIsMatch<T> {
   convertEement(
     dependencies: ElementConverterDependencies,
@@ -42,7 +42,7 @@ export interface IInlineConverter<T extends DocumentElement = DocumentElement>
 // ) => ParagraphChild[];
 
 export interface IFallthroughConvertedChildrenWrapperConverter<
-  T extends DocumentElement = DocumentElement,
+  T extends DocumentElement = DocumentElement
 > extends IIsMatch<T> {
   fallthroughWrapConvertedChildren(
     dependencies: ElementConverterDependencies,
@@ -54,7 +54,7 @@ export interface IFallthroughConvertedChildrenWrapperConverter<
 }
 
 export interface IFallthroughAttributesNestedBlockConverter<
-  T extends DocumentElement = DocumentElement,
+  T extends DocumentElement = DocumentElement
 > extends IIsMatch<T> {
   fallthroughAttributesNestedBlock(
     dependencies: ElementConverterDependencies,
@@ -67,7 +67,7 @@ export interface IFallthroughAttributesNestedBlockConverter<
 // If more fallthrough converters are added, we can extends this type to be a union of those
 type FallthroughConverters = [
   IFallthroughConvertedChildrenWrapperConverter,
-  IFallthroughAttributesNestedBlockConverter,
+  IFallthroughAttributesNestedBlockConverter
 ];
 export type FallthroughConverter = FallthroughConverters[number] &
   Partial<Object.MergeAll<{}, FallthroughConverters>>;

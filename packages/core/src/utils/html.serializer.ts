@@ -219,7 +219,7 @@ function elementToHtml(
     const innerCode =
       Array.isArray(el.content) && el.content.length
         ? (el.content as DocumentElement[]).map((c) => c.text ?? '').join('')
-        : (el.text ?? '');
+        : el.text ?? '';
     return `<${tagName}${attrString}>${innerCode}</${tagName}>`;
   }
 
@@ -301,7 +301,7 @@ function cellToHtml(
     Array.isArray(cell.content) && cell.content.length
       ? cell.content.map((c) => elementToHtml(c, defaults)).join('')
       : typeof cell.text === 'string'
-        ? encodeText(cell.text)
-        : '';
+      ? encodeText(cell.text)
+      : '';
   return `<${tag}${attrString}>${inner}</${tag}>`;
 }

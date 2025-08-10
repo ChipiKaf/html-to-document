@@ -48,7 +48,9 @@ export class PDFAdapter implements IDocumentConverter {
       }
     } catch (error) {
       throw new Error(
-        `PDF conversion failed: ${error instanceof Error ? error.message : String(error)}`
+        `PDF conversion failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
@@ -65,7 +67,9 @@ export class PDFAdapter implements IDocumentConverter {
       return pdfBuffer as Buffer;
     } catch (error) {
       throw new Error(
-        `LibreOffice conversion failed: ${error instanceof Error ? error.message : String(error)}`
+        `LibreOffice conversion failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
