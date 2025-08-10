@@ -51,6 +51,7 @@
       "version": "0.3.0",
       "dependencies": {
         "docx": "^9.4.0",
+        "html-to-document-core": "workspace:*",
         "image-size": "^2.0.2",
         "jszip": "^3.10.1",
       },
@@ -59,14 +60,12 @@
         "html-to-document-core": "workspace:^",
         "ts-toolbelt": "^9.6.0",
       },
-      "peerDependencies": {
-        "html-to-document-core": "workspace:^",
-      },
     },
     "packages/adapters/pdf": {
       "name": "html-to-document-adapter-pdf",
       "version": "0.3.0",
       "dependencies": {
+        "html-to-document-core": "workspace:*",
         "html2pdf.js": "^0.10.2",
         "libreoffice-convert": "^1.6.1",
         "mammoth": "^1.6.0",
@@ -75,9 +74,6 @@
       "devDependencies": {
         "html-to-document-adapter-docx": "workspace:^",
         "pdf-parse": "^1.1.1",
-      },
-      "peerDependencies": {
-        "html-to-document-core": "workspace:^",
       },
     },
     "packages/core": {
@@ -96,14 +92,12 @@
       "name": "html-to-document-deconverter-pdf",
       "version": "0.1.0",
       "dependencies": {
+        "html-to-document-core": "workspace:*",
         "pdf-parse": "^1.1.1",
       },
       "devDependencies": {
         "html-to-document-core": "workspace:*",
         "pdfkit": "^0.16.0",
-      },
-      "peerDependencies": {
-        "html-to-document-core": "workspace:*",
       },
     },
     "packages/html-to-document": {
