@@ -50,7 +50,7 @@
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "dependencies": {
-    "html-to-document-core": "workspace:*",
+    "html-to-document-core": "^0.4.0",
     "docx": "^9.4.0",
     "image-size": "^2.0.2",
     "jszip": "^3.10.1"
