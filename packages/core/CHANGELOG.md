@@ -1,5 +1,15 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.4.0
+
+### Minor Changes
+
+- Add adapter-level config to init({ adapters.register }), enabling per-adapter element converters (blockConverters, inlineConverters, fallthroughConverters). DocxAdapter merges custom converters with its defaults—no breaking changes.
+
+### New Contributors
+
+Thanks @Alexnortung!
+
 - docs: document headers and update docx adapter guide (#13) ([b9c42e0](https://github.com/ChipiKaf/html-to-document/commit/b9c42e0)), closes [#13](https://github.com/ChipiKaf/html-to-document/issues/13)
 - Add page sections and headers to docx adapter (#11) ([2f190c6](https://github.com/ChipiKaf/html-to-document/commit/2f190c6)), closes [#11](https://github.com/ChipiKaf/html-to-document/issues/11)
 - Fix built-in docx adapter (#10) ([25ec976](https://github.com/ChipiKaf/html-to-document/commit/25ec976)), closes [#10](https://github.com/ChipiKaf/html-to-document/issues/10)

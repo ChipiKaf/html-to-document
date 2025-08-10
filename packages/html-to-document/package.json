@@ -1,6 +1,6 @@
 {
   "name": "html-to-document",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A modular, open source library for converting HTML content into professional document formats. Initially focused on HTML-to-DOCX conversion, with planned support for PDF and XLSX. Built with TypeScript, it features a core HTML parsing engine and separate format-specific modules, offering a unified API for seamless integration.",
   "keywords": [
     "html",
@@ -49,8 +49,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "copy-docs": "cp ../../README.md README.md && cp ../../CHANGELOG.md CHANGELOG.md",
-    "prepack": "bun run copy-docs && bun run build",
+    "copy-docs": "cp ../../README.md README.md",
     "build": "tsc -p tsconfig.json",
     "test": "echo \"no tests\""
   },
