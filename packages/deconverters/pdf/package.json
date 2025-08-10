@@ -35,10 +35,8 @@
     "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
-  "peerDependencies": {
-    "html-to-document-core": "workspace:*"
-  },
   "dependencies": {
+    "html-to-document-core": "workspace:*",
     "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
