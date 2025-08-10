@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "html-to-document-core": "^0.4.0",
-    "html-to-document-adapte-docx": "^0.4.0"
+    "html-to-document-adapter-docx": "^0.4.0"
   },
   "engines": {
     "node": ">=14"
