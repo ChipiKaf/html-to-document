@@ -23,6 +23,23 @@
   "publishConfig": {
     "access": "public"
   },
+  "exports": {
+    ".": {
+      "types": {
+        "default": "./dist/index.d.ts",
+        "development": "./src/index.ts"
+      },
+      "require": {
+        "default": "./dist/index.js",
+        "development": "./src/index.ts"
+      },
+      "import": {
+        "default": "./dist/index.js",
+        "development": "./src/index.ts"
+      }
+    },
+    "./package.json": "./package.json"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -31,6 +48,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
     "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",

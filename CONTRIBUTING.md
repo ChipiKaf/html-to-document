@@ -17,14 +17,14 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 2. **Install root dependencies (monorepo)**
 
    ```bash
-   npm ci           # or yarn install
+   bun install
    ```
 
 3. **Work in the core package**
 
    ```bash
    cd packages/core
-   npm run dev      # rebuilds on file change
+   bun run dev      # rebuilds on file change
    ```
 
    The watcher outputs compiled files to `packages/core/dist`.
@@ -34,8 +34,8 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
    ```bash
    # back to repo root
    cd ../../packages/demo
-   npm install      # pulls the fresh dist build
-   npm run dev      # launches the Vite demo at http://localhost:5173
+   bun install      # pulls the fresh dist build
+   bun run dev      # launches the Vite demo at http://localhost:5173
    ```
 
    > **Do not edit `index.ts` directly.**  
@@ -49,8 +49,8 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 5. **Run tests & lint**
 
    ```bash
-   npm test                  # from repo root (runs workspace tests)
-   npm run lint
+   bun run test                  # from repo root (runs workspace tests)
+   bun run lint
    ```
 
 6. **Commit & Push**
@@ -72,7 +72,7 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 - **TypeScript** only—no `any` unless unavoidable.
 - Keep functions small & focused.
 - Add/extend **unit tests** for every new feature or bug fix (`packages/core/__tests__`).
-- Run `npm run lint` and ensure no ESLint errors.
+- Run `bun run lint` and ensure no ESLint errors.
 
 ---
 
@@ -85,6 +85,7 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 ---
 
 Happy hacking! ✨
+
 # Contributing to **html‑to‑document**
 
 First off, **thank you** for taking the time to contribute!  
@@ -96,11 +97,11 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 
 The repo has three top‑level folders that matter when contributing:
 
-| Folder | Purpose |
-|--------|---------|
-| `src/` | Source code of the library that gets published to npm (`dist/` is generated from this) |
-| `demo/` | Vite demo app used to manually test changes |
-| `docs/` | Docusaurus documentation |
+| Folder  | Purpose                                                                                |
+| ------- | -------------------------------------------------------------------------------------- |
+| `src/`  | Source code of the library that gets published to npm (`dist/` is generated from this) |
+| `demo/` | Vite demo app used to manually test changes                                            |
+| `docs/` | Docusaurus documentation                                                               |
 
 Follow the steps below to develop and test locally.
 
@@ -114,14 +115,14 @@ Follow the steps below to develop and test locally.
 2. **Install root dependencies**
 
    ```bash
-   npm ci            # clean, reproducible install
+   bun install
    ```
 
 3. **Develop the library**
 
    ```bash
    # From repo root
-   npm run dev       # or `npm run build:watch` if you have that script
+   bun run dev       # or `bun run build:watch` if you have that script
    ```
 
    This watches `src/` and emits fresh code into `dist/` on every save.
@@ -130,8 +131,8 @@ Follow the steps below to develop and test locally.
 
    ```bash
    cd demo
-   npm install       # pulls the freshly‑built library from the root
-   npm run dev       # opens the demo at http://localhost:5173
+   bun install       # pulls the freshly‑built library from the root
+   bun run dev       # opens the demo at http://localhost:5173
    ```
 
    > **Do not edit `src/index.ts` in the demo directly.**  
@@ -146,8 +147,8 @@ Follow the steps below to develop and test locally.
 
    ```bash
    # back to repo root
-   npm test          # runs Jest tests in __tests__/
-   npm run lint
+   bun test          # runs Jest tests in __tests__/
+   bun run lint
    ```
 
 6. **Commit & Push**
@@ -169,7 +170,7 @@ Follow the steps below to develop and test locally.
 - **TypeScript** only—avoid `any` unless absolutely unavoidable.
 - Keep functions small & focused.
 - Add or extend **unit tests** for every new feature or bug fix (`__tests__/`).
-- Run `npm run lint` and ensure no ESLint errors.
+- Run `bun run lint` and ensure no ESLint errors.
 
 ---
 

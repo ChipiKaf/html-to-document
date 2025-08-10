@@ -5,3 +5,5 @@ _index.ts
 /coverage
 .jest-cache
 tsconfig.tsbuildinfo
+
+.turbo

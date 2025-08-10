@@ -30,9 +30,16 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": {
+        "import": "./dist/index.js",
+        "require": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./src/index.ts",
+        "types": "./src/index.ts"
+      }
     }
   },
   "files": [
@@ -41,14 +48,15 @@
     "CHANGELOG.md"
   ],
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "copy-docs": "cp ../../README.md README.md && cp ../../CHANGELOG.md CHANGELOG.md",
-    "prepack": "npm run copy-docs && npm run build",
+    "prepack": "bun run copy-docs && bun run build",
     "build": "tsc -p tsconfig.json",
     "test": "echo \"no tests\""
   },
   "dependencies": {
-    "html-to-document-core": "^0.3.0",
-    "html-to-document-adapter-docx": "^0.3.0"
+    "html-to-document-core": "workspace:*",
+    "html-to-document-adapter-docx": "workspace:*"
   },
   "engines": {
     "node": ">=14"

@@ -186,14 +186,14 @@ new DocxAdapter(options: {
 
 ## Development
 
-1. Clone the repo and run `npm install` at the root.
-2. Build all workspaces: `npm run build`.
+1. Clone the repo and run `bun install` at the root.
+2. Build all workspaces: `bun run build`.
 3. To test this adapter only:
    ```bash
    cd packages/adapters/docx
-   npm test
+   bun run test
    ```
-4. Lint and format from root: `npm run lint` / `npm run format`.
+4. Lint and format from root: `bun run lint` / `bun run format`.
 
 ## License
 

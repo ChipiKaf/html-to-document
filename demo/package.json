@@ -1,11 +1,10 @@
 {
   "name": "demo",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "dev": "vite --config vite.config.ts",
-    "preinstall": "node ./set-html-to-document-dep.cjs",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -14,6 +13,7 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "html-to-document": "workspace:*",
     "tinymce": "^7.8.0"
   }
 }
