@@ -1,5 +1,11 @@
 # html-to-document
 
+## 0.4.2
+
+### Patch Changes
+
+- update documentation
+
 ## 0.4.1
 
 ### Patch Changes
