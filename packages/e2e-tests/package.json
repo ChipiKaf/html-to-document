@@ -1,0 +1,11 @@
+{
+  "name": "html-to-document-e2e-tests",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  },
+  "dependencies": {
+    "html-to-document": "^0.3.0",
+    "html-to-document-adapter-docx": "^0.3.0"
+  }
+}
