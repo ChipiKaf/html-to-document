@@ -2,7 +2,7 @@
   "*.{js,jsx,ts,tsx}": [
     "eslint --fix",
     "prettier --write",
-    "bun run test -- --findRelatedTests"
+    "pnpm run test -- --findRelatedTests"
   ],
   "*.{json,css,md}": ["prettier --write"]
 }

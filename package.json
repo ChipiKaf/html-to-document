@@ -63,6 +63,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "jszip": "^3.10.1",
     "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
     "rimraf": "^5.0.5",
     "ts-jest": "^29.3.4",
     "turbo": "^2.5.5"

@@ -68,7 +68,7 @@ describe('Parser', () => {
             type: 'paragraph',
             text: el.textContent,
             ...options,
-          } as DocumentElement)
+          }) as DocumentElement
       );
       parser.registerTagHandler('p', handler);
 
@@ -105,7 +105,7 @@ describe('Parser', () => {
             type: 'paragraph',
             text: el.textContent,
             attributes: {},
-          } as DocumentElement)
+          }) as DocumentElement
       );
       parser.registerTagHandler('p', handler);
 

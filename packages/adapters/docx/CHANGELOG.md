@@ -15,7 +15,6 @@
 ### Patch Changes
 
 - Updated dependencies []:
-
   - html-to-document-core@0.4.0
 
 ### New Contributors

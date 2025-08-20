@@ -5,7 +5,6 @@
 ### Patch Changes
 
 - Updated dependencies []:
-
   - html-to-document-core@0.4.0
 
 - Fix TypeScript build output paths (#9) ([7b4747d](https://github.com/ChipiKaf/html-to-document/commit/7b4747d)), closes [#9](https://github.com/ChipiKaf/html-to-document/issues/9)

@@ -297,24 +297,27 @@ export class ElementConverter {
       };
     });
 
-    const markedWithMergedInlines = marked.reduce((acc, item) => {
-      if (item.type === 'blocks') {
-        acc.push(item);
+    const markedWithMergedInlines = marked.reduce(
+      (acc, item) => {
+        if (item.type === 'blocks') {
+          acc.push(item);
+          return acc;
+        }
+
+        const previousItem = acc[acc.length - 1];
+
+        if (!previousItem || previousItem.type === 'blocks') {
+          acc.push(item);
+          return acc;
+        }
+
+        // At this point both are inline and we can merge them
+        previousItem.children.push(...item.children);
+
         return acc;
-      }
-
-      const previousItem = acc[acc.length - 1];
-
-      if (!previousItem || previousItem.type === 'blocks') {
-        acc.push(item);
-        return acc;
-      }
-
-      // At this point both are inline and we can merge them
-      previousItem.children.push(...item.children);
-
-      return acc;
-    }, [] as typeof marked);
+      },
+      [] as typeof marked
+    );
 
     const wrapped = markedWithMergedInlines.flatMap((item, i) => {
       if (item.type === 'blocks') {

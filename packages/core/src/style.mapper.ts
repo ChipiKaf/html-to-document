@@ -199,8 +199,8 @@ export class StyleMapper {
         v === 'uppercase'
           ? { allCaps: true }
           : v === 'capitalize'
-          ? { smallCaps: true }
-          : {},
+            ? { smallCaps: true }
+            : {},
       textAlign: (v, el) => {
         if (el.type === 'table') return {};
         const key = String(v).trim().toLowerCase();
@@ -342,34 +342,34 @@ export class StyleMapper {
         return isNaN(w)
           ? {}
           : el.type === 'table'
-          ? {
-              borders: {
-                top: {
-                  style: BorderStyle.SINGLE,
-                  size: w * 8,
+            ? {
+                borders: {
+                  top: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                  bottom: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                  left: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
+                  right: {
+                    style: BorderStyle.SINGLE,
+                    size: w * 8,
+                  },
                 },
-                bottom: {
-                  style: BorderStyle.SINGLE,
-                  size: w * 8,
+              }
+            : {
+                border: {
+                  top: { size: w * 8 },
+                  bottom: { size: w * 8 },
+                  left: { size: w * 8 },
+                  right: { size: w * 8 },
                 },
-                left: {
-                  style: BorderStyle.SINGLE,
-                  size: w * 8,
-                },
-                right: {
-                  style: BorderStyle.SINGLE,
-                  size: w * 8,
-                },
-              },
-            }
-          : {
-              border: {
-                top: { size: w * 8 },
-                bottom: { size: w * 8 },
-                left: { size: w * 8 },
-                right: { size: w * 8 },
-              },
-            };
+              };
       },
       borderLeftColor: (v) => ({
         border: { left: { color: colorConversion(v) } },
@@ -382,28 +382,28 @@ export class StyleMapper {
         return isNaN(w)
           ? {}
           : el.type === 'table'
-          ? {
-              borders: {
-                left: {
-                  style: BorderStyle.SINGLE,
-                  size: 8 * w,
+            ? {
+                borders: {
+                  left: {
+                    style: BorderStyle.SINGLE,
+                    size: 8 * w,
+                  },
                 },
-              },
-            }
-          : {
-              border: { left: { size: w * 8 } },
-            };
+              }
+            : {
+                border: { left: { size: w * 8 } },
+              };
       },
       verticalAlign: (v) =>
         v === 'middle'
           ? { verticalAlign: 'center' }
           : v === 'bottom'
-          ? { verticalAlign: 'bottom' }
-          : v === 'super'
-          ? { superScript: true }
-          : v === 'sub'
-          ? { subScript: true }
-          : {},
+            ? { verticalAlign: 'bottom' }
+            : v === 'super'
+              ? { superScript: true }
+              : v === 'sub'
+                ? { subScript: true }
+                : {},
 
       padding: (v, el) => {
         if (el.type === 'table') return {};
@@ -601,8 +601,8 @@ export class StyleMapper {
         v === 'decimal'
           ? { numbering: 'decimal' }
           : v === 'disc'
-          ? { bullet: true }
-          : {},
+            ? { bullet: true }
+            : {},
     };
   }
 
