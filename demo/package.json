@@ -13,6 +13,7 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "html-to-document-adapter-pdf": "workspace:*",
     "html-to-document": "workspace:*",
     "tinymce": "^7.8.0"
   }

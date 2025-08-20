@@ -96,6 +96,9 @@ importers:
       html-to-document:
         specifier: workspace:*
         version: link:../packages/html-to-document
+      html-to-document-adapter-pdf:
+        specifier: workspace:*
+        version: link:../packages/adapters/pdf
       tinymce:
         specifier: ^7.8.0
         version: 7.9.1
