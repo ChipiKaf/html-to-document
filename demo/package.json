@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --customConditions production",
     "dev": "vite --config vite.config.ts",
     "build": "vite build",
     "preview": "vite preview"
@@ -12,6 +12,7 @@
     "@types/tinymce": "^4.6.9",
     "vite": "^6.2.0"
   },
+  "peerDependencies": {},
   "dependencies": {
     "html-to-document-adapter-pdf": "workspace:*",
     "html-to-document": "workspace:*",

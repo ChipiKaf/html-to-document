@@ -54,8 +54,8 @@
     "prepack": "pnpm run build && pnpm run copy-docs"
   },
   "dependencies": {
-    "html-to-document-core": "^0.4.0",
-    "html-to-document-adapter-docx": "^0.4.0"
+    "html-to-document-core": "workspace:*",
+    "html-to-document-adapter-docx": "workspace:*"
   },
   "engines": {
     "node": ">=14"

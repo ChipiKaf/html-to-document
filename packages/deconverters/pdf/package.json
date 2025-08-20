@@ -37,10 +37,10 @@
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "dependencies": {
-    "html-to-document-core": "workspace:*",
     "pdf-parse": "^1.1.1"
   },
   "peerDependencies": {
+    "html-to-document-core": "workspace:*",
     "jsdom": "*"
   },
   "devDependencies": {
