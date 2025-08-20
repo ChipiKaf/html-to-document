@@ -24,16 +24,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.19
+      - name: Setup PNPM
+        # Uses packageManager field from package.json to determine version
+        uses: pnpm/action-setup@v4
 
       - name: Install dependencies (root)
-        run: bun install
+        run: pnpm install
 
       - name: Build all workspaces
-        run: bun run build
+        run: pnpm run build
 
       - name: Configure npm auth (token + provenance)
         run: |
@@ -46,8 +45,8 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: bunx @changesets/cli version
-          publish: bunx @changesets/cli publish
+          version: pnpx @changesets/cli version
+          publish: pnpx @changesets/cli publish
           commit: 'chore: version packages'
           title: 'Release: version packages'
         env:

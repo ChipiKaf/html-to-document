@@ -1,0 +1,7 @@
+packages:
+  - 'demo'
+  - 'packages/core'
+  - 'packages/adapters/*'
+  - 'packages/deconverters/*'
+  - 'packages/html-to-document'
+  - 'packages/e2e-tests'
