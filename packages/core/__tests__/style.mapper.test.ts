@@ -2,6 +2,7 @@ import { StyleMapper } from '../src/style.mapper';
 import { DocumentElement } from '../src/types';
 import { ShadingType, BorderStyle } from 'docx';
 import { pixelsToTwips } from '../src/utils/html.utils';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 describe('StyleMapper', () => {
   let mapper: StyleMapper;

@@ -5,6 +5,7 @@ import {
   toBinaryBuffer,
   isInline,
 } from '../src/docx.util';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   TextRun,
   ImageRun,

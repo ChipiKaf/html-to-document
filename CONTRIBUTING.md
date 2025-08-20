@@ -147,7 +147,7 @@ Follow the steps below to develop and test locally.
 
    ```bash
    # back to repo root
-   pnpm test          # runs Jest tests in __tests__/
+   pnpm test          # runs tests in __tests__/
    pnpm run lint
    ```
 

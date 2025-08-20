@@ -2,6 +2,7 @@ import { Parser } from '../src';
 import { DocumentElement, ParagraphElement } from '../src';
 import { minifyMiddleware } from '../src';
 import { JSDOMParser } from './utils/parser.helper';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 // Strip tagName metadata injected by parser to avoid updating all expected objects
 const _origParse = Parser.prototype.parse;
@@ -62,7 +63,7 @@ describe('Parser', () => {
     });
 
     it('parses a single element when handler registered', () => {
-      const handler = jest.fn().mockImplementation(
+      const handler = vi.fn().mockImplementation(
         (el: HTMLElement, options) =>
           ({
             type: 'paragraph',
@@ -86,7 +87,7 @@ describe('Parser', () => {
       ]);
     });
     it('is case-insensitive for tag names', () => {
-      const handler = jest.fn().mockReturnValue({
+      const handler = vi.fn().mockReturnValue({
         type: 'heading',
         text: 'HELLO',
         attributes: {},
@@ -99,7 +100,7 @@ describe('Parser', () => {
     });
 
     it('parses multiple sibling elements', () => {
-      const handler = jest.fn().mockImplementation(
+      const handler = vi.fn().mockImplementation(
         (el: HTMLElement) =>
           ({
             type: 'paragraph',
@@ -149,7 +150,7 @@ describe('Parser', () => {
     });
 
     it('handles malformed HTML gracefully', () => {
-      const handler = jest.fn().mockReturnValue({
+      const handler = vi.fn().mockReturnValue({
         type: 'paragraph',
         text: 'broken',
         attributes: {},

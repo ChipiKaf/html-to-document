@@ -1,5 +1,6 @@
 import { StyleMapperRegistry } from '../src/registry';
 import { StyleMapper } from '../src/style.mapper';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 describe('StyleMapperRegistry', () => {
   let registry: StyleMapperRegistry;
@@ -14,7 +15,7 @@ describe('StyleMapperRegistry', () => {
   });
 
   it('warns and returns undefined when mapper not registered', () => {
-    const spy = jest.spyOn(console, 'warn').mockImplementation();
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(registry.get('missing')).toBeUndefined();
     expect(spy).toHaveBeenCalledWith('Mapper for missing not registered');
     spy.mockRestore();

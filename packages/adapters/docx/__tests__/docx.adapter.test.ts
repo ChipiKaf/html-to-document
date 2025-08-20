@@ -3,6 +3,7 @@ import { DocumentElement } from 'html-to-document-core';
 import { minifyMiddleware } from 'html-to-document-core';
 import { Parser } from 'html-to-document-core';
 import { StyleMapper } from 'html-to-document-core';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   JSDOMParser,
   parseDocxDocument,
@@ -77,7 +78,7 @@ describe('Docx.adapter.convert', () => {
 
       beforeEach(() => {
         // @ts-ignore
-        global.fetch = jest.fn().mockResolvedValue({
+        global.fetch = vi.fn().mockResolvedValue({
           ok: true,
           arrayBuffer: async () => fakeArrayBuffer,
           headers: { get: () => 'image/png' },

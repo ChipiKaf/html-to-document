@@ -1,4 +1,5 @@
 import { minifyMiddleware } from '../src';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 describe('minifyMiddleware', () => {
   it('removes HTML comments', async () => {
