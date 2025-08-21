@@ -17,14 +17,14 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 2. **Install root dependencies (monorepo)**
 
    ```bash
-   bun install
+   pnpm install
    ```
 
 3. **Work in the core package**
 
    ```bash
    cd packages/core
-   bun run dev      # rebuilds on file change
+   pnpm run dev      # rebuilds on file change
    ```
 
    The watcher outputs compiled files to `packages/core/dist`.
@@ -34,8 +34,8 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
    ```bash
    # back to repo root
    cd ../../packages/demo
-   bun install      # pulls the fresh dist build
-   bun run dev      # launches the Vite demo at http://localhost:5173
+   pnpm install      # pulls the fresh dist build
+   pnpm run dev      # launches the Vite demo at http://localhost:5173
    ```
 
    > **Do not edit `index.ts` directly.**  
@@ -49,8 +49,8 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 5. **Run tests & lint**
 
    ```bash
-   bun run test                  # from repo root (runs workspace tests)
-   bun run lint
+   pnpm run test                  # from repo root (runs workspace tests)
+   pnpm run lint
    ```
 
 6. **Commit & Push**
@@ -72,7 +72,7 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
 - **TypeScript** only—no `any` unless unavoidable.
 - Keep functions small & focused.
 - Add/extend **unit tests** for every new feature or bug fix (`packages/core/__tests__`).
-- Run `bun run lint` and ensure no ESLint errors.
+- Run `pnpm run lint` and ensure no ESLint errors.
 
 ---
 
@@ -115,14 +115,14 @@ Follow the steps below to develop and test locally.
 2. **Install root dependencies**
 
    ```bash
-   bun install
+   pnpm install
    ```
 
 3. **Develop the library**
 
    ```bash
    # From repo root
-   bun run dev       # or `bun run build:watch` if you have that script
+   pnpm run dev       # or `pnpm run build:watch` if you have that script
    ```
 
    This watches `src/` and emits fresh code into `dist/` on every save.
@@ -131,8 +131,8 @@ Follow the steps below to develop and test locally.
 
    ```bash
    cd demo
-   bun install       # pulls the freshly‑built library from the root
-   bun run dev       # opens the demo at http://localhost:5173
+   pnpm install       # pulls the freshly‑built library from the root
+   pnpm run dev       # opens the demo at http://localhost:5173
    ```
 
    > **Do not edit `src/index.ts` in the demo directly.**  
@@ -147,8 +147,8 @@ Follow the steps below to develop and test locally.
 
    ```bash
    # back to repo root
-   bun test          # runs Jest tests in __tests__/
-   bun run lint
+   pnpm test          # runs tests in __tests__/
+   pnpm run lint
    ```
 
 6. **Commit & Push**
@@ -170,7 +170,7 @@ Follow the steps below to develop and test locally.
 - **TypeScript** only—avoid `any` unless absolutely unavoidable.
 - Keep functions small & focused.
 - Add or extend **unit tests** for every new feature or bug fix (`__tests__/`).
-- Run `bun run lint` and ensure no ESLint errors.
+- Run `pnpm run lint` and ensure no ESLint errors.
 
 ---
 

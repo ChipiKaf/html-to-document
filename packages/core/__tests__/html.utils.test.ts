@@ -9,6 +9,7 @@ import {
   extractAllAttributes,
 } from '../src/utils/html.utils';
 import { DocumentElement } from '../src/types';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 describe('html.utils', () => {
   describe('parseStyles', () => {

@@ -31,17 +31,22 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
-    "test": "jest",
+    "test": "vitest --watch false",
+    "test:watch": "vitest --watch",
     "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "dependencies": {
-    "html-to-document-core": "workspace:*",
     "pdf-parse": "^1.1.1"
+  },
+  "peerDependencies": {
+    "html-to-document-core": "workspace:*",
+    "jsdom": "*"
   },
   "devDependencies": {
     "html-to-document-core": "workspace:*",
-    "pdfkit": "^0.16.0"
+    "pdfkit": "^0.16.0",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=14"

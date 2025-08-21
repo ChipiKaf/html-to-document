@@ -78,14 +78,14 @@ new PdfAdapter(options: {
 
 ## Development
 
-1. Clone the repo and run `bun install` at the root.
-2. Build all workspaces: `bun run build`.
+1. Clone the repo and run `pnpm install` at the root.
+2. Build all workspaces: `pnpm run build`.
 3. To test this adapter only:
    ```bash
    cd packages/adapters/pdf
-   bun run test
+   pnpm run test
    ```
-4. Lint and format from root: `bun run lint` / `bun run format`.
+4. Lint and format from root: `pnpm run lint` / `pnpm run format`.
 
 ## License
 

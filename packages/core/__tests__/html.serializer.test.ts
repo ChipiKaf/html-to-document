@@ -3,6 +3,7 @@ import { JSDOMParser } from './utils/parser.helper';
 import { toHtml } from '../src/utils/html.serializer';
 import { minifyMiddleware } from 'html-to-document-core';
 import { DocumentElement } from '../src/types';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 describe('html.serializer', () => {
   let parser: Parser;

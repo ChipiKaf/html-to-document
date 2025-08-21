@@ -1,5 +1,6 @@
 import { init } from 'html-to-document-core';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
+import { describe, it, expect } from 'vitest';
 
 describe('e2e tests for init', () => {
   it('should be possible to run init without any error', () => {

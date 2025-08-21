@@ -1,8 +1,10 @@
 import { PDFDeconverter } from '../src/pdf.deconverter';
 import fs from 'fs';
+import { join } from 'path';
+import { describe, it, expect } from 'vitest';
 
 const samplePdf = fs.readFileSync(
-  'node_modules/pdf-parse/test/data/04-valid.pdf'
+  join(__dirname, '..', 'node_modules/pdf-parse/test/data/04-valid.pdf')
 );
 
 describe('PDFDeconverter', () => {

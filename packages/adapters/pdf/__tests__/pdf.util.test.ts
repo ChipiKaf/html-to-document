@@ -3,6 +3,18 @@ import {
   isNodeEnvironment,
   isBrowserEnvironment,
 } from '../src/pdf.util';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  MockedFunction,
+  Mocked,
+  Mock,
+  MockedClass,
+} from 'vitest';
 
 describe('pdf.util', () => {
   describe('createTempFileName', () => {

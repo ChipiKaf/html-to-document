@@ -2,10 +2,18 @@
   "name": "html-to-document-e2e-tests",
   "private": true,
   "scripts": {
-    "test": "jest"
+    "test": "vitest --watch false",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "html-to-document": "^0.3.0",
-    "html-to-document-adapter-docx": "^0.3.0"
+    "html-to-document": "workspace:*",
+    "html-to-document-core": "workspace:*",
+    "html-to-document-adapter-docx": "workspace:*"
+  },
+  "peerDependencies": {
+    "jsdom": "*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }

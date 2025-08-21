@@ -1,5 +1,6 @@
 import { ConverterRegistry } from '../src/registry';
 import { IDocumentConverter } from '../src/types';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 class DummyConverter implements IDocumentConverter {
   async convert(): Promise<Buffer> {
@@ -21,7 +22,7 @@ describe('ConverterRegistry', () => {
   });
 
   it('warns and returns undefined when converter not registered', () => {
-    const spy = jest.spyOn(console, 'warn').mockImplementation();
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(registry.get('nonexistent')).toBeUndefined();
     expect(spy).toHaveBeenCalledWith(
       'Converter for nonexistent not registered'

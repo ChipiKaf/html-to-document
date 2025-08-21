@@ -1,4 +1,5 @@
 import { MiddlewareManager } from '../src';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 describe('MiddlewareManager', () => {
   let manager: MiddlewareManager;

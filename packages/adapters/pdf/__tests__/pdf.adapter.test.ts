@@ -1,41 +1,61 @@
 import { PDFAdapter } from '../src/pdf.adapter';
 import { DocumentElement, StyleMapper } from 'html-to-document-core';
 import { JSDOM } from 'jsdom';
-import { jest } from '@jest/globals';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  MockedFunction,
+  Mocked,
+  Mock,
+  MockedClass,
+} from 'vitest';
 
 // Mock the libreoffice-convert module
-jest.mock('libreoffice-convert', () => ({
-  convert: jest.fn(),
+vi.mock('libreoffice-convert', () => ({
+  convert: vi.fn(),
 }));
 
 // Mock mammoth
-jest.mock('mammoth', () => ({
-  convertToHtml: jest.fn(),
-}));
+vi.mock('mammoth', () => {
+  const obj = {
+    convertToHtml: vi.fn(),
+  };
+  return {
+    ...obj,
+    default: obj,
+  };
+});
 
 // Mock html2pdf.js so that both the module itself **and** its `default` export are
 // callable builder functions (to satisfy both CJS and ESM import styles).
-jest.mock('html2pdf.js', () => {
+vi.mock('html2pdf.js', () => {
   // Fluent builder stub returned by calling html2pdf()
   const createMockBuilder = () => ({
-    set: jest.fn().mockReturnThis(),
-    from: jest.fn().mockReturnThis(),
-    outputPdf: jest.fn(),
+    set: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    outputPdf: vi.fn(),
   });
 
   // The main mock function (also used for `default`)
-  const mockHtml2Pdf: any = jest.fn(createMockBuilder);
-
-  // Ensure `default` is the same callable (for `import html2pdf from 'html2pdf.js'`)
-  mockHtml2Pdf.default = mockHtml2Pdf;
-
-  return mockHtml2Pdf;
+  // const mockHtml2Pdf: any = vi.fn(createMockBuilder);
+  //
+  // // Ensure `default` is the same callable (for `import html2pdf from 'html2pdf.js'`)
+  // mockHtml2Pdf.default = mockHtml2Pdf;
+  //
+  // return mockHtml2Pdf;
+  return {
+    default: vi.fn(createMockBuilder),
+  };
 });
 
 // Mock the DOCX adapter
-jest.mock('html-to-document-adapter-docx', () => ({
-  DocxAdapter: jest.fn().mockImplementation(() => ({
-    convert: jest.fn(),
+vi.mock('html-to-document-adapter-docx', () => ({
+  DocxAdapter: vi.fn().mockImplementation(() => ({
+    convert: vi.fn(),
   })),
 }));
 
@@ -44,9 +64,9 @@ import { DocxAdapter } from 'html-to-document-adapter-docx';
 import mammoth from 'mammoth';
 import html2pdf from 'html2pdf.js';
 
-const mockLibreOfficeConvert = convert as jest.MockedFunction<typeof convert>;
-const mockMammoth = mammoth as jest.Mocked<typeof mammoth>;
-const mockHtml2pdf = (html2pdf as any).default as jest.Mock;
+const mockLibreOfficeConvert = convert as MockedFunction<typeof convert>;
+const mockMammoth = mammoth as Mocked<typeof mammoth>;
+const mockHtml2pdf = html2pdf as Mock;
 
 // Helper to check if a buffer looks like a PDF
 const isPdf = (buffer: Buffer): boolean => {
@@ -56,20 +76,20 @@ const isPdf = (buffer: Buffer): boolean => {
 describe('PDFAdapter', () => {
   let adapter: PDFAdapter;
   let styleMapper: StyleMapper;
-  let mockDocxAdapter: jest.Mocked<DocxAdapter>;
+  let mockDocxAdapter: Mocked<DocxAdapter>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     styleMapper = new StyleMapper();
 
     // Create a mock DocxAdapter instance
     mockDocxAdapter = {
-      convert: jest.fn(),
+      convert: vi.fn(),
     } as any;
 
     // Mock the DocxAdapter constructor to return our mock instance
-    (DocxAdapter as jest.MockedClass<typeof DocxAdapter>).mockImplementation(
+    (DocxAdapter as MockedClass<typeof DocxAdapter>).mockImplementation(
       () => mockDocxAdapter
     );
 
@@ -241,7 +261,7 @@ describe('PDFAdapter', () => {
       // Mock document.createElement
       Object.defineProperty(globalThis, 'document', {
         value: {
-          createElement: jest.fn().mockReturnValue({
+          createElement: vi.fn().mockReturnValue({
             innerHTML: '',
           }),
         },
@@ -269,12 +289,12 @@ describe('PDFAdapter', () => {
       // });
 
       // // Mock html2pdf chain - set up the fluent API mock
-      // const mockOutputPdf = (jest.fn() as any).mockResolvedValue(
+      // const mockOutputPdf = (vi.fn() as any).mockResolvedValue(
       //   new Blob(['%PDF-mock'], { type: 'application/pdf' })
       // );
       // const mockInstance = {
-      //   set: jest.fn().mockReturnThis(),
-      //   from: jest.fn().mockReturnThis(),
+      //   set: vi.fn().mockReturnThis(),
+      //   from: vi.fn().mockReturnThis(),
       //   outputPdf: mockOutputPdf,
       // };
       // mockHtml2pdf.mockReturnValue(mockInstance);
@@ -307,12 +327,12 @@ describe('PDFAdapter', () => {
       });
 
       // Mock html2pdf chain - set up the fluent API mock
-      const mockOutputPdf = (jest.fn() as any).mockResolvedValue(
+      const mockOutputPdf = (vi.fn() as any).mockResolvedValue(
         new Blob(['%PDF-mock'], { type: 'application/pdf' })
       );
       const mockInstance = {
-        set: jest.fn().mockReturnThis(),
-        from: jest.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
         outputPdf: mockOutputPdf,
       };
       mockHtml2pdf.mockReturnValue(mockInstance);
