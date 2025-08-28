@@ -1,5 +1,11 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.4.1
+
+### Patch Changes
+
+- [`301a878`](https://github.com/ChipiKaf/html-to-document/commit/301a8784fc40e59e9b56b8003cf78a23463784af) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Switched to pnpm package manager
+
 ## 0.4.0
 
 ### Minor Changes
