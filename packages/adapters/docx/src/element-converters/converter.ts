@@ -249,12 +249,19 @@ export class ElementConverter {
   public convertToBlocks(options: {
     element: DocumentElement;
     cascadedStyles?: Styles;
+    /**
+     * Whether nested paragraphs should be inline with newlines around it
+     * @default false
+     */
+    inlineParagraphs?: boolean;
+    /** Handler for when encountering a block element within the content. */
     convertBlock?: (
       dependencies: ElementConverterDependencies,
       element: DocumentElement,
       index: number,
       cascadedStyles?: Styles
     ) => FileChild[];
+    /** Handler for wrapping inline elements "chunks" in a block element. */
     wrapInlineElements: (
       elements: ParagraphChild[],
       index: number
@@ -264,6 +271,7 @@ export class ElementConverter {
       element,
       cascadedStyles = {},
       wrapInlineElements,
+      inlineParagraphs = false,
       convertBlock = (dependencies, element, index, cascadedStyles) =>
         this.convertBlock(element, cascadedStyles),
     } = options;
@@ -280,7 +288,45 @@ export class ElementConverter {
       return wrapInlineElements(inlineElements, 0);
     }
 
-    const marked = element.content.map((child) => {
+    let content: DocumentElement[] = element.content;
+    if (inlineParagraphs) {
+      const contentLength = content.length;
+      content = content.map((child, i): DocumentElement => {
+        const isFirst = i === 0;
+        const isLast = i === contentLength - 1;
+        const isPrevParagraph = content[i - 1]?.type === 'paragraph';
+        if (child.type !== 'paragraph') {
+          return child;
+        }
+
+        const hasTextOrContent =
+          child.text || (child.content && child.content.length > 0);
+        const hasNewlineBefore =
+          hasTextOrContent && !isFirst && !isPrevParagraph;
+        const hasNewlineAfter = !isLast;
+
+        const br = {
+          type: 'text',
+          text: '',
+          metadata: {
+            tagName: 'br',
+            break: 1,
+          },
+        };
+
+        return {
+          type: 'text',
+          content: [
+            ...(hasNewlineBefore ? [br] : []),
+            ...(child.content ??
+              (child.text ? [{ type: 'text', text: child.text }] : [])),
+            ...(hasNewlineAfter ? [br] : []),
+          ],
+        };
+      });
+    }
+
+    const marked = content.map((child) => {
       const blockConverter = this.findBlockConverter(child);
 
       if (blockConverter) {

@@ -1017,6 +1017,149 @@ describe('Docx.adapter.convert', () => {
       expect(paragraphs[4]['w:pPr']['w:numPr']['w:ilvl']['@_w:val']).toBe('0');
       expect(paragraphs[4]['w:pPr']['w:numPr']['w:numId']['@_w:val']).toBe('2');
     });
+
+    describe('Nested paragraphs', () => {
+      it('should render a list if it has a nested paragraph inside a list item', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'list',
+            listType: 'unordered',
+            level: 0,
+            content: [
+              {
+                type: 'list-item',
+                level: 0,
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Item 1',
+                  },
+                  {
+                    type: 'paragraph',
+                    text: 'Nested paragraph in item 1',
+                    styles: { fontStyle: 'italic' },
+                  },
+                ],
+                metadata: { reference: 'unordered', level: '0' },
+              },
+              {
+                type: 'list-item',
+                level: 0,
+                content: [{ type: 'text', text: 'Item 2' }],
+                metadata: { reference: 'unordered', level: '0' },
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+
+        const json = await parseDocxDocument(buffer);
+        const paragraphs = json['w:document']['w:body']['w:p'];
+        expect(paragraphs).toHaveLength(2);
+        // First paragraph is a list item with "Item 1" and then a newline break and then "Nested paragraph in item 1"
+        // Second paragraph is "Item 2"
+
+        const paragraph1Runs = paragraphs[0]['w:r'];
+        // First: text, second: break, third: text
+        expect(paragraph1Runs).toHaveLength(3);
+        expect(paragraph1Runs[0]['w:t']['#text']).toBe('Item 1');
+        expect(paragraph1Runs[1]['w:br']).toBeDefined();
+        expect(paragraph1Runs[2]['w:t']['#text']).toBe(
+          'Nested paragraph in item 1'
+        );
+
+        // Check that the other list item was rendered correctly
+        expect(paragraphs[1]['w:r']['w:t']['#text']).toBe('Item 2');
+      });
+
+      it('should not add newlines, when it is the only element', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'list',
+            listType: 'unordered',
+            level: 0,
+            content: [
+              {
+                type: 'list-item',
+                level: 0,
+                content: [
+                  {
+                    type: 'paragraph',
+                    text: 'Nested paragraph in item 1',
+                    styles: { fontStyle: 'italic' },
+                  },
+                ],
+                metadata: { reference: 'unordered', level: '0' },
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        const json = await parseDocxDocument(buffer);
+        const paragraphs = json['w:document']['w:body']['w:p'];
+        // expect(paragraphs).toHaveLength(1);
+        const firstParagraph = paragraphs;
+        expect(firstParagraph['w:r']).toBeDefined();
+        expect(firstParagraph['w:r']['w:t']['#text']).toBe(
+          'Nested paragraph in item 1'
+        );
+        // Ensure that it is still a list item
+        expect(firstParagraph['w:pPr']['w:numPr']['w:ilvl']['@_w:val']).toBe(
+          '0'
+        );
+      });
+
+      it('should create a newline before and after if there is text before and after the nested paragraph', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'list',
+            listType: 'unordered',
+            level: 0,
+            content: [
+              {
+                type: 'list-item',
+                level: 0,
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Item 1',
+                  },
+                  {
+                    type: 'paragraph',
+                    text: 'Nested paragraph in item 1',
+                    styles: { fontStyle: 'italic' },
+                  },
+                  {
+                    type: 'text',
+                    text: 'Item 1 continued',
+                  },
+                ],
+                metadata: { reference: 'unordered', level: '0' },
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        const json = await parseDocxDocument(buffer);
+        const paragraphs = json['w:document']['w:body']['w:p'];
+        // expect(paragraphs).toHaveLength(1);
+        const firstParagraph = paragraphs;
+        expect(firstParagraph['w:r']).toBeDefined();
+        const paragraphRuns = firstParagraph['w:r'];
+        // First: text, second: break, third: text, fourth: break, fifth: text
+        expect(paragraphRuns).toHaveLength(5);
+        expect(paragraphRuns[0]['w:t']['#text']).toBe('Item 1');
+        expect(paragraphRuns[1]['w:br']).toBeDefined();
+        expect(paragraphRuns[2]['w:t']['#text']).toBe(
+          'Nested paragraph in item 1'
+        );
+        expect(paragraphRuns[3]['w:br']).toBeDefined();
+        expect(paragraphRuns[4]['w:t']['#text']).toBe('Item 1 continued');
+      });
+    });
   });
   describe('Line', () => {
     it('should convert a horizontal line (type "line") to a DOCX paragraph with a bottom border', async () => {
