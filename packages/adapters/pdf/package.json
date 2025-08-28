@@ -52,6 +52,8 @@
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
   },
   "dependencies": {
+    "html-to-document-core": "workspace:*",
+    "html-to-document-adapter-docx": "workspace:^",
     "html2pdf.js": "^0.10.2",
     "libreoffice-convert": "^1.6.1",
     "mammoth": "^1.6.0",
@@ -61,12 +63,9 @@
     "node": ">=14"
   },
   "peerDependencies": {
-    "html-to-document-core": "workspace:*",
     "jsdom": "*"
   },
   "devDependencies": {
-    "html-to-document-core": "workspace:*",
-    "html-to-document-adapter-docx": "workspace:^",
     "pdf-parse": "^1.1.1",
     "vitest": "^3.2.4"
   }

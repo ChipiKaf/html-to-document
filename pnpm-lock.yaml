@@ -112,6 +112,9 @@ importers:
       docx:
         specifier: ^9.4.0
         version: 9.5.1
+      html-to-document-core:
+        specifier: workspace:*
+        version: link:../../core
       image-size:
         specifier: ^2.0.2
         version: 2.0.2
@@ -122,9 +125,6 @@ importers:
       '@types/probe-image-size':
         specifier: ^7.2.5
         version: 7.2.5
-      html-to-document-core:
-        specifier: workspace:^
-        version: link:../../core
       ts-toolbelt:
         specifier: ^9.6.0
         version: 9.6.0
@@ -134,6 +134,12 @@ importers:
 
   packages/adapters/pdf:
     dependencies:
+      html-to-document-adapter-docx:
+        specifier: workspace:^
+        version: link:../docx
+      html-to-document-core:
+        specifier: workspace:*
+        version: link:../../core
       html2pdf.js:
         specifier: ^0.10.2
         version: 0.10.3
@@ -150,12 +156,6 @@ importers:
         specifier: ^1.1.0
         version: 1.2.0
     devDependencies:
-      html-to-document-adapter-docx:
-        specifier: workspace:^
-        version: link:../docx
-      html-to-document-core:
-        specifier: workspace:*
-        version: link:../../core
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -193,6 +193,9 @@ importers:
 
   packages/deconverters/pdf:
     dependencies:
+      html-to-document-core:
+        specifier: workspace:*
+        version: link:../../core
       jsdom:
         specifier: '*'
         version: 26.1.0
@@ -200,9 +203,6 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
     devDependencies:
-      html-to-document-core:
-        specifier: workspace:*
-        version: link:../../core
       pdfkit:
         specifier: ^0.16.0
         version: 0.16.0

@@ -52,18 +52,15 @@
   },
   "dependencies": {
     "docx": "^9.4.0",
+    "html-to-document-core": "workspace:*",
     "image-size": "^2.0.2",
     "jszip": "^3.10.1"
   },
   "engines": {
     "node": ">=14"
   },
-  "peerDependencies": {
-    "html-to-document-core": "workspace:*"
-  },
   "devDependencies": {
     "@types/probe-image-size": "^7.2.5",
-    "html-to-document-core": "workspace:^",
     "ts-toolbelt": "^9.6.0",
     "vitest": "^3.2.4"
   }
