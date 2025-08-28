@@ -1,5 +1,15 @@
 # html-to-document
 
+## 0.4.3
+
+### Patch Changes
+
+- [`301a878`](https://github.com/ChipiKaf/html-to-document/commit/301a8784fc40e59e9b56b8003cf78a23463784af) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Switched to pnpm package manager
+
+- Updated dependencies [[`301a878`](https://github.com/ChipiKaf/html-to-document/commit/301a8784fc40e59e9b56b8003cf78a23463784af)]:
+  - html-to-document-adapter-docx@0.4.2
+  - html-to-document-core@0.4.1
+
 ## 0.4.2
 
 ### Patch Changes
