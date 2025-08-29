@@ -53,7 +53,13 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
    pnpm run lint
    ```
 
-6. **Commit & Push**
+6. **Add changesets that will be added to changelog**
+
+   ```bash
+   pnpm run changeset             # from repo root
+   ```
+
+7. **Commit & Push**
 
    ```bash
    git checkout -b my-feature
@@ -62,7 +68,7 @@ Whether you’re fixing a bug, adding a feature, or improving docs, your help ma
    git push origin my-feature
    ```
 
-7. **Open a Pull Request** against `ChipiKaf/html-to-document:main`  
+8. **Open a Pull Request** against `ChipiKaf/html-to-document:main`  
    Describe **what** and **why** clearly. If it fixes an issue, reference it (e.g., `Fixes #123`).
 
 ---
@@ -151,7 +157,13 @@ Follow the steps below to develop and test locally.
    pnpm run lint
    ```
 
-6. **Commit & Push**
+6. **Add changesets that will be added to changelog**
+
+   ```bash
+   pnpm run changeset             # from repo root
+   ```
+
+7. **Commit & Push**
 
    ```bash
    git checkout -b my-feature
@@ -160,7 +172,7 @@ Follow the steps below to develop and test locally.
    git push origin my-feature
    ```
 
-7. **Open a Pull Request**  
+8. **Open a Pull Request**  
    Describe **what** you changed and **why**. If it fixes an issue, reference it (e.g., `Fixes #123`).
 
 ---
