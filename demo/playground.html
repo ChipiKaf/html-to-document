@@ -12,6 +12,9 @@
         grid-template-columns: 1fr 1fr;
       }
 
+      .actions {
+      }
+
       #editor-input {
         height: 100%;
         border-right: 1px solid #ccc;
@@ -26,6 +29,11 @@
     </style>
   </head>
   <body>
+    <div class="actions">
+      <div class="actions__export">
+        <button id="export-docx">Export DOCX</button>
+      </div>
+    </div>
     <div class="playground">
       <div id="editor-input">
         <div>HTML Input</div>
