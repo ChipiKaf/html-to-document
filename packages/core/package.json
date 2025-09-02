@@ -26,15 +26,12 @@
   "exports": {
     ".": {
       "types": {
-        "development": "./src/index.ts",
         "default": "./dist/index.d.ts"
       },
       "require": {
-        "development": "./src/index.ts",
         "default": "./dist/index.js"
       },
       "import": {
-        "development": "./src/index.ts",
         "default": "./dist/index.js"
       }
     },
