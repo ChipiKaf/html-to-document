@@ -1,0 +1,68 @@
+name: Create Snapshot Release
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  snapshot:
+    # This job only runs for pull request comments by maintainers (OWNER, MEMBER, COLLABORATOR)
+    # that start with the "/snapshot" command.
+    if: |
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/snapshot') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          # We need to fetch all branches and commits so that changesets can generate the correct changelogs.
+          fetch-depth: 0
+
+      - name: Setup PNPM
+        # Uses the packageManager field from package.json to determine the PNPM version.
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all workspaces
+        run: pnpm run build
+
+      - name: Configure npm auth (token + provenance)
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          echo "provenance=true" >> ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # This step extracts the snapshot name from the comment body.
+      # For example, "/snapshot my-feature" becomes "my-feature".
+      - name: Get snapshot name
+        id: get_snapshot_name
+        run: echo "name=$(echo '${{ github.event.comment.body }}' | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      # This action uses Changesets to version, publish a snapshot release to npm,
+      # and comments on the pull request with a summary of the release.
+      - name: Create and Publish Snapshot
+        uses: the-guild-org/changesets-snapshot-action@v0.0.2
+        with:
+          # The name for the snapshot release, extracted from the comment.
+          tag: ${{ steps.get_snapshot_name.outputs.name }}
+          prepareScript: 'pnpm build'
+        env:
+          # GITHUB_TOKEN is used to post a comment back to the PR.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # NPM_TOKEN is required to publish packages to the npm registry.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
