@@ -8,6 +8,7 @@ import {
   Footer,
   ISectionOptions,
   Table,
+  IPropertiesOptions,
 } from 'docx';
 import {
   DocumentElement,
@@ -27,6 +28,7 @@ export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
   private _docxElementConverter: ElementConverter;
+  private readonly documentOptions: NonNullable<Config['documentOptions']>;
 
   constructor(
     { styleMapper, defaultStyles }: IConverterDependencies,
@@ -43,6 +45,7 @@ export class DocxAdapter implements IDocumentConverter {
       config
     );
     this._docxElementConverter = docxElementConverter;
+    this.documentOptions = config?.documentOptions ?? {};
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -77,7 +80,7 @@ export class DocxAdapter implements IDocumentConverter {
       docSections.push(options);
     }
 
-    const doc = new Document({
+    const defaultOptions: Partial<IPropertiesOptions> = {
       numbering: {
         config: [
           {
@@ -127,6 +130,18 @@ export class DocxAdapter implements IDocumentConverter {
           },
         ],
       },
+    };
+
+    const documentOptions =
+      typeof this.documentOptions === 'function'
+        ? this.documentOptions(defaultOptions)
+        : {
+            ...defaultOptions,
+            ...this.documentOptions,
+          };
+
+    const doc = new Document({
+      ...documentOptions,
       sections: docSections,
     });
 
