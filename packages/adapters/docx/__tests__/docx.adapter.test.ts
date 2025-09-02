@@ -10,6 +10,7 @@ import {
   parseDocxXml,
 } from '../../../core/__tests__/utils/parser.helper';
 import JSZip from 'jszip';
+import { AlignmentType, NumberFormat } from 'docx';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
@@ -1827,5 +1828,129 @@ describe('Docx.adapter.convert', () => {
     const json = await parseDocxDocument(buffer);
 
     expect(json['w:document']['w:body']['w:p']).toBeDefined();
+  });
+
+  describe('Custom docx document options', () => {
+    it('should apply custom document options', async () => {
+      const customAdapter = new DocxAdapter(
+        {
+          styleMapper: new StyleMapper(),
+        },
+        {
+          documentOptions: {
+            numbering: {
+              config: [
+                {
+                  reference: 'ordered',
+                  levels: [
+                    {
+                      level: 0,
+                      format: NumberFormat.DECIMAL,
+                      text: '%1:',
+                      alignment: AlignmentType.LEFT,
+                      style: {
+                        paragraph: { indent: { left: 240, hanging: 240 } },
+                      },
+                    },
+                    {
+                      level: 1,
+                      format: NumberFormat.DECIMAL,
+                      text: '%2:',
+                      alignment: AlignmentType.LEFT,
+                      style: {
+                        paragraph: { indent: { left: 480, hanging: 240 } },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }
+      );
+
+      const html = `<ol class="ordered"><li>Indent level 0 a</li><li><ol><li>Indent level 1</li><li><ol class="ordered"><li>Indent level 2 a</li><li>Indent level 2 b</li></ol></li></ol></li><li>Indent level 0 b</li></ol>`;
+
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/numbering.xml');
+      const abstractNums = parsed['w:numbering']['w:abstractNum'];
+      expect(abstractNums).toBeDefined();
+      expect(abstractNums).toHaveLength(2);
+      const custom = abstractNums.find(
+        (a: any) => a['@_w:abstractNumId'] === '2'
+      );
+      expect(custom).toBeDefined();
+      expect(custom['w:lvl']).toHaveLength(2);
+      expect(custom['w:lvl'][0]['@_w:ilvl']).toBe('0');
+      expect(custom['w:lvl'][0]['w:numFmt']['@_w:val']).toBe('decimal');
+      expect(custom['w:lvl'][0]['w:lvlText']['@_w:val']).toBe('%1:');
+
+      expect(custom['w:lvl'][1]['@_w:ilvl']).toBe('1');
+      expect(custom['w:lvl'][1]['w:numFmt']['@_w:val']).toBe('decimal');
+      expect(custom['w:lvl'][1]['w:lvlText']['@_w:val']).toBe('%2:');
+    });
+    it('should apply custom document options with a function', async () => {
+      const customAdapter = new DocxAdapter(
+        {
+          styleMapper: new StyleMapper(),
+        },
+        {
+          documentOptions: (defaultOptions) => ({
+            ...defaultOptions,
+            numbering: {
+              config: [
+                // ...(defaultOptions.numbering?.config.filter(
+                //   (n) => n.reference !== 'ordered'
+                // ) ?? []),
+                {
+                  reference: 'ordered',
+                  levels: [
+                    {
+                      level: 0,
+                      format: NumberFormat.DECIMAL,
+                      text: '%1:',
+                      alignment: AlignmentType.LEFT,
+                      style: {
+                        paragraph: { indent: { left: 240, hanging: 240 } },
+                      },
+                    },
+                    {
+                      level: 1,
+                      format: NumberFormat.DECIMAL,
+                      text: '%2:',
+                      alignment: AlignmentType.LEFT,
+                      style: {
+                        paragraph: { indent: { left: 480, hanging: 240 } },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }
+      );
+
+      const html = `<ol class="ordered"><li>Indent level 0 a</li><li><ol><li>Indent level 1</li><li><ol class="ordered"><li>Indent level 2 a</li><li>Indent level 2 b</li></ol></li></ol></li><li>Indent level 0 b</li></ol>`;
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/numbering.xml');
+
+      const abstractNums = parsed['w:numbering']['w:abstractNum'];
+      expect(abstractNums).toBeDefined();
+      expect(abstractNums).toHaveLength(2);
+      const custom = abstractNums.find(
+        (a: any) => a['@_w:abstractNumId'] === '2'
+      );
+      expect(custom).toBeDefined();
+      expect(custom['w:lvl']).toHaveLength(2);
+      expect(custom['w:lvl'][0]['@_w:ilvl']).toBe('0');
+      expect(custom['w:lvl'][0]['w:numFmt']['@_w:val']).toBe('decimal');
+      expect(custom['w:lvl'][0]['w:lvlText']['@_w:val']).toBe('%1:');
+      expect(custom['w:lvl'][1]['@_w:ilvl']).toBe('1');
+      expect(custom['w:lvl'][1]['w:numFmt']['@_w:val']).toBe('decimal');
+      expect(custom['w:lvl'][1]['w:lvlText']['@_w:val']).toBe('%2:');
+    });
   });
 });
