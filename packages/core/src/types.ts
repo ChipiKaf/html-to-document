@@ -358,9 +358,9 @@ export type StyleMapping = Partial<
 /**
  * Constructor type for adapter providers, given converter dependencies.
  */
-export type AdapterProvider<T = unknown> = new (
+export type AdapterProvider<ConfigType = unknown> = new (
   dependencies: IConverterDependencies,
-  config?: T
+  config?: ConfigType
 ) => IDocumentConverter;
 
 // export type ConverterOptions = {
@@ -386,17 +386,19 @@ export type AdapterProvider<T = unknown> = new (
 //   domParser?: IDOMParser;
 // };
 
-export type AdapterRegistration<T extends AdapterProvider = AdapterProvider> = {
+export type AdapterRegistration<
+  AdapterType extends AdapterProvider = AdapterProvider,
+> = {
   /** The document format this adapter handles (e.g. 'docx', 'pdf'). */
   format: Formats;
 
   /** The adapter provider class for this format. */
-  adapter: T;
+  adapter: AdapterType;
 
   /**
    * Custom configuration for the Adapter.
    */
-  config?: ConstructorParameters<T>[1];
+  config?: ConstructorParameters<AdapterType>[1];
 };
 
 /**
@@ -411,9 +413,13 @@ export type AdapterRegistration<T extends AdapterProvider = AdapterProvider> = {
  *   - register: Array of adapter registration objects, each with a format and an AdapterProvider.
  * @property domParser Optional custom DOM parser implementation to use for HTML parsing.
  */
-export type InitOptions = {
+export type InitOptions<
+  // it should be okay to use any in a generic context
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  T extends readonly AdapterProvider<any>[] = AdapterProvider<any>[],
+> = {
   /** Optional middleware functions to apply */
-  middleware?: Middleware[];
+  middleware?: readonly Middleware[];
   /**
    * Optional configuration for custom tag handlers and tag-related options.
    *
@@ -428,12 +434,12 @@ export type InitOptions = {
    */
   tags?: {
     /** Array of custom tag handler objects for parsing specific HTML tags. */
-    tagHandlers?: TagHandlerObject[];
+    tagHandlers?: readonly TagHandlerObject[];
     defaultStyles?: {
       key: keyof HTMLElementTagNameMap;
       styles: Partial<Record<keyof CSS.Properties, string | number>>;
     }[];
-    defaultAttributes?: {
+    defaultAttributes?: readonly {
       key: keyof HTMLElementTagNameMap;
       attributes: Record<string, string | number>;
     }[];
@@ -467,7 +473,7 @@ export type InitOptions = {
      *     }
      *   ]
      */
-    defaultStyles?: {
+    defaultStyles?: readonly {
       /** The document format these styles apply to (e.g. 'docx', 'pdf'). */
       format: Formats;
       /** The default styles object to use for this format. */
@@ -489,7 +495,7 @@ export type InitOptions = {
      *     }
      *   ]
      */
-    styleMappings?: {
+    styleMappings?: readonly {
       /** The document format this mapping applies to (e.g. 'docx', 'pdf'). */
       format: Formats;
       /** The mapping of HTML/CSS styles to document styles for this format. */
@@ -509,8 +515,7 @@ export type InitOptions = {
      *     { format: 'pdf', adapter: PdfAdapter }
      *   ]
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    register?: AdapterRegistration<AdapterProvider<any>>[];
+    register?: { readonly [K in keyof T]: AdapterRegistration<T[K]> };
   };
   /** Optional DOM parser to use */
   domParser?: IDOMParser;

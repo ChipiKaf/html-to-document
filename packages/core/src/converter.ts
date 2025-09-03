@@ -102,8 +102,18 @@ export const createRegistration = <T extends AdapterProvider<any>>(
   return registration;
 };
 
-export const init = (options: InitOptions = {}) => {
-  const { middleware, tags, adapters, domParser } = options;
+// it should be okay to use any in a generic context
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const init = <const T extends readonly AdapterProvider<any>[]>(
+  options?: InitOptions<T>
+) => {
+  const {
+    middleware,
+    tags,
+    adapters,
+    domParser,
+    clearMiddleware = false,
+  } = options ?? {};
 
   // Initialize registered adapters and inject style mapper
   const registerAdapters = adapters?.register?.map(
@@ -141,7 +151,7 @@ export const init = (options: InitOptions = {}) => {
   });
 
   // Default middleware
-  if (!options.clearMiddleware) {
+  if (!clearMiddleware) {
     converter.useMiddleware(minifyMiddleware);
   }
 
