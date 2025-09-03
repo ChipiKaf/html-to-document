@@ -22,17 +22,19 @@ import {
 import { NumberFormat, AlignmentType } from 'docx';
 import { toBinaryBuffer } from './docx.util';
 import { ElementConverter } from './element-converters/converter';
-import { Config } from './docx.types';
+import { DocxAdapterConfig } from './docx.types';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
   private _docxElementConverter: ElementConverter;
-  private readonly documentOptions: NonNullable<Config['documentOptions']>;
+  private readonly documentOptions: NonNullable<
+    DocxAdapterConfig['documentOptions']
+  >;
 
   constructor(
     { styleMapper, defaultStyles }: IConverterDependencies,
-    config?: Config
+    config?: DocxAdapterConfig
   ) {
     this._mapper = styleMapper;
     this._defaultStyles = { ...defaultStyles };
