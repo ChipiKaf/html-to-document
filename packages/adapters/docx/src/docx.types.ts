@@ -21,7 +21,7 @@ export type DocxElement =
 
 type OptionalOptions = Omit<Partial<IPropertiesOptions>, 'sections'>;
 
-export type Config = {
+export type DocxAdapterConfig = {
   blockConverters?: IBlockConverter[];
   inlineConverters?: IInlineConverter[];
   fallthroughConverters?: FallthroughConverter[];

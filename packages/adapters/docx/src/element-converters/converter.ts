@@ -21,7 +21,7 @@ import { ListConverter } from './block/list';
 import { HeadingConverter } from './block/heading';
 import { TableConverter } from './block/table';
 import { IdInlineConverter } from './fallthrough/id';
-import { Config } from '../docx.types';
+import { DocxAdapterConfig } from '../docx.types';
 
 export class ElementConverter {
   private readonly blockConverters: IBlockConverter[];
@@ -35,7 +35,7 @@ export class ElementConverter {
 
   constructor(
     { styleMapper, defaultStyles }: IConverterDependencies,
-    config?: Config
+    config?: DocxAdapterConfig
   ) {
     const {
       blockConverters = [],
