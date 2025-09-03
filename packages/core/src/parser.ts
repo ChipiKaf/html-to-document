@@ -49,13 +49,13 @@ export class Parser {
     Record<string, string | number>
   >;
   constructor(
-    tagHandlers?: TagHandlerObject[],
+    tagHandlers?: readonly TagHandlerObject[],
     domParser?: IDOMParser,
-    defaultStyles: {
+    defaultStyles: readonly {
       key: keyof HTMLElementTagNameMap;
       styles: Partial<Record<keyof CSS.Properties, string | number>>;
     }[] = [],
-    defaultAttributes: {
+    defaultAttributes: readonly {
       key: keyof HTMLElementTagNameMap;
       attributes: Record<string, string | number>;
     }[] = []
