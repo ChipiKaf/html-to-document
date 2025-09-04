@@ -1,5 +1,14 @@
 ## <small>0.2.9 (2025-06-07)</small>
 
+## 0.3.3
+
+### Patch Changes
+
+- [#41](https://github.com/ChipiKaf/html-to-document/pull/41) [`5ef52e5`](https://github.com/ChipiKaf/html-to-document/commit/5ef52e527401d3397de5702b23076cc0c93b110b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - remove conditional exports as they don't work downstream
+
+- Updated dependencies [[`4127e41`](https://github.com/ChipiKaf/html-to-document/commit/4127e41c79a04d775145d4742341ec73b3e230f5), [`5ef52e5`](https://github.com/ChipiKaf/html-to-document/commit/5ef52e527401d3397de5702b23076cc0c93b110b)]:
+  - html-to-document-core@0.4.2
+
 ## 0.3.2
 
 ### Patch Changes
