@@ -1,5 +1,20 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.5.0
+
+### Minor Changes
+
+- [#40](https://github.com/ChipiKaf/html-to-document/pull/40) [`ae22e43`](https://github.com/ChipiKaf/html-to-document/commit/ae22e439ef5376e92df15e1a924dee8adc5b10fe) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Can now modify document options
+
+### Patch Changes
+
+- [#41](https://github.com/ChipiKaf/html-to-document/pull/41) [`5ef52e5`](https://github.com/ChipiKaf/html-to-document/commit/5ef52e527401d3397de5702b23076cc0c93b110b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - remove conditional exports as they don't work downstream
+
+- [#44](https://github.com/ChipiKaf/html-to-document/pull/44) [`5ac143b`](https://github.com/ChipiKaf/html-to-document/commit/5ac143b60c9091466dc74237ecdc95de1f30f755) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Allow element converters to be imported
+
+- Updated dependencies [[`4127e41`](https://github.com/ChipiKaf/html-to-document/commit/4127e41c79a04d775145d4742341ec73b3e230f5), [`5ef52e5`](https://github.com/ChipiKaf/html-to-document/commit/5ef52e527401d3397de5702b23076cc0c93b110b)]:
+  - html-to-document-core@0.4.2
+
 ## 0.4.2
 
 ### Patch Changes

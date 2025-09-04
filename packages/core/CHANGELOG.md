@@ -1,5 +1,13 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.4.2
+
+### Patch Changes
+
+- [#43](https://github.com/ChipiKaf/html-to-document/pull/43) [`4127e41`](https://github.com/ChipiKaf/html-to-document/commit/4127e41c79a04d775145d4742341ec73b3e230f5) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Added intellisense for init adapter config
+
+- [#41](https://github.com/ChipiKaf/html-to-document/pull/41) [`5ef52e5`](https://github.com/ChipiKaf/html-to-document/commit/5ef52e527401d3397de5702b23076cc0c93b110b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - remove conditional exports as they don't work downstream
+
 ## 0.4.1
 
 ### Patch Changes
