@@ -5,6 +5,9 @@ import {
   toHtml,
 } from 'html-to-document-core';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
+/// <reference types="./pdfkit-standalone" />
+import PDFDocument from 'pdfkit/js/pdfkit.standalone';
+import { isNodeEnvironment } from './pdf.util';
 
 // ---- html2pdf.js type helpers -------------------------------------------
 type Html2PdfBuilder = {
@@ -34,45 +37,121 @@ export class PDFAdapter implements IDocumentConverter {
     this._defaultStyles = { ...(dependencies.defaultStyles ?? {}) };
   }
 
-  async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
-    try {
-      // Step 1: Convert to DOCX using the existing DocxAdapter
-      const htmlString = toHtml(elements, this._defaultStyles);
-      if (typeof window !== 'undefined') {
-        // Browser: feed HTML straight to html2pdf
-        return await this.convertHtmlInBrowser(htmlString);
-      } else {
-        // Node: fall back to DOCX ➜ PDF pathway (unchanged for now)
-        const docxResult = await this.docxAdapter.convert(elements);
-        return await this.convertInNode(docxResult as Buffer);
+  private convertElement(doc: typeof PDFDocument, elements: DocumentElement[]) {
+    for (const element of elements) {
+      switch (element.type) {
+        case 'page': {
+          doc.addPage();
+          this.convertElement(doc, element.content || []);
+          break;
+        }
+        // case 'heading': {
+        //   if (element.text) {
+        //     doc.text(element.text);
+        //   } else {
+        //     this.convertElement(doc, element.content || []);
+        //   }
+        //   break;
+        // }
+        case 'text': {
+          if (element.text) {
+            doc.text(element.text);
+          } else {
+            this.convertElement(doc, element.content || []);
+          }
+          break;
+        }
+        case 'paragraph': {
+          if (element.text) {
+            doc.text(element.text);
+          } else {
+            this.convertElement(doc, element.content || []);
+          }
+          doc.moveDown();
+          break;
+        }
       }
-    } catch (error) {
-      throw new Error(
-        `PDF conversion failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
     }
   }
 
-  private async convertInNode(docxBuffer: Buffer): Promise<Buffer> {
-    try {
-      // Dynamic import for Node.js environment
-      const { convert } = await import('libreoffice-convert');
-      const { promisify } = await import('util');
-      const convertAsync = promisify(convert);
+  async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
+    return new Promise((resolve, reject) => {
+      const autoFirstPage = elements.length > 0 && elements[0]?.type !== 'page';
+      const doc = new PDFDocument({
+        autoFirstPage,
+      });
+      const chunks: any[] = [];
 
-      // Convert DOCX to PDF using libre-office-convert
-      const pdfBuffer = await convertAsync(docxBuffer, '.pdf', undefined);
-      return pdfBuffer as Buffer;
-    } catch (error) {
-      throw new Error(
-        `LibreOffice conversion failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+      doc.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      doc.on('error', (err) => {
+        reject(err);
+      });
+      doc.on('end', () => {
+        // const result = Buffer.concat(chunks);
+        // resolve(result);
+        if (isNodeEnvironment()) {
+          const result = Buffer.concat(chunks);
+          console.log('PDFAdapter: resolved buffer:', result);
+          resolve(result);
+        } else {
+          const blob = new Blob(chunks, { type: 'application/pdf' });
+          console.log('PDFAdapter: resolved blob:', blob);
+          resolve(blob);
+        }
+      });
+
+      this.convertElement(doc, elements);
+
+      // stream.on('finish', () => {
+      //   const blob = stream.toBlob('application/pdf');
+      //   resolve(blob);
+      // });
+      // stream.on('error', (err) => {
+      //   reject(err);
+      // });
+      doc.end();
+    });
   }
+
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
+  //
 
   /**
    * Inserts a <div class="html2pdf__page-break"> before an <img> element only
@@ -103,131 +182,5 @@ export class PDFAdapter implements IDocumentConverter {
       probe.onerror = () => resolve(100);
       probe.src = img.getAttribute('src') || '';
     });
-  }
-
-  private async insertPageBreaks(html: string): Promise<string> {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    const PAGE_HEIGHT = 9 * 96; // letter page minus 1in margins -> px
-    const LINE_HEIGHT = 16; // rough text line height in px
-    const IMAGE_PADDING = 20; // extra padding for images
-    const ELEMENT_MARGIN = 36; // approximate top/bottom margin per block
-
-    const breakBefore: Element[] = [];
-
-    // Pre-measure all images
-    const imgs = Array.from(doc.querySelectorAll('img')) as HTMLImageElement[];
-    const heights = await Promise.all(imgs.map((i) => this.getImageHeight(i)));
-    const imgHeights = new Map<HTMLImageElement, number>();
-    imgs.forEach((img, idx) =>
-      imgHeights.set(img, heights[idx]! + IMAGE_PADDING)
-    );
-
-    let remaining = PAGE_HEIGHT;
-
-    const container =
-      doc.body.children.length === 1
-        ? (doc.body.firstElementChild as HTMLElement)
-        : doc.body;
-
-    const estimateHeight = (element: Element): number => {
-      if (element.tagName.toLowerCase() === 'img') {
-        return (
-          (imgHeights.get(element as HTMLImageElement) || 100) + ELEMENT_MARGIN
-        );
-      }
-
-      const txt = element.textContent ?? '';
-      const lines = Math.ceil(txt.trim().length / 80) || 1;
-      let height = lines * LINE_HEIGHT;
-
-      const innerImgs = Array.from(element.querySelectorAll('img'));
-      for (const img of innerImgs) {
-        height += imgHeights.get(img as HTMLImageElement) || 100;
-      }
-      height += ELEMENT_MARGIN;
-
-      return height;
-    };
-
-    const elements = Array.from(container.children);
-
-    for (const el of elements) {
-      if (el.classList.contains('html2pdf__page-break')) {
-        remaining = PAGE_HEIGHT;
-        continue;
-      }
-
-      const elHeight = estimateHeight(el);
-
-      if (elHeight >= remaining) {
-        breakBefore.push(el);
-        remaining = PAGE_HEIGHT - elHeight;
-      } else {
-        remaining -= elHeight;
-      }
-
-      if (remaining <= 0) {
-        remaining = PAGE_HEIGHT;
-      }
-    }
-
-    breakBefore.forEach((img) => {
-      const pageBreak = doc.createElement('div');
-      pageBreak.className = 'html2pdf__page-break';
-      img.parentNode?.insertBefore(pageBreak, img);
-    });
-
-    return doc.body.innerHTML;
-  }
-
-  private async convertHtmlInBrowser(html: string): Promise<Blob> {
-    try {
-      // Pre‑process HTML so each image starts on a fresh page
-      const processedHtml = await this.insertPageBreaks(html);
-
-      const html2pdfModule = (await import('html2pdf.js')) as {
-        default?: Html2PdfExport;
-      } & Record<string, unknown>;
-
-      const maybeExport = html2pdfModule.default ?? html2pdfModule;
-
-      let builder: Html2PdfBuilder;
-      if (typeof maybeExport === 'function') {
-        builder = (maybeExport as (...args: never[]) => Html2PdfBuilder)();
-      } else if (isHtml2PdfBuilder(maybeExport)) {
-        builder = maybeExport;
-      } else {
-        throw new Error(
-          'html2pdf module did not export a callable factory or builder object'
-        );
-      }
-      // wrap HTML string in a container for html2pdf
-      const opt = {
-        margin: 1,
-        filename: 'document.pdf',
-        // image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true, // allow cross‑origin images
-          allowTaint: false, // keep canvas clean when CORS succeeds
-          imageTimeout: 15000, // wait up to 15 s for images
-        },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      };
-
-      const pdfBlob = await builder
-        .set(opt)
-        .from(processedHtml)
-        .outputPdf('blob');
-      return pdfBlob as Blob;
-    } catch (error) {
-      throw new Error(
-        `Browser PDF conversion failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
   }
 }
