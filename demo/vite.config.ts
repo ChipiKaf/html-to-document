@@ -13,6 +13,9 @@ export default defineConfig({
         : path.resolve(__dirname, 'src/index.ts'),
     },
   },
+  define: {
+    global: 'globalThis',
+  },
   build: {
     outDir: 'dist',
   },
