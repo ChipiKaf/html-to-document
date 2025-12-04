@@ -16,7 +16,10 @@ import {
   VerticalPositionRelativeFrom,
   TextWrappingType,
   TextWrappingSide,
+  IImageOptions,
+  ITableRowOptions,
 } from 'docx';
+import { DeepPartial } from './utils/types';
 
 const parseWidth = (value: string) => {
   if (value.endsWith('px')) {
@@ -265,12 +268,33 @@ export class StyleMapper {
         if (el.type === 'image') {
           const px = parseImageSizePx(String(v));
           return typeof px === 'number'
-            ? { transformation: { height: Math.round(px) } }
+            ? ({
+                transformation: { height: Math.round(px) },
+              } satisfies DeepPartial<IImageOptions>)
             : {};
+        }
+        if (el.type === 'table-row') {
+          return {
+            height: {
+              rule: 'exact',
+              value: Math.round((parseImageSizePx(String(v)) ?? 0) * 15),
+            },
+          } satisfies DeepPartial<ITableRowOptions>;
         }
         // No height handling for non‑image elements at the moment
         const parsed = parseWidth(v);
         return parsed ? { heigth: parsed } : {};
+      },
+      minHeight: (v, el) => {
+        if (el.type === 'table-row') {
+          return {
+            height: {
+              rule: 'atLeast',
+              value: Math.round((parseImageSizePx(String(v)) ?? 0) * 15),
+            },
+          } satisfies DeepPartial<ITableRowOptions>;
+        }
+        return {};
       },
 
       letterSpacing: (v) => {
@@ -371,39 +395,22 @@ export class StyleMapper {
                 },
               };
       },
-      borderLeftColor: (v) => ({
-        border: { left: { color: colorConversion(v) } },
-      }),
-      borderLeftStyle: (v) => ({
-        border: { left: { style: mapBorderStyle(v) } },
-      }),
-      borderLeftWidth: (v, el) => {
-        const w = parseFloat(v);
-        return isNaN(w)
-          ? {}
-          : el.type === 'table'
-            ? {
-                borders: {
-                  left: {
-                    style: BorderStyle.SINGLE,
-                    size: 8 * w,
-                  },
-                },
-              }
-            : {
-                border: { left: { size: w * 8 } },
-              };
+      verticalAlign: (v) => {
+        switch (v) {
+          case 'top':
+            return { verticalAlign: 'top' };
+          case 'middle':
+            return { verticalAlign: 'center' };
+          case 'bottom':
+            return { verticalAlign: 'bottom' };
+          case 'super':
+            return { superScript: true };
+          case 'sub':
+            return { subScript: true };
+          default:
+            return {};
+        }
       },
-      verticalAlign: (v) =>
-        v === 'middle'
-          ? { verticalAlign: 'center' }
-          : v === 'bottom'
-            ? { verticalAlign: 'bottom' }
-            : v === 'super'
-              ? { superScript: true }
-              : v === 'sub'
-                ? { subScript: true }
-                : {},
 
       padding: (v, el) => {
         if (el.type === 'table') return {};
