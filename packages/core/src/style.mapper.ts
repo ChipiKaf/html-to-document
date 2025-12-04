@@ -281,9 +281,8 @@ export class StyleMapper {
             },
           } satisfies DeepPartial<ITableRowOptions>;
         }
-        // No height handling for non‑image elements at the moment
         const parsed = parseWidth(v);
-        return parsed ? { heigth: parsed } : {};
+        return parsed ? { height: parsed } : {};
       },
       minHeight: (v, el) => {
         if (el.type === 'table-row') {

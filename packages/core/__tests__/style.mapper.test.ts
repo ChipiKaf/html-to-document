@@ -76,7 +76,7 @@ describe('StyleMapper', () => {
     expect(mapper.mapStyles({ width: '2in' }, p)).toHaveProperty('width');
     expect(mapper.mapStyles({ width: '3cm' }, p)).toHaveProperty('width');
     expect(mapper.mapStyles({ width: 'abc' }, p)).toEqual({});
-    expect(mapper.mapStyles({ height: '1px' }, p)).toHaveProperty('heigth');
+    expect(mapper.mapStyles({ height: '1px' }, p)).toHaveProperty('height');
     expect(mapper.mapStyles({ height: 'abc' }, p)).toEqual({});
   });
 
