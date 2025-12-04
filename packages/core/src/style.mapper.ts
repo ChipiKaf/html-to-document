@@ -1,5 +1,6 @@
 import * as CSS from 'csstype';
 import {
+  borderStyleValues,
   colorConversion,
   mapBorderStyle,
   pixelsToTwips,
@@ -20,6 +21,7 @@ import {
   ITableRowOptions,
 } from 'docx';
 import { DeepPartial } from './utils/types';
+import { capitalize } from './utils/text';
 
 const parseWidth = (value: string) => {
   if (value.endsWith('px')) {
@@ -326,40 +328,8 @@ export class StyleMapper {
           }
           return {};
         }
-        // Table-cell: remove borders if none
-        if (el.type === 'table-cell' && (raw === 'none' || raw === '0')) {
-          return {
-            borders: {
-              top: { style: BorderStyle.NONE },
-              bottom: { style: BorderStyle.NONE },
-              left: { style: BorderStyle.NONE },
-              right: { style: BorderStyle.NONE },
-            },
-          };
-        }
         return {};
       },
-
-      // // Table-related
-      // border: (v) => ({
-      //   borders: { top: {}, bottom: {}, left: {}, right: {} },
-      // }), // Add parsing logic as needed
-      borderColor: (v) => ({
-        borders: {
-          top: { color: colorConversion(v) },
-          bottom: { color: colorConversion(v) },
-          left: { color: colorConversion(v) },
-          right: { color: colorConversion(v) },
-        },
-      }),
-      borderStyle: (v) => ({
-        borders: {
-          top: { style: mapBorderStyle(v) },
-          bottom: { style: mapBorderStyle(v) },
-          left: { style: mapBorderStyle(v) },
-          right: { style: mapBorderStyle(v) },
-        },
-      }),
       borderWidth: (v, el) => {
         const w = parseFloat(v);
         return isNaN(w)
@@ -410,6 +380,39 @@ export class StyleMapper {
             return {};
         }
       },
+      ...(Object.fromEntries(
+        (['top', 'right', 'bottom', 'left'] as const).flatMap((dir) => {
+          const capDir = capitalize(dir);
+          return [
+            [
+              `border${capDir}Color` as keyof CSS.Properties,
+              (v: string) => ({
+                borders: { [dir]: { color: colorConversion(v) } },
+                border: { [dir]: { color: colorConversion(v) } },
+              }),
+            ],
+            [
+              `border${capDir}Style` as keyof CSS.Properties,
+              (v: string) => ({
+                borders: { [dir]: { style: mapBorderStyle(v) } },
+                border: { [dir]: { style: mapBorderStyle(v) } },
+              }),
+            ],
+            [
+              `border${capDir}Width` as keyof CSS.Properties,
+              (v: string) => {
+                const w = parseFloat(v);
+                return isNaN(w)
+                  ? {}
+                  : {
+                      borders: { [dir]: { size: w * 8 } },
+                      border: { [dir]: { size: w * 8 } },
+                    };
+              },
+            ],
+          ];
+        })
+      ) as StyleMapping),
 
       padding: (v, el) => {
         if (el.type === 'table') return {};
@@ -612,16 +615,111 @@ export class StyleMapper {
     };
   }
 
+  private expandShorthands(
+    rawStyles: Partial<Record<keyof CSS.Properties, string | number>>
+  ) {
+    const mappedStyles: Partial<Record<keyof CSS.Properties, string | number>> =
+      { ...rawStyles };
+
+    const directions = ['top', 'right', 'bottom', 'left'] as const;
+    const capitalizedDirections = directions.map((dir) => capitalize(dir));
+
+    const borderDirections = capitalizedDirections.map(
+      (dir) => `border${dir}` as keyof CSS.Properties
+    );
+
+    const borderShorthand = (
+      prop: string | number
+    ): { width?: string | number; style?: string; color?: string } => {
+      if (typeof prop === 'number') {
+        return {
+          width: prop,
+        };
+      }
+      // TODO: Make sure that the order is corect
+      const widthRegex =
+        /^(thin|medium|thick|(\d+(\.\d+)?(px|em|rem|pt|cm|mm|in|pc|ex|ch|vw|vh|vmin|vmax|%)))$/i;
+      let width: string | undefined;
+      let style: string | undefined;
+      let color: string | undefined;
+      const parts = String(prop).split(/\s+/).filter(Boolean);
+      for (const part of parts) {
+        if (!width && widthRegex.test(part)) {
+          width = part;
+        } else if (
+          !style &&
+          borderStyleValues.includes(
+            // as any is okay when using .includes
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            part as any
+          )
+        ) {
+          style = part;
+        } else if (!color) {
+          color = part;
+        }
+      }
+      return { width, style, color };
+    };
+
+    // Expand 'border' shorthand into individual border properties if not already set
+    if (mappedStyles.border) {
+      const borderValue = mappedStyles.border;
+      const { width, style, color } = borderShorthand(borderValue);
+      mappedStyles['borderWidth'] ??= width;
+      mappedStyles['borderStyle'] ??= style;
+      mappedStyles['borderColor'] ??= color;
+    }
+
+    // FIXME: currently if border specifies a color, but the direction doesn't, the direction does not override it, but it should set it to the default.
+    borderDirections.forEach((borderDir) => {
+      const style = mappedStyles[borderDir];
+      if (style === undefined) return;
+      const { width, style: borderStyleValue, color } = borderShorthand(style);
+      const widthProp = `${borderDir}Width` as keyof CSS.Properties;
+      const styleProp = `${borderDir}Style` as keyof CSS.Properties;
+      const colorProp = `${borderDir}Color` as keyof CSS.Properties;
+      mappedStyles[widthProp] ??= width;
+      mappedStyles[styleProp] ??= borderStyleValue;
+      mappedStyles[colorProp] ??= color;
+    });
+
+    if (mappedStyles.borderWidth) {
+      const widthValue = mappedStyles.borderWidth;
+      capitalizedDirections.forEach((dir) => {
+        const prop = `border${dir}Width` as keyof CSS.Properties;
+        mappedStyles[prop] ??= widthValue;
+      });
+    }
+    if (mappedStyles.borderStyle) {
+      const styleValue = mappedStyles.borderStyle;
+      capitalizedDirections.forEach((dir) => {
+        const prop = `border${dir}Style` as keyof CSS.Properties;
+        mappedStyles[prop] ??= styleValue;
+      });
+    }
+    if (mappedStyles.borderColor) {
+      const colorValue = mappedStyles.borderColor;
+      capitalizedDirections.forEach((dir) => {
+        const prop = `border${dir}Color` as keyof CSS.Properties;
+        mappedStyles[prop] ??= colorValue;
+      });
+    }
+
+    return mappedStyles;
+  }
+
   // Method to map raw styles to a generic style object
   public mapStyles(
     rawStyles: Partial<Record<keyof CSS.Properties, string | number>>,
     el: DocumentElement
   ): Record<string, unknown> {
-    return (Object.keys(rawStyles) as (keyof CSS.Properties)[]).reduce(
+    const expandedStyles = this.expandShorthands(rawStyles);
+    return (Object.keys(expandedStyles) as (keyof CSS.Properties)[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
-        if (mapper) {
-          const newStyle = mapper(rawStyles[cssProp] as string, el) as object;
+        if (mapper && typeof expandedStyles[cssProp] === 'string') {
+          const newStyle = mapper(expandedStyles[cssProp], el) as object;
           // Deep merge the new style into the accumulator
           return deepMerge(acc, newStyle);
         }

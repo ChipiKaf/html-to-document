@@ -64,6 +64,19 @@ export function pixelsToTwips(pixels: number): number {
   return Math.round(pixels * 10); // 1px = 15 twips (approx)
 }
 
+export const borderStyleValues = [
+  'none',
+  'hidden',
+  'dotted',
+  'dashed',
+  'solid',
+  'double',
+  'groove',
+  'ridge',
+  'inset',
+  'outset',
+] as const;
+
 export function mapBorderStyle(style: string): string {
   switch (style.toLowerCase()) {
     case 'none':
