@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "turbo run build --filter '!demo'",
+    "dev": "turbo run dev",
     "clean": "rimraf dist node_modules packages/**/dist packages/**/node_modules demo/**/dist demo/**/node_modules package-lock.json yarn.lock",
     "test": "vitest run --coverage",
     "test:watch": "vitest run --watch",
