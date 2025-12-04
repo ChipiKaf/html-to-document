@@ -1645,6 +1645,73 @@ describe('Docx.adapter.convert', () => {
         : para['w:r']['w:t']['#text'];
       expect(cellText).toBe('Centered Cell');
     });
+
+    it('should render a table row with a set height', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            type: 'table-row',
+            styles: { height: '30px' },
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Row with Height' }],
+                styles: {},
+              },
+            ],
+            attributes: {},
+          },
+        ],
+        styles: {},
+        attributes: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      // Get the first row
+      const row = Array.isArray(tbl['w:tr']) ? tbl['w:tr'][0] : tbl['w:tr'];
+
+      // Check that the row has the correct height property.
+      expect(row['w:trPr']['w:trHeight']['@_w:hRule']).toBe('exact');
+      expect(row['w:trPr']['w:trHeight']['@_w:val']).toBe('450');
+    });
+
+    it('should render a table row with a set minimum height', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            type: 'table-row',
+            styles: { minHeight: '24px' },
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Row with Min Height' }],
+                styles: {},
+              },
+            ],
+            attributes: {},
+          },
+        ],
+        styles: {},
+        attributes: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      // Get the first row
+      const row = Array.isArray(tbl['w:tr']) ? tbl['w:tr'][0] : tbl['w:tr'];
+
+      // Check that the row has the correct minimum height property.
+      expect(row['w:trPr']['w:trHeight']['@_w:hRule']).toBe('atLeast');
+      // 24pt should be converted to twentieths of a point (24 * 15 = 360)
+      expect(row['w:trPr']['w:trHeight']['@_w:val']).toBe('360');
+    });
   });
 
   describe('Ids', () => {

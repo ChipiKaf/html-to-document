@@ -214,7 +214,8 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           j += colSpan;
         }
       }
-      const rowStyles = element.rows[i]?.styles || {};
+      const rowElement = element.rows[i];
+      const rowStyles = rowElement?.styles || {};
       tableRows.push(
         new TableRow({
           children: cells,
@@ -224,7 +225,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
               // ...mergedStyles,
               ...rowStyles,
             },
-            element
+            rowElement ?? element
           ),
         })
       );
