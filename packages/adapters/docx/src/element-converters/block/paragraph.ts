@@ -1,6 +1,7 @@
 import { FileChild, Paragraph } from 'docx';
 import {
   DocumentElement,
+  filterForScope,
   ParagraphElement,
   Styles,
 } from 'html-to-document-core';
@@ -17,9 +18,13 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
     cascadedStyles: Styles = {}
   ): FileChild[] {
     // Paragraph element must only have inline children or else it could corrupt the document structure.
+    const inheritedForParagraph = filterForScope(
+      cascadedStyles,
+      element.scope ?? 'block'
+    );
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
+      ...inheritedForParagraph,
       ...element.styles,
     };
 

@@ -167,6 +167,7 @@ export class Parser {
           attributes: { ...da, ...ca },
           colspan,
           rowspan,
+          scope: 'tableCell',
         });
       });
 
@@ -175,6 +176,7 @@ export class Parser {
       cells,
       styles: rowStyles,
       attributes: rowAttrs,
+      scope: 'tableRow',
     };
   }
 
@@ -359,6 +361,7 @@ export class Parser {
         ...defaultTableAttrs,
         ...options.attributes,
       },
+      scope: 'table',
     };
   }
 
@@ -405,7 +408,13 @@ export class Parser {
 
     switch (tag) {
       case 'p':
-        return { type: 'paragraph', text, content: children, ...options };
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
       case 'div':
         return { type: 'fragment', text, content: children, ...options };
       case 'strong':
@@ -415,12 +424,14 @@ export class Parser {
           content: children,
           ...options,
           styles: { ...(options.styles || {}), fontWeight: 'bold' },
+          scope: 'inline',
         };
       case 'colgroup':
         return {
           type: 'attribute',
           name: 'colgroup',
           content: children,
+          scope: 'inline',
           ...options,
         };
       case 'col':
@@ -428,6 +439,7 @@ export class Parser {
           type: 'attribute',
           name: 'col',
           content: children,
+          scope: 'inline',
           ...options,
         };
       case 'em':
@@ -435,6 +447,7 @@ export class Parser {
           type: 'text',
           text,
           content: children,
+          scope: 'inline',
           ...options,
           styles: { ...(options.styles || {}), fontStyle: 'italic' },
         };
@@ -443,6 +456,7 @@ export class Parser {
           type: 'text',
           text,
           content: children,
+          scope: 'inline',
           ...options,
           styles: { ...(options.styles || {}), fontSize: '8px' },
         };
@@ -452,6 +466,7 @@ export class Parser {
           type: 'text',
           text,
           content: children,
+          scope: 'inline',
           ...options,
           styles: { ...(options.styles || {}), textDecoration: 'underline' },
         };
@@ -467,6 +482,7 @@ export class Parser {
           level: Number(tag.slice(1)),
           text,
           content: children,
+          scope: 'block',
           ...options,
         };
 
@@ -476,6 +492,7 @@ export class Parser {
           type: 'list',
           listType: tag === 'ol' ? 'ordered' : 'unordered',
           content: children,
+          scope: 'block',
           level:
             typeof options.metadata?.level === 'number'
               ? options.metadata.level
@@ -496,6 +513,7 @@ export class Parser {
             typeof options.metadata?.level === 'number'
               ? options.metadata.level
               : parseInt(options.metadata?.level as string) || 0,
+          scope: 'block',
           ...options,
         };
 
@@ -516,13 +534,20 @@ export class Parser {
 
       case 'span':
       case 'a':
-        return { type: 'text', text, content: children, ...options };
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
 
       case 'sup':
         return {
           type: 'text',
           text,
           content: children,
+          scope: 'inline',
           ...options,
           styles: { verticalAlign: 'super', ...(options.styles || {}) },
         };
@@ -534,23 +559,32 @@ export class Parser {
           content: children,
           ...options,
           styles: { verticalAlign: 'sub', ...(options.styles || {}) },
+          scope: 'inline',
         };
 
       case 'img':
         return {
           type: 'image',
           src: (element as HTMLImageElement).src,
+          scope: 'block', // default to block for images often, but can be inline
           ...options,
         };
 
       case 'pre':
-        return { type: 'paragraph', text, content: children, ...options };
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
       case 'code':
         return {
           type: 'text',
           text,
           content: children,
+          scope: 'inline',
           ...options,
           styles: { backgroundColor: 'lightGray', ...(options.styles || {}) },
         };
@@ -561,6 +595,7 @@ export class Parser {
           type: 'text',
           text: '',
           metadata: { break: 1, ...options.metadata },
+          scope: 'inline',
         };
 
       case 'blockquote':
@@ -568,6 +603,7 @@ export class Parser {
           type: 'paragraph',
           text,
           content: children,
+          scope: 'block',
           ...options,
           styles: {
             borderLeftColor: 'lightGray',
@@ -585,6 +621,7 @@ export class Parser {
           type: 'paragraph',
           text,
           content: children,
+          scope: 'block',
           ...options,
         };
 
@@ -593,6 +630,7 @@ export class Parser {
           type: 'paragraph',
           text,
           content: children,
+          scope: 'block',
           ...options,
           styles: {
             fontStyle: 'italic',
@@ -606,6 +644,7 @@ export class Parser {
           name: 'caption',
           text,
           content: children,
+          scope: 'inline',
           ...options,
           styles: {
             fontStyle: 'italic',
@@ -622,6 +661,7 @@ export class Parser {
           type: 'paragraph',
           text,
           content: children,
+          scope: 'block',
           ...options,
           // default term style: bold
           styles: { ...(options.styles || {}) },
@@ -632,6 +672,7 @@ export class Parser {
           type: 'paragraph',
           text,
           content: children,
+          scope: 'block',
           ...options,
           // default indent for definitions
           styles: { marginLeft: '40px', ...(options.styles || {}) },

@@ -8,6 +8,13 @@ import { StyleMapper } from './style.mapper';
 export type Styles = Record<string, string | number> &
   Partial<Record<keyof CSS.Properties, string | number>>;
 
+export type StyleScope =
+  | 'block'
+  | 'inline'
+  | 'table'
+  | 'tableRow'
+  | 'tableCell';
+
 export type Formats = 'docx' | 'pdf' | 'xlsx' | (string & {});
 /**
  * The base structure for all document elements in the intermediate representation.
@@ -25,6 +32,8 @@ export interface BaseElement {
   metadata?: { [key: string]: unknown };
   /** Optional nested child elements */
   content?: DocumentElement[];
+  /** Optional scope hinting from parser */
+  scope?: StyleScope;
 }
 /**
  * All supported element type strings for document elements.
@@ -279,6 +288,8 @@ export type TagHandlerOptions = {
   content?: DocumentElement[];
   /** Optional text content for the element. */
   text?: string;
+  /** Optional scope hint. */
+  scope?: StyleScope;
   /** Any additional custom properties required by specific handlers or extensions. */
   [key: string]: unknown;
 };

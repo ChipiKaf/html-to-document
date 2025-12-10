@@ -1,11 +1,18 @@
 module.exports = [
+  {
+    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**'],
+  },
+
   // Core package
   {
-    files: ['packages/core/src/**/*.{ts,tsx}'],
+    files: [
+      'packages/core/src/**/*.{ts,tsx}',
+      'packages/core/__tests__/**/*.{ts,tsx}',
+    ],
     languageOptions: {
       parser: require('@typescript-eslint/parser'),
       parserOptions: {
-        project: './packages/core/tsconfig.json',
+        project: './packages/core/tsconfig.lint.json',
         sourceType: 'module',
       },
     },
@@ -43,6 +50,15 @@ module.exports = [
       semi: ['error', 'always'],
       quotes: ['error', 'single'],
       '@typescript-eslint/no-empty-object-type': 'off',
+    },
+  },
+  // Global test overrides
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
 ];

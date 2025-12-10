@@ -1,5 +1,6 @@
 import {
   AttributeElement,
+  computeInheritedStyles,
   DocumentElement,
   GridCell,
   Styles,
@@ -172,11 +173,15 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           const cellContent = originalCell
             ? converter.convertToBlocks({
                 element: originalCell,
-                cascadedStyles: {
-                  ...defaultStyles?.[originalCell.type],
-                  ...stylesCol[j],
-                  ...originalCell.styles,
-                },
+                cascadedStyles: computeInheritedStyles({
+                  parentStyles: {
+                    ...defaultStyles?.[originalCell.type],
+                    ...stylesCol[j],
+                    ...originalCell.styles,
+                  },
+                  parentScope: 'tableCell',
+                  childScope: 'block',
+                }),
                 wrapInlineElements: (inlines) => {
                   return [
                     new Paragraph({
