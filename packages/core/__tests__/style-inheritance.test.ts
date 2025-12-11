@@ -44,17 +44,12 @@ describe('style-inheritance', () => {
     });
 
     it('should NOT inherit properties if parent scope is invalid', () => {
-      // Assuming fontFamily is inheritable, but if we say parent is something weird...
-      // Actually fontFamily scopes includes 'block', 'inline', 'tableCell'.
-      // usage: computeInheritedStyles checks if property.meta.scopes includes parentScope
-
       const parentStyles: Styles = {
         fontFamily: 'Arial',
       };
 
       // 'table' is NOT in fontFamily scopes?
       // fontFamily: scopes: ['block', 'inline', 'tableCell']
-
       const result = computeInheritedStyles({
         parentStyles,
         parentScope: 'table',
