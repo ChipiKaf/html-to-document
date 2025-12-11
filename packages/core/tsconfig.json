@@ -9,6 +9,6 @@
     "declarationMap": true,
     "sourceMap": false
   },
-  "include": ["src/**/*", "__tests__/style-inheritance.test.ts"],
+  "include": ["src/**/*"],
   "exclude": ["**/*.test.ts", "**/__tests__/**"]
 }
