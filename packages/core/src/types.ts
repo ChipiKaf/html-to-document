@@ -5,8 +5,7 @@ import { StyleMapper } from './style.mapper';
  * Represents a style object, allowing both arbitrary keys and known CSS properties.
  * Values are either string or number.
  */
-export type Styles = Record<string, string | number> &
-  Partial<Record<keyof CSS.Properties, string | number>>;
+export type Styles = Partial<Record<keyof CSS.Properties, string | number>>;
 
 export type StyleScope =
   | 'block'

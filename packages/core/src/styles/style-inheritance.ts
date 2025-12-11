@@ -1,4 +1,5 @@
 import { Styles, StyleScope } from '../types';
+import * as CSS from 'csstype';
 
 export interface StyleMeta {
   /** Does this property naturally inherit (like CSS)? */
@@ -9,7 +10,7 @@ export interface StyleMeta {
   cascadeTo?: StyleScope[];
 }
 
-const STYLE_META: Record<string, StyleMeta> = {
+const STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
   // Typography
   fontFamily: {
     inherits: true,
@@ -79,7 +80,7 @@ const STYLE_META: Record<string, StyleMeta> = {
   },
 };
 
-export function getStyleMeta(property: string): StyleMeta {
+export function getStyleMeta(property: keyof CSS.Properties): StyleMeta {
   const meta = STYLE_META[property];
   if (meta) return meta;
 
@@ -108,7 +109,8 @@ export function computeInheritedStyles({
   const result: Styles = {};
 
   for (const [prop, value] of Object.entries(parentStyles)) {
-    const meta = getStyleMeta(prop);
+    const key = prop as keyof CSS.Properties;
+    const meta = getStyleMeta(key);
 
     if (!meta.inherits) continue;
     if (!meta.scopes.includes(parentScope)) continue;
@@ -116,7 +118,7 @@ export function computeInheritedStyles({
     const cascadeTargets = meta.cascadeTo ?? meta.scopes;
     if (!cascadeTargets.includes(childScope)) continue;
 
-    result[prop] = value;
+    result[key] = value;
   }
 
   return result;
@@ -132,15 +134,19 @@ export function filterForScope(
   const result: Styles = {};
   const effectiveScope = scope ?? 'block';
   for (const [prop, value] of Object.entries(styles)) {
-    const meta = getStyleMeta(prop);
+    const key = prop as keyof CSS.Properties;
+    const meta = getStyleMeta(key);
     if (meta.scopes.includes(effectiveScope)) {
-      result[prop] = value;
+      result[key] = value;
     }
   }
   return result;
 }
 
-export function registerStyleMeta(property: string, meta: Partial<StyleMeta>) {
+export function registerStyleMeta(
+  property: keyof CSS.Properties,
+  meta: Partial<StyleMeta>
+) {
   const existing = STYLE_META[property] ?? getStyleMeta(property);
   STYLE_META[property] = {
     ...existing,
