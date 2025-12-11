@@ -222,8 +222,16 @@ export class DocxAdapter implements IDocumentConverter {
     } else if (typeof window === 'undefined') {
       // Assume it's a local file path.
       // This code path is only supported in Node environments.
-      const fsMod = await import(/* @vite-ignore */ 'fs');
-      const pathMod = await import(/* @vite-ignore */ 'path');
+      const fsMod = await import(
+        /* webpackIgnore: true */
+        /* @vite-ignore */
+        'fs'
+      );
+      const pathMod = await import(
+        /* webpackIgnore: true */
+        /* @vite-ignore */
+        'path'
+      );
       if (!fsMod.existsSync(src)) {
         throw new Error(`File not found: ${src}`);
       }
@@ -252,7 +260,11 @@ export class DocxAdapter implements IDocumentConverter {
     try {
       if (typeof window === 'undefined') {
         // Dynamically load 'image-size' (Node‑only) so browser bundles stay clean
-        const sizeOf = await import(/* @vite-ignore */ 'image-size');
+        const sizeOf = await import(
+          /* webpackIgnore: true */
+          /* @vite-ignore */
+          'image-size'
+        );
         const { width: w = 100, height: h = 100 } = sizeOf.imageSize(
           dataBuffer as Buffer
         );
