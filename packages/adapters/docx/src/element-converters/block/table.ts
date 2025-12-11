@@ -2,6 +2,7 @@ import {
   AttributeElement,
   computeInheritedStyles,
   DocumentElement,
+  filterForScope,
   GridCell,
   Styles,
   TableElement,
@@ -31,9 +32,12 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
   ): FileChild[] {
     const { styleMapper, converter, defaultStyles } = dependencies;
     const captions: { side: string; paragraph: Paragraph }[] = [];
+
+    // We filter the cascaded styles for the table scope
+    const inherited = filterForScope(cascadedStyles ?? {}, element.scope);
     const mergedStyles = {
       ...(defaultStyles?.[element.type] ?? {}),
-      ...cascadedStyles,
+      ...inherited,
       ...element.styles,
     };
 

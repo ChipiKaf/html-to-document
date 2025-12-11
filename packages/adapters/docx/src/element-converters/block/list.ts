@@ -1,6 +1,7 @@
 import { FileChild, Paragraph } from 'docx';
 import {
   DocumentElement,
+  filterForScope,
   ListElement,
   ListItemElement,
   Styles,
@@ -20,10 +21,11 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     cascadedStyles: Styles = {}
   ): FileChild[] {
     const { defaultStyles } = dependencies;
+    const inherited = filterForScope(cascadedStyles, element.scope);
     // Paragraph element must only have inline children or else it could corrupt the document structure.
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
+      ...inherited,
       ...element.styles,
     };
     // const children =

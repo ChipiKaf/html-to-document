@@ -18,13 +18,10 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
     cascadedStyles: Styles = {}
   ): FileChild[] {
     // Paragraph element must only have inline children or else it could corrupt the document structure.
-    const inheritedForParagraph = filterForScope(
-      cascadedStyles,
-      element.scope ?? 'block'
-    );
+    const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...inheritedForParagraph,
+      ...inherited,
       ...element.styles,
     };
 

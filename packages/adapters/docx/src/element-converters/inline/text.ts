@@ -1,5 +1,10 @@
 import { ParagraphChild, TextRun } from 'docx';
-import { DocumentElement, Styles, TextElement } from 'html-to-document-core';
+import {
+  DocumentElement,
+  filterForScope,
+  Styles,
+  TextElement,
+} from 'html-to-document-core';
 import { ElementConverterDependencies, IInlineConverter } from '../types';
 
 type DocumentElementType = TextElement;
@@ -14,9 +19,10 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): ParagraphChild[] {
+    const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
+      ...inherited,
       ...element.styles,
     };
 

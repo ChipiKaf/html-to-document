@@ -125,11 +125,15 @@ export function computeInheritedStyles({
 /**
  * Filters styles to only include those valid for a specific scope.
  */
-export function filterForScope(styles: Styles, scope: StyleScope): Styles {
+export function filterForScope(
+  styles: Styles,
+  scope: StyleScope | undefined
+): Styles {
   const result: Styles = {};
+  const effectiveScope = scope ?? 'block';
   for (const [prop, value] of Object.entries(styles)) {
     const meta = getStyleMeta(prop);
-    if (meta.scopes.includes(scope)) {
+    if (meta.scopes.includes(effectiveScope)) {
       result[prop] = value;
     }
   }

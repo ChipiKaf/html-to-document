@@ -1,5 +1,10 @@
 import { FileChild, HeadingLevel, Paragraph, ParagraphChild } from 'docx';
-import { DocumentElement, HeadingElement, Styles } from 'html-to-document-core';
+import {
+  DocumentElement,
+  filterForScope,
+  HeadingElement,
+  Styles,
+} from 'html-to-document-core';
 import { ElementConverterDependencies, IBlockConverter } from '../types';
 
 export class HeadingConverter implements IBlockConverter<HeadingElement> {
@@ -12,9 +17,10 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     element: HeadingElement,
     cascadedStyles: Styles = {}
   ): FileChild[] {
+    const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
+      ...inherited,
       ...element.styles,
     };
     let children: ParagraphChild[] = converter.convertInlineTextOrContent(
