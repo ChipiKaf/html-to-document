@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { computeInheritedStyles, filterForScope } from './style-inheritance';
-import { Styles } from '../types';
+import {
+  computeInheritedStyles,
+  filterForScope,
+} from '../src/styles/style-inheritance';
+import { Styles } from '../src/types';
 
 describe('style-inheritance', () => {
   describe('computeInheritedStyles', () => {
