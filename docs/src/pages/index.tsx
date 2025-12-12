@@ -59,8 +59,9 @@ export default function Home(): ReactNode {
           <p>
             Install and use the library in your TypeScript/JavaScript project:
           </p>
-          <CodeBlock language="ts">
-            {`npm install html-to-document
+          <CodeBlock
+            language="ts"
+            children={`npm install html-to-document
 
 import { init, DocxAdapter } from 'html-to-document';
 
@@ -74,7 +75,7 @@ const converter = init({
 
 const parsed = await converter.parse('<h1>Hello</h1>');
 const docx = await converter.convert(parsed, 'docx');`}
-          </CodeBlock>
+          />
 
           <div className={styles.buttons}>
             <Link
