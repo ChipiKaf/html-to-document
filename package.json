@@ -2,14 +2,6 @@
   "name": "html-to-document-root",
   "private": true,
   "packageManager": "pnpm@10.12.1",
-  "workspaces": [
-    "demo",
-    "packages/core",
-    "packages/adapters/*",
-    "packages/deconverters/*",
-    "packages/html-to-document",
-    "packages/e2e-tests"
-  ],
   "scripts": {
     "build": "turbo run build --filter '!demo'",
     "dev": "turbo run dev",

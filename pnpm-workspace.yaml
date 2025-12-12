@@ -5,3 +5,4 @@ packages:
   - 'packages/deconverters/*'
   - 'packages/html-to-document'
   - 'packages/e2e-tests'
+  - 'docs'
