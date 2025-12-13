@@ -93,8 +93,38 @@ const docxBuffer = await converter.convert(elements, 'docx');
 
 ### `init(options?: InitOptions): Converter`
 
-- `options`: configuration for tags, middleware, adapters, and DOM parser.
+- `options`: configuration for tags, middleware, adapters, DOM parser, and **styleInheritance**.
 - Returns a `Converter` instance.
+
+#### Customizing Style Inheritance
+
+You can override default inheritance rules (e.g., forcing table borders to inherit to children) using `styleInheritance`:
+
+```ts
+const converter = init({
+  styleInheritance: {
+    border: {
+      inherits: true,
+      scopes: ['block', 'tableCell'], // Apply to these scopes
+    },
+  },
+  // ... other options
+});
+```
+
+#### Understanding Scopes and Cascading
+
+- **`scopes`**: Defines which element types can **have** this property.
+  - It answers: _"Is this property allowed on this type of element?"_
+  - It does **not** control inheritance (that's `inherits`). IF a child attempts to inherit a property, it must also be valid for that child's scope (unless `cascadeTo` overrides this).
+  - _Example_: `textAlign` has `scopes: ['block', 'tableCell']`. A `<span>` (`inline`) cannot have `textAlign` because it is not a valid scope.
+
+- **`inherits`**: Defines if the property flows down to children naturally.
+  - _Example_: `textAlign` has `inherits: true`. A `<p>` (block) can inherit `textAlign` from its parent `<div>` (block).
+
+- **`cascadeTo`**: Usage is rare but powerful. It forces a property to pass from a parent to a specific type of child **even if local logic might otherwise filter it**.
+  - _Example_: `textAlign` on a `tableCell` should affect the `block` (paragraph) inside it.
+  - _Why?_ A table cell isn't just a box; it sets the alignment context for its contents. `cascadeTo: ['block']` tells the engine: "If I'm on a cell, pass me down to the paragraph inside."
 
 ### `Converter`
 
