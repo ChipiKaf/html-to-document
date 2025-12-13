@@ -1,14 +1,5 @@
-import { Styles, StyleScope } from '../types';
+import { StyleMeta, Styles, StyleScope } from '../types';
 import * as CSS from 'csstype';
-
-export interface StyleMeta {
-  /** Does this property naturally flow down to its children? (e.g font-family on a parent div can be inherited by its children) */
-  inherits: boolean;
-  /** At which scopes is this property valid? (e.g textAlign is valid for block and tableCell, but not inline) */
-  scopes: StyleScope[];
-  /** (optional): Even if it inherits, who is allowed to receive it?. (e.g textAlign can cascade into block) */
-  cascadeTo?: StyleScope[];
-}
 
 const STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
   // Typography

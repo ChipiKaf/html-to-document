@@ -16,6 +16,14 @@ export const run: () => Promise<any> = async () => {
 
   // Get convert function from the html-to-document package.
   const converter = init({
+    // Example of custom style inheritance:
+    // Uncomment this to test the 'forced-inheritance' test case
+    // styleInheritance: {
+    //   border: {
+    //     inherits: true, // Force border inheritance (normally false)
+    //     scopes: ['block', 'tableCell'],
+    //   },
+    // },
     tags: {
       defaultStyles: [
         {

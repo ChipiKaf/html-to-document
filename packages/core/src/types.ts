@@ -14,6 +14,15 @@ export type StyleScope =
   | 'tableRow'
   | 'tableCell';
 
+export interface StyleMeta {
+  /** Does this property naturally flow down to its children? (e.g font-family on a parent div can be inherited by its children) */
+  inherits: boolean;
+  /** At which scopes is this property valid? (e.g textAlign is valid for block and tableCell, but not inline) */
+  scopes: StyleScope[];
+  /** (optional): Even if it inherits, who is allowed to receive it?. (e.g textAlign can cascade into block) */
+  cascadeTo?: StyleScope[];
+}
+
 export type Formats = 'docx' | 'pdf' | 'xlsx' | (string & {});
 /**
  * The base structure for all document elements in the intermediate representation.
@@ -430,6 +439,11 @@ export type InitOptions<
 > = {
   /** Optional middleware functions to apply */
   middleware?: readonly Middleware[];
+  /**
+   * Optional custom style inheritance rules.
+   * Allows overriding default inheritance behavior for specific CSS properties.
+   */
+  styleInheritance?: Partial<Record<keyof CSS.Properties, Partial<StyleMeta>>>;
   /**
    * Optional configuration for custom tag handlers and tag-related options.
    *

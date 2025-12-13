@@ -14,6 +14,8 @@ import { StyleMapper } from './style.mapper';
 import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
+import { registerStyleMeta } from './styles/style-inheritance';
+import * as CSS from 'csstype';
 
 export class Converter {
   private _middlewareManager: MiddlewareManager;
@@ -113,7 +115,15 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     adapters,
     domParser,
     clearMiddleware = false,
+    styleInheritance,
   } = options ?? {};
+
+  // Register custom style inheritance rules
+  if (styleInheritance) {
+    for (const [property, meta] of Object.entries(styleInheritance)) {
+      registerStyleMeta(property as keyof CSS.Properties, meta);
+    }
+  }
 
   // Initialize registered adapters and inject style mapper
   const registerAdapters = adapters?.register?.map(
