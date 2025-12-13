@@ -39,6 +39,12 @@ function HomepageHeader() {
           >
             ⭐ GitHub
           </Link>
+          <Link
+            className="button button--secondary button--lg"
+            to="https://html-to-document-demo.vercel.app/"
+          >
+            🚀 Live Demo
+          </Link>
         </div>
       </div>
     </header>
