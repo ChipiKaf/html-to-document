@@ -2,11 +2,11 @@ import { Styles, StyleScope } from '../types';
 import * as CSS from 'csstype';
 
 export interface StyleMeta {
-  /** Does this property naturally inherit (like CSS)? */
+  /** Does this property naturally flow down to its children? (e.g font-family on a parent div can be inherited by its children) */
   inherits: boolean;
-  /** At which scopes is this property valid? */
+  /** At which scopes is this property valid? (e.g textAlign is valid for block and tableCell, but not inline) */
   scopes: StyleScope[];
-  /** Which child scopes it can cascade into. */
+  /** (optional): Even if it inherits, who is allowed to receive it?. (e.g textAlign can cascade into block) */
   cascadeTo?: StyleScope[];
 }
 
@@ -100,6 +100,10 @@ interface ComputeInheritedStylesOptions {
 
 /**
  * Filters styles that should be inherited by a child element from a parent element.
+ * Often used by the distributor to compute styles for a child element.
+ * Responsibility: "I have styles (like a border), but I also need to tell my children (cells/paragraphs) what styles they should inherit."
+ * The Action: When processing a child cell, it calculates: "I have a border, but my child (a paragraph) should NOT inherit it. However, I have a font-family, and my child SHOULD inherit that."
+ * It actively calculates the waterfall from Parent (tableCell) to Child (block).
  */
 export function computeInheritedStyles({
   parentStyles,
@@ -126,6 +130,10 @@ export function computeInheritedStyles({
 
 /**
  * Filters styles to only include those valid for a specific scope.
+ * This is often used by the end consumer to filter styles for a specific scope, i.e the leaf element.
+ * Responsibility: "I need to render myself right now."
+ * The Action: It takes all the styles it received (cascaded from parents) and its own styles, and it asks: "Which of these are valid for me (a block)?"
+ * It filters the inputs to ensure it doesn't try to apply invalid properties (like a table border) to itself.
  */
 export function filterForScope(
   styles: Styles,
