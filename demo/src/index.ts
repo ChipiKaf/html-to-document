@@ -1,6 +1,6 @@
 import { init, DocxAdapter } from 'html-to-document';
 import { PDFAdapter } from 'html-to-document-adapter-pdf';
-import { startContent3 } from './utils/constants';
+import { initSelector } from './ui/selector';
 
 export const run: () => Promise<any> = async () => {
   const editorContainer = document.getElementById('editor');
@@ -109,7 +109,12 @@ export const run: () => Promise<any> = async () => {
     setup: (editor) => {
       editor.on('init', function () {
         console.log('TinyMCE editor is initialized');
-        editor.setContent(startContent3);
+
+        // Initialize the Test Case Selector
+        // The selector will call setContent immediately with the default case
+        initSelector((content) => {
+          editor.setContent(content);
+        });
 
         // Register a custom button on the toolbar named "docx".
         editor.ui.registry.addButton('docx', {
