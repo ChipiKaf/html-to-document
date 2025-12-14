@@ -182,12 +182,23 @@ export function getStyleMeta(
 }
 
 /**
- * Returns a fresh copy of the default style meta registry.
+ * Returns a fresh [deep] copy of the default style meta registry.
  */
 export function initStyleMeta(): Partial<
   Record<keyof CSS.Properties, StyleMeta>
 > {
-  return { ...DEFAULT_STYLE_META };
+  const meta: Partial<Record<keyof CSS.Properties, StyleMeta>> = {};
+  for (const [k, v] of Object.entries(DEFAULT_STYLE_META)) {
+    const key = k as keyof CSS.Properties;
+    if (v) {
+      meta[key] = {
+        ...v,
+        scopes: [...v.scopes],
+        cascadeTo: v.cascadeTo ? [...v.cascadeTo] : undefined,
+      };
+    }
+  }
+  return meta;
 }
 
 interface ComputeInheritedStylesOptions {
