@@ -30,11 +30,15 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     element: TableElement,
     cascadedStyles?: Styles
   ): FileChild[] {
-    const { styleMapper, converter, defaultStyles } = dependencies;
+    const { styleMapper, converter, defaultStyles, styleMeta } = dependencies;
     const captions: { side: string; paragraph: Paragraph }[] = [];
 
     // We filter the cascaded styles for the table scope
-    const inherited = filterForScope(cascadedStyles ?? {}, element.scope);
+    const inherited = filterForScope(
+      cascadedStyles ?? {},
+      element.scope,
+      styleMeta
+    );
     const mergedStyles = {
       ...(defaultStyles?.[element.type] ?? {}),
       ...inherited,
@@ -185,6 +189,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
                   },
                   parentScope: 'tableCell',
                   childScope: 'block',
+                  metaRegistry: styleMeta,
                 }),
                 wrapInlineElements: (inlines) => {
                   return [

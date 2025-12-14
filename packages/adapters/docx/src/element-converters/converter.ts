@@ -4,6 +4,7 @@ import {
   IConverterDependencies,
   StyleMapper,
   Styles,
+  initStyleMeta,
 } from 'html-to-document-core';
 import { ParagraphConverter } from './block/paragraph';
 import {
@@ -30,11 +31,16 @@ export class ElementConverter {
   private readonly textConverter: IInlineConverter<DocumentElement>;
   private readonly styleMapper: StyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
+  private readonly styleMeta: IConverterDependencies['styleMeta'];
 
   private readonly elementConverterDependencies: ElementConverterDependencies;
 
   constructor(
-    { styleMapper, defaultStyles }: IConverterDependencies,
+    {
+      styleMapper,
+      defaultStyles,
+      styleMeta = initStyleMeta(),
+    }: IConverterDependencies,
     config?: DocxAdapterConfig
   ) {
     const {
@@ -62,11 +68,13 @@ export class ElementConverter {
     ];
     this.styleMapper = styleMapper;
     this.defaultStyles = defaultStyles;
+    this.styleMeta = styleMeta;
 
     this.elementConverterDependencies = {
       styleMapper: this.styleMapper,
       converter: this,
       defaultStyles: this.defaultStyles,
+      styleMeta: this.styleMeta,
     } as const;
   }
 

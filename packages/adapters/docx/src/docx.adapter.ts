@@ -17,6 +17,7 @@ import {
   IConverterDependencies,
   StyleMapper,
   IDocumentConverter,
+  initStyleMeta,
 } from 'html-to-document-core';
 
 import { NumberFormat, AlignmentType } from 'docx';
@@ -33,7 +34,11 @@ export class DocxAdapter implements IDocumentConverter {
   >;
 
   constructor(
-    { styleMapper, defaultStyles }: IConverterDependencies,
+    {
+      styleMapper,
+      defaultStyles,
+      styleMeta = initStyleMeta(),
+    }: IConverterDependencies,
     config?: DocxAdapterConfig
   ) {
     this._mapper = styleMapper;
@@ -43,6 +48,7 @@ export class DocxAdapter implements IDocumentConverter {
       {
         styleMapper: this._mapper,
         defaultStyles: this._defaultStyles,
+        styleMeta,
       },
       config
     );

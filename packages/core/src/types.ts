@@ -365,6 +365,8 @@ export interface IConverterDependencies {
   defaultStyles?: Partial<
     Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
   >;
+  /** The inheritance rules for styles */
+  styleMeta?: Partial<Record<keyof CSS.Properties, StyleMeta>>;
   [key: string]: unknown;
 }
 

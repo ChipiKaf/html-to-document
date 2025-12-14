@@ -1,7 +1,7 @@
 import { StyleMeta, Styles, StyleScope } from '../types';
 import * as CSS from 'csstype';
 
-const STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
+const DEFAULT_STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
   // Typography
   fontFamily: {
     inherits: true,
@@ -166,8 +166,11 @@ const STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
   },
 };
 
-export function getStyleMeta(property: keyof CSS.Properties): StyleMeta {
-  const meta = STYLE_META[property];
+export function getStyleMeta(
+  property: keyof CSS.Properties,
+  metaRegistry = DEFAULT_STYLE_META
+): StyleMeta {
+  const meta = metaRegistry[property];
   if (meta) return meta;
 
   // Default to not inherited and valid everywhere
@@ -178,10 +181,20 @@ export function getStyleMeta(property: keyof CSS.Properties): StyleMeta {
   };
 }
 
+/**
+ * Returns a fresh copy of the default style meta registry.
+ */
+export function initStyleMeta(): Partial<
+  Record<keyof CSS.Properties, StyleMeta>
+> {
+  return { ...DEFAULT_STYLE_META };
+}
+
 interface ComputeInheritedStylesOptions {
   parentStyles: Styles;
   parentScope: StyleScope;
   childScope: StyleScope;
+  metaRegistry?: Partial<Record<keyof CSS.Properties, StyleMeta>>;
 }
 
 /**
@@ -195,12 +208,13 @@ export function computeInheritedStyles({
   parentStyles,
   parentScope,
   childScope,
+  metaRegistry,
 }: ComputeInheritedStylesOptions): Styles {
   const result: Styles = {};
 
   for (const [prop, value] of Object.entries(parentStyles)) {
     const key = prop as keyof CSS.Properties;
-    const meta = getStyleMeta(key);
+    const meta = getStyleMeta(key, metaRegistry);
 
     if (!meta.inherits) continue;
     if (!meta.scopes.includes(parentScope)) continue;
@@ -223,27 +237,17 @@ export function computeInheritedStyles({
  */
 export function filterForScope(
   styles: Styles,
-  scope: StyleScope | undefined
+  scope: StyleScope | undefined,
+  metaRegistry?: Partial<Record<keyof CSS.Properties, StyleMeta>>
 ): Styles {
   const result: Styles = {};
   const effectiveScope = scope ?? 'block';
   for (const [prop, value] of Object.entries(styles)) {
     const key = prop as keyof CSS.Properties;
-    const meta = getStyleMeta(key);
+    const meta = getStyleMeta(key, metaRegistry);
     if (meta.scopes.includes(effectiveScope)) {
       result[key] = value;
     }
   }
   return result;
-}
-
-export function registerStyleMeta(
-  property: keyof CSS.Properties,
-  meta: Partial<StyleMeta>
-) {
-  const existing = STYLE_META[property] ?? getStyleMeta(property);
-  STYLE_META[property] = {
-    ...existing,
-    ...meta,
-  };
 }
