@@ -15,24 +15,9 @@ export class TestCaseSelector {
   }
 
   private init() {
-    this.createStyles();
     this.createElements();
     this.renderList();
     this.loadInitialContent();
-  }
-
-  private setupListeners() {
-    // Setup listeners logic moved to createElements or renderList directly
-  }
-
-  private createStyles() {
-    // Styles are imported via ./styles.css
-    // Ensure font is available
-    const link = document.createElement('link');
-    link.href =
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
   }
 
   private createElements() {
