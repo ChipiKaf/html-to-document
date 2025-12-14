@@ -15,41 +15,20 @@ export class TestCaseSelector {
   }
 
   private init() {
-    this.createElements();
+    this.bindElements();
     this.renderList();
     this.loadInitialContent();
   }
 
-  private createElements() {
-    // FAB
-    const fab = document.createElement('button');
-    fab.className = 'test-case-fab';
-    fab.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-      </svg>
-      Test Cases
-    `;
-    document.body.appendChild(fab);
+  private bindElements() {
+    const fab = document.getElementById('test-case-fab');
+    this.overlay = document.getElementById('test-case-overlay') as HTMLElement;
+    this.drawer = document.getElementById('test-case-drawer') as HTMLElement;
 
-    // Overlay
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'test-case-overlay';
-    document.body.appendChild(this.overlay);
-
-    // Drawer
-    this.drawer = document.createElement('div');
-    this.drawer.className = 'test-case-drawer';
-    this.drawer.innerHTML = `
-      <div class="test-case-drawer-header">
-        <h2>Select Test Case</h2>
-        <button class="close-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-      <div class="test-case-list" id="test-case-list"></div>
-    `;
-    document.body.appendChild(this.drawer);
+    if (!fab || !this.overlay || !this.drawer) {
+      console.warn('Test case selector elements not found in DOM');
+      return;
+    }
 
     // Toggle logic
     fab.addEventListener('click', () => this.open());
