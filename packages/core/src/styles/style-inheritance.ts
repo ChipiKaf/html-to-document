@@ -45,11 +45,106 @@ const STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
     inherits: false,
     scopes: ['tableCell', 'block', 'table'],
   },
+  // Border Widths
+  borderWidth: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderTopWidth: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderRightWidth: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderBottomWidth: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderLeftWidth: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  // Border Colors
+  borderColor: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderTopColor: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderRightColor: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderBottomColor: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderLeftColor: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  // Border Styles
+  borderStyle: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderTopStyle: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderRightStyle: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderBottomStyle: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  borderLeftStyle: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
   margin: {
     inherits: false,
     scopes: ['block'],
   },
+  marginTop: {
+    inherits: false,
+    scopes: ['block'],
+  },
+  marginRight: {
+    inherits: false,
+    scopes: ['block'],
+  },
+  marginBottom: {
+    inherits: false,
+    scopes: ['block'],
+  },
+  marginLeft: {
+    inherits: false,
+    scopes: ['block'],
+  },
   padding: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  paddingTop: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  paddingRight: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  paddingBottom: {
+    inherits: false,
+    scopes: ['tableCell', 'block', 'table'],
+  },
+  paddingLeft: {
     inherits: false,
     scopes: ['tableCell', 'block', 'table'],
   },
