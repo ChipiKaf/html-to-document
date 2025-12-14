@@ -82,12 +82,10 @@ export class TestCaseSelector {
 
   public open() {
     this.drawer.classList.add('open');
-    this.overlay.classList.add('open');
   }
 
   public close() {
     this.drawer.classList.remove('open');
-    this.overlay.classList.remove('open');
   }
 }
 

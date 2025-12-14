@@ -166,7 +166,7 @@
   transition: opacity 0.3s;
 }
 
-.test-case-overlay.open {
+body:has(.test-case-drawer.open) .test-case-overlay {
   opacity: 1;
   pointer-events: auto;
 }
