@@ -1,7 +1,9 @@
 import { StyleMeta, Styles, StyleScope } from '../types';
 import * as CSS from 'csstype';
 
-const DEFAULT_STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
+const DEFAULT_STYLE_META: Partial<
+  Readonly<Record<keyof CSS.Properties, Readonly<StyleMeta>>>
+> = {
   // Typography
   fontFamily: {
     inherits: true,
