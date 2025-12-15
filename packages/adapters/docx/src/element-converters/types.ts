@@ -8,6 +8,7 @@ export type ElementConverterDependencies = {
   styleMapper: StyleMapper;
   converter: ElementConverter;
   defaultStyles: IConverterDependencies['defaultStyles'];
+  styleMeta: IConverterDependencies['styleMeta'];
 };
 
 interface IIsMatch<T extends DocumentElement> {

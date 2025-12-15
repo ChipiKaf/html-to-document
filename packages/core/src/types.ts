@@ -5,8 +5,23 @@ import { StyleMapper } from './style.mapper';
  * Represents a style object, allowing both arbitrary keys and known CSS properties.
  * Values are either string or number.
  */
-export type Styles = Record<string, string | number> &
-  Partial<Record<keyof CSS.Properties, string | number>>;
+export type Styles = Partial<Record<keyof CSS.Properties, string | number>>;
+
+export type StyleScope =
+  | 'block'
+  | 'inline'
+  | 'table'
+  | 'tableRow'
+  | 'tableCell';
+
+export interface StyleMeta {
+  /** Does this property naturally flow down to its children? (e.g font-family on a parent div can be inherited by its children) */
+  inherits: boolean;
+  /** At which scopes is this property valid? (e.g textAlign is valid for block and tableCell, but not inline) */
+  scopes: StyleScope[];
+  /** (optional): Even if it inherits, who is allowed to receive it?. (e.g textAlign can cascade into block) */
+  cascadeTo?: StyleScope[];
+}
 
 export type Formats = 'docx' | 'pdf' | 'xlsx' | (string & {});
 /**
@@ -25,6 +40,8 @@ export interface BaseElement {
   metadata?: { [key: string]: unknown };
   /** Optional nested child elements */
   content?: DocumentElement[];
+  /** Optional scope hinting from parser */
+  scope?: StyleScope;
 }
 /**
  * All supported element type strings for document elements.
@@ -279,6 +296,8 @@ export type TagHandlerOptions = {
   content?: DocumentElement[];
   /** Optional text content for the element. */
   text?: string;
+  /** Optional scope hint. */
+  scope?: StyleScope;
   /** Any additional custom properties required by specific handlers or extensions. */
   [key: string]: unknown;
 };
@@ -346,6 +365,8 @@ export interface IConverterDependencies {
   defaultStyles?: Partial<
     Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
   >;
+  /** The inheritance rules for styles */
+  styleMeta?: Partial<Record<keyof CSS.Properties, StyleMeta>>;
   [key: string]: unknown;
 }
 
@@ -420,6 +441,11 @@ export type InitOptions<
 > = {
   /** Optional middleware functions to apply */
   middleware?: readonly Middleware[];
+  /**
+   * Optional custom style inheritance rules.
+   * Allows overriding default inheritance behavior for specific CSS properties.
+   */
+  styleInheritance?: Partial<Record<keyof CSS.Properties, Partial<StyleMeta>>>;
   /**
    * Optional configuration for custom tag handlers and tag-related options.
    *

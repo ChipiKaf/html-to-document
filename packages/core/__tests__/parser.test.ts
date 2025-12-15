@@ -60,6 +60,7 @@ describe('Parser', () => {
       expect(parsed.text).toBe('Hello');
       expect(parsed.styles?.color).toBe('red');
       expect(parsed.attributes!['id']).toBe('test');
+      expect(parsed.scope).toBe('block');
     });
 
     it('parses a single element when handler registered', () => {
@@ -69,6 +70,7 @@ describe('Parser', () => {
             type: 'paragraph',
             text: el.textContent,
             ...options,
+            scope: 'block',
           }) as DocumentElement
       );
       parser.registerTagHandler('p', handler);
@@ -83,6 +85,7 @@ describe('Parser', () => {
           text: 'Hello World',
           styles: { fontWeight: 'bold' },
           attributes: { 'data-custom': 'x' },
+          scope: 'block',
         },
       ]);
     });
@@ -118,7 +121,8 @@ describe('Parser', () => {
     });
 
     it('parses parent as custom element when no handler registered for nested', () => {
-      const html = `<div style="margin: 10px" id="wrapper"><span data-custom="x" style="border: 1px solid #fff">inside</span></div>`;
+      const html =
+        '<div style="margin: 10px" id="wrapper"><span data-custom="x" style="border: 1px solid #fff">inside</span></div>';
       const result = parser.parse(html);
       expect(result).toEqual([
         {
@@ -126,12 +130,14 @@ describe('Parser', () => {
           text: 'inside',
           attributes: { id: 'wrapper', 'data-custom': 'x' },
           styles: { margin: '10px', border: '1px solid #fff' },
+          scope: 'inline',
         },
       ]);
     });
 
     it('parses parent as custom element when no handler registered for nested', () => {
-      const html = `<div style="margin: 10px" id="wrapper">No parent content<span data-custom="x" style="border: 1px solid #fff">inside</span></div>`;
+      const html =
+        '<div style="margin: 10px" id="wrapper">No parent content<span data-custom="x" style="border: 1px solid #fff">inside</span></div>';
       const result = parser.parse(html);
       expect(result).toEqual([
         {
@@ -145,6 +151,7 @@ describe('Parser', () => {
           text: 'inside',
           attributes: { id: 'wrapper', 'data-custom': 'x' },
           styles: { margin: '10px', border: '1px solid #fff' },
+          scope: 'inline',
         },
       ]);
     });
@@ -187,12 +194,14 @@ describe('Parser', () => {
                     color: 'green',
                   },
                   attributes: {},
+                  scope: 'inline',
                 },
               ],
               styles: {
                 color: 'red',
               },
               attributes: {},
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -205,6 +214,7 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
+          scope: 'block',
         },
       ]);
     });
@@ -228,6 +238,7 @@ describe('Parser', () => {
                 fontWeight: 'bold',
               },
               attributes: {},
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -240,6 +251,7 @@ describe('Parser', () => {
                 fontWeight: 'bold',
               },
               attributes: {},
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -248,13 +260,14 @@ describe('Parser', () => {
           ],
           styles: {},
           attributes: {},
+          scope: 'block',
         },
       ]);
     });
 
     it('parses a single paragraph element with children content when no handler is registered', () => {
       let result = parser.parse(
-        `<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>`
+        '<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>'
       );
       result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
@@ -268,6 +281,7 @@ describe('Parser', () => {
                 color: 'red',
               },
               attributes: {},
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -280,6 +294,7 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
+          scope: 'block',
         },
       ]);
     });
@@ -288,7 +303,7 @@ describe('Parser', () => {
   describe('heading', () => {
     it('parses a single heading element with children content when no handler is registered', () => {
       let result = parser.parse(
-        `<h1 style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</h1>`
+        '<h1 style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</h1>'
       );
       result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
@@ -303,6 +318,7 @@ describe('Parser', () => {
                 color: 'red',
               },
               attributes: {},
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -316,6 +332,7 @@ describe('Parser', () => {
           attributes: {
             'data-custom': 'x',
           },
+          scope: 'block',
         },
       ]);
     });
@@ -323,7 +340,8 @@ describe('Parser', () => {
 
   describe('anchor', () => {
     it('parses anchor tags as text elements with href attribute', () => {
-      const html = `<p>This is a <a href="https://example.com" style="color: blue;">link</a> inside a paragraph.</p>`;
+      const html =
+        '<p>This is a <a href="https://example.com" style="color: blue;">link</a> inside a paragraph.</p>';
       let result = parser.parse(html);
       result = JSON.parse(JSON.stringify(result));
       expect(result).toEqual([
@@ -339,6 +357,7 @@ describe('Parser', () => {
               text: 'link',
               styles: { color: 'blue' },
               attributes: { href: 'https://example.com' },
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -347,6 +366,7 @@ describe('Parser', () => {
           ],
           styles: {},
           attributes: {},
+          scope: 'block',
         },
       ]);
     });
@@ -402,6 +422,7 @@ describe('Parser', () => {
                       },
                       styles: {},
                       attributes: {},
+                      scope: 'block',
                     },
                     {
                       type: 'list-item',
@@ -420,6 +441,7 @@ describe('Parser', () => {
                               },
                               styles: {},
                               attributes: {},
+                              scope: 'block',
                             },
                             {
                               type: 'list-item',
@@ -430,6 +452,7 @@ describe('Parser', () => {
                               },
                               styles: {},
                               attributes: {},
+                              scope: 'block',
                             },
                           ],
                           level: 2,
@@ -438,6 +461,7 @@ describe('Parser', () => {
                           },
                           styles: {},
                           attributes: {},
+                          scope: 'block',
                         },
                       ],
                       metadata: {
@@ -445,6 +469,7 @@ describe('Parser', () => {
                       },
                       styles: {},
                       attributes: {},
+                      scope: 'block',
                     },
                   ],
                   level: 1,
@@ -453,6 +478,7 @@ describe('Parser', () => {
                   },
                   styles: {},
                   attributes: {},
+                  scope: 'block',
                 },
               ],
               metadata: {
@@ -462,6 +488,7 @@ describe('Parser', () => {
                 color: 'red',
               },
               attributes: {},
+              scope: 'block',
             },
             {
               type: 'list-item',
@@ -472,6 +499,7 @@ describe('Parser', () => {
               },
               styles: {},
               attributes: {},
+              scope: 'block',
             },
           ],
           level: 0,
@@ -484,6 +512,7 @@ describe('Parser', () => {
           metadata: {
             level: '0',
           },
+          scope: 'block',
         },
       ]);
     });
@@ -536,6 +565,7 @@ describe('Parser', () => {
                       },
                       styles: {},
                       attributes: {},
+                      scope: 'block',
                     },
                     {
                       type: 'list-item',
@@ -546,6 +576,7 @@ describe('Parser', () => {
                       },
                       styles: {},
                       attributes: {},
+                      scope: 'block',
                     },
                     {
                       type: 'list-item',
@@ -571,6 +602,7 @@ describe('Parser', () => {
                               },
                               styles: {},
                               attributes: {},
+                              scope: 'block',
                             },
                             {
                               type: 'list-item',
@@ -596,6 +628,7 @@ describe('Parser', () => {
                                       },
                                       styles: {},
                                       attributes: {},
+                                      scope: 'block',
                                     },
                                     {
                                       type: 'list-item',
@@ -606,6 +639,7 @@ describe('Parser', () => {
                                       },
                                       styles: {},
                                       attributes: {},
+                                      scope: 'block',
                                     },
                                   ],
                                   level: 3,
@@ -614,6 +648,7 @@ describe('Parser', () => {
                                   },
                                   styles: {},
                                   attributes: {},
+                                  scope: 'block',
                                 },
                               ],
                               metadata: {
@@ -621,6 +656,7 @@ describe('Parser', () => {
                               },
                               styles: {},
                               attributes: {},
+                              scope: 'block',
                             },
                           ],
                           level: 2,
@@ -629,6 +665,7 @@ describe('Parser', () => {
                           },
                           styles: {},
                           attributes: {},
+                          scope: 'block',
                         },
                       ],
                       metadata: {
@@ -636,6 +673,7 @@ describe('Parser', () => {
                       },
                       styles: {},
                       attributes: {},
+                      scope: 'block',
                     },
                   ],
                   level: 1,
@@ -644,6 +682,7 @@ describe('Parser', () => {
                   },
                   styles: {},
                   attributes: {},
+                  scope: 'block',
                 },
               ],
               metadata: {
@@ -653,6 +692,7 @@ describe('Parser', () => {
                 listStyleType: 'none',
               },
               attributes: {},
+              scope: 'block',
             },
             {
               type: 'list-item',
@@ -663,6 +703,7 @@ describe('Parser', () => {
               },
               styles: {},
               attributes: {},
+              scope: 'block',
             },
           ],
           level: 0,
@@ -671,6 +712,7 @@ describe('Parser', () => {
           metadata: {
             level: '0',
           },
+          scope: 'block',
         },
       ]);
     });
@@ -706,6 +748,7 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 3,
                   rowspan: 3,
+                  scope: 'tableCell',
                 },
                 {
                   type: 'table-cell',
@@ -721,10 +764,12 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
               ],
               styles: { borderWidth: '3px' },
               attributes: {},
+              scope: 'tableRow',
             },
             {
               type: 'table-row',
@@ -736,6 +781,7 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 3,
                   rowspan: 3,
+                  scope: 'tableCell',
                 },
                 {
                   type: 'table-cell',
@@ -744,10 +790,12 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 3,
                   rowspan: 3,
+                  scope: 'tableCell',
                 },
               ],
               styles: {},
               attributes: { 'data-row': 'x' },
+              scope: 'tableRow',
             },
             {
               type: 'table-row',
@@ -759,15 +807,18 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
               ],
               styles: {},
               attributes: {},
+              scope: 'tableRow',
             },
           ],
           styles: { borderStyle: 'dashed' },
           attributes: { 'data-table': 'x' },
           metadata: { nested: false },
+          scope: 'table',
         },
       ]);
     });
@@ -803,6 +854,7 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 3,
                   rowspan: 3,
+                  scope: 'tableCell',
                 },
                 {
                   type: 'table-cell',
@@ -822,12 +874,14 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
               ],
               styles: {
                 borderWidth: '3px',
               },
               attributes: {},
+              scope: 'tableRow',
             },
           ],
           styles: {
@@ -839,6 +893,7 @@ describe('Parser', () => {
           metadata: {
             nested: false,
           },
+          scope: 'table',
         },
       ]);
     });
@@ -873,6 +928,7 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
                 {
                   type: 'table-cell',
@@ -881,10 +937,12 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
               ],
               styles: {},
               attributes: {},
+              scope: 'tableRow',
             },
             {
               type: 'table-row',
@@ -896,6 +954,7 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
                 {
                   type: 'table-cell',
@@ -904,10 +963,12 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
               ],
               styles: {},
               attributes: {},
+              scope: 'tableRow',
             },
             {
               type: 'table-row',
@@ -919,6 +980,7 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
                 {
                   type: 'table-cell',
@@ -927,15 +989,18 @@ describe('Parser', () => {
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
+                  scope: 'tableCell',
                 },
               ],
               styles: {},
               attributes: {},
+              scope: 'tableRow',
             },
           ],
           styles: { borderStyle: 'dashed' },
           attributes: { 'data-table': 'x' },
           metadata: { nested: false },
+          scope: 'table',
         },
       ]);
     });
@@ -967,6 +1032,7 @@ describe('Parser', () => {
                   captionSide: 'bottom',
                 },
                 attributes: {},
+                scope: 'inline',
               },
             ],
             colgroup: [
@@ -982,6 +1048,7 @@ describe('Parser', () => {
                       },
                       content: [],
                       attributes: {},
+                      scope: 'inline',
                     },
                     {
                       content: [],
@@ -989,6 +1056,7 @@ describe('Parser', () => {
                         width: '35%',
                       },
                       attributes: {},
+                      scope: 'inline',
                     },
                     {
                       content: [],
@@ -996,15 +1064,18 @@ describe('Parser', () => {
                         width: '35%',
                       },
                       attributes: {},
+                      scope: 'inline',
                     },
                   ],
                 },
+                scope: 'inline',
               },
             ],
           },
           attributes: {
             'data-table': 'x',
           },
+          scope: 'table',
         },
       ]);
     });
@@ -1023,6 +1094,7 @@ describe('Parser', () => {
               text: '2',
               styles: { verticalAlign: 'sub' },
               attributes: {},
+              scope: 'inline',
             },
             { type: 'text', text: 'O and x' },
             {
@@ -1030,10 +1102,12 @@ describe('Parser', () => {
               text: '2',
               styles: { verticalAlign: 'super' },
               attributes: {},
+              scope: 'inline',
             },
           ],
           styles: {},
           attributes: {},
+          scope: 'block',
         },
       ]);
     });
@@ -1059,6 +1133,7 @@ describe('Parser', () => {
               metadata: {
                 break: 1,
               },
+              scope: 'inline',
             },
             {
               type: 'text',
@@ -1067,6 +1142,7 @@ describe('Parser', () => {
           ],
           styles: {},
           attributes: {},
+          scope: 'block',
         },
       ]);
     });

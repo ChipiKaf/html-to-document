@@ -1,6 +1,8 @@
 import {
   AttributeElement,
+  computeInheritedStyles,
   DocumentElement,
+  filterForScope,
   GridCell,
   Styles,
   TableElement,
@@ -28,11 +30,18 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     element: TableElement,
     cascadedStyles?: Styles
   ): FileChild[] {
-    const { styleMapper, converter, defaultStyles } = dependencies;
+    const { styleMapper, converter, defaultStyles, styleMeta } = dependencies;
     const captions: { side: string; paragraph: Paragraph }[] = [];
+
+    // We filter the cascaded styles for the table scope
+    const inherited = filterForScope(
+      cascadedStyles ?? {},
+      element.scope,
+      styleMeta
+    );
     const mergedStyles = {
       ...(defaultStyles?.[element.type] ?? {}),
-      ...cascadedStyles,
+      ...inherited,
       ...element.styles,
     };
 
@@ -172,11 +181,16 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           const cellContent = originalCell
             ? converter.convertToBlocks({
                 element: originalCell,
-                cascadedStyles: {
-                  ...defaultStyles?.[originalCell.type],
-                  ...stylesCol[j],
-                  ...originalCell.styles,
-                },
+                cascadedStyles: computeInheritedStyles({
+                  parentStyles: {
+                    ...defaultStyles?.[originalCell.type],
+                    ...stylesCol[j],
+                    ...originalCell.styles,
+                  },
+                  parentScope: 'tableCell',
+                  childScope: 'block',
+                  metaRegistry: styleMeta,
+                }),
                 wrapInlineElements: (inlines) => {
                   return [
                     new Paragraph({

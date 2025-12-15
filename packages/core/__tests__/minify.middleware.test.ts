@@ -56,7 +56,7 @@ describe('minifyMiddleware', () => {
                     </ul>`;
     const output = await minifyMiddleware(html);
     expect(output).toBe(
-      `<ol><li>awej</li><li>awew</li><li>rw</li></ol><ul><li>Hello <ul><li>There</li></ul></li><li>My <span style="color: #b96ad9;">world is</span> here <ul><li>Also <strong>ther</strong><ul><li><strong>What else? </strong>Is <strong>There?</strong></li></ul></li></ul></li></ul>`
+      '<ol><li>awej</li><li>awew</li><li>rw</li></ol><ul><li>Hello <ul><li>There</li></ul></li><li>My <span style="color: #b96ad9;">world is</span> here <ul><li>Also <strong>ther</strong><ul><li><strong>What else? </strong>Is <strong>There?</strong></li></ul></li></ul></li></ul>'
     );
   });
 

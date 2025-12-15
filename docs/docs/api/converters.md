@@ -12,15 +12,24 @@ You can register custom adapter implementations to handle new output formats by 
 
 For detailed definitions of the types used here (such as [`IDocumentConverter`](./types), [`DocumentElement`](./types), and [`IConverterDependencies`](./types)), see the [Types Reference](./types).
 
-
 Custom adapter classes must implement:
+
 ```ts
-import { IDocumentConverter, DocumentElement, IConverterDependencies } from 'html-to-document';
+import {
+  IDocumentConverter,
+  DocumentElement,
+  IConverterDependencies,
+} from 'html-to-document';
 
 export class MyAdapter implements IDocumentConverter {
-  constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
+  constructor({
+    styleMapper,
+    defaultStyles,
+    styleMeta,
+  }: IConverterDependencies) {
     // styleMapper: StyleMapper for CSS→format mapping
     // defaultStyles?: default style definitions per element type
+    // styleMeta?: style inheritance metadata
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -36,40 +45,58 @@ export class MyAdapter implements IDocumentConverter {
 }
 ```
 
+For more details on `styleMeta` and inheritance configuration, see the [Initialization options](./init#styleinheritance).
+
 ### Quickstart Guide: Writing a Minimal Custom Adapter
 
 Here's a barebones adapter that outputs plain text from paragraphs and headings. This helps you understand how to traverse and transform [`DocumentElement`](./types) nodes.
 
 ```ts
-import { IDocumentConverter, DocumentElement, IConverterDependencies } from 'html-to-document';
+import {
+  IDocumentConverter,
+  DocumentElement,
+  IConverterDependencies,
+} from 'html-to-document';
 
 export class PlainTextAdapter implements IDocumentConverter {
   private mapper: StyleMapper;
-  constructor({ styleMapper, defaultStyles }: IConverterDependencies) {
+  private defaults: Record<string, any>;
+  private styleMeta: IConverterDependencies['styleMeta'];
+
+  constructor({
+    styleMapper,
+    defaultStyles,
+    styleMeta,
+  }: IConverterDependencies) {
     this.mapper = styleMapper;
     this.defaults = defaultStyles ?? {};
+    this.styleMeta = styleMeta;
   }
 
   async convert(elements: DocumentElement[]): Promise<Blob> {
-    const text = elements.map(el => {
-      const styles = { ...this.defaults[el.type], ...el.styles };
-      const props = this.mapper.mapStyles(styles, el);
-      switch (el.type) {
-        case 'paragraph':
-          return (el.text ?? '') + '\n\n';
-        case 'heading':
-          return '#'.repeat(el.level || 1) + ' ' + (el.text ?? '') + '\n\n';
-        case 'text':
-          return props.bold ? '**' + (el.text ?? '') + '**' : (el.text ?? '');
-        default:
-          return '';
-      }
-    }).join('');
-    
+    const text = elements
+      .map((el) => {
+        const styles = { ...this.defaults[el.type], ...el.styles };
+        const props = this.mapper.mapStyles(styles, el);
+        switch (el.type) {
+          case 'paragraph':
+            return (el.text ?? '') + '\n\n';
+          case 'heading':
+            return '#'.repeat(el.level || 1) + ' ' + (el.text ?? '') + '\n\n';
+          case 'text':
+            return props.bold ? '**' + (el.text ?? '') + '**' : (el.text ?? '');
+          default:
+            return '';
+        }
+      })
+      .join('');
+
     return new Blob([text], { type: 'text/plain' });
   }
 }
 ```
+
+For more details on `styleMeta` and inheritance configuration, see the [Initialization options](./init#styleinheritance).
 
 You can build on this to support more types like tables, images, and lists.
 
@@ -84,6 +111,7 @@ import {
   IInlineConverter,
   IFallthroughConvertedChildrenWrapperConverter,
   ElementConverterDependencies,
+  filterForScope,
 } from 'html-to-document-core';
 import {
   DocumentElement,
@@ -102,6 +130,11 @@ class HeadingBlockConverter implements IBlockConverter<HeadingElement> {
     el: HeadingElement,
     styles: Styles = {}
   ) {
+    // You can access styleMeta from dependencies:
+    const { styleMeta } = deps;
+    // Example: Use it to filter styles for this scope
+    // const filtered = filterForScope(styles, 'block', styleMeta);
+
     // implement conversion logic for headings
     return [];
   }
@@ -112,14 +145,20 @@ class BoldInlineConverter implements IInlineConverter<TextElement> {
   isMatch(el: DocumentElement): el is TextElement {
     return el.type === 'text' && el.styles.fontWeight === 'bold';
   }
-  convertEement(deps: ElementConverterDependencies, el: TextElement, styles: Styles) {
+  convertEement(
+    deps: ElementConverterDependencies,
+    el: TextElement,
+    styles: Styles
+  ) {
     // implement conversion logic for bold text
     return [];
   }
 }
 
 // Fallthrough converter: wraps converted children based on attributes
-class IdFallthroughConverter implements IFallthroughConvertedChildrenWrapperConverter {
+class IdFallthroughConverter
+  implements IFallthroughConvertedChildrenWrapperConverter
+{
   isMatch(el: DocumentElement): boolean {
     return Boolean(el.attributes?.id);
   }
@@ -139,6 +178,7 @@ class IdFallthroughConverter implements IFallthroughConvertedChildrenWrapperConv
 ## Register During Initialization (Recommended)
 
 Provide adapter classes implementing `IDocumentConverter` via the `adapters.register` option:
+
 ```ts
 import { init } from 'html-to-document';
 import { MyAdapter } from './my-adapter';
@@ -172,16 +212,23 @@ const converter = init({
       },
     ],
     defaultStyles: [
-      { format: 'md', styles: { paragraph: { marginBottom: 8, lineHeight: 1.6 } } },
+      {
+        format: 'md',
+        styles: { paragraph: { marginBottom: 8, lineHeight: 1.6 } },
+      },
     ],
     styleMappings: [
-      { format: 'md', handlers: { fontWeight: (v) => ({ bold: v === 'bold' }) } },
+      {
+        format: 'md',
+        handlers: { fontWeight: (v) => ({ bold: v === 'bold' }) },
+      },
     ],
   },
 });
 ```
 
 The `MyAdapter` class should implement:
+
 ```ts
 import { IDocumentConverter, DocumentElement } from 'html-to-document';
 
@@ -193,25 +240,33 @@ export class MyAdapter implements IDocumentConverter {
   }
 }
 ```
+
 This method works well cause it handles the initialization of the style mapper and other dependencies for you.
 
 ## Register at Runtime
 
 After creating a `Converter` instance, call `registerConverter`:
+
 ```ts
 const converter = init();
-converter.registerConverter('md', new MyAdapter({ /* deps */ }));
+converter.registerConverter(
+  'md',
+  new MyAdapter({
+    /* deps */
+  })
+);
 ```
 
 > **Note:** When registering at runtime, you must supply an `IConverterDependencies` object, typically:
+>
 > ```ts
-> import { StyleMapper } from 'html-to-document';
+> import { StyleMapper, initStyleMeta } from 'html-to-document';
 > const styleMapper = new StyleMapper();
 > // Optionally add mappings:
 > styleMapper.addMapping({ fontWeight: (v) => ({ bold: v === 'bold' }) });
 > const defaultStyles = { paragraph: { lineHeight: 1.5 } };
 > converter.registerConverter(
 >   'md',
->   new MyAdapter({ styleMapper, defaultStyles })
+>   new MyAdapter({ styleMapper, defaultStyles, styleMeta: initStyleMeta() })
 > );
 > ```
