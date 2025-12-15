@@ -164,7 +164,7 @@ const DEFAULT_STYLE_META: Partial<Record<keyof CSS.Properties, StyleMeta>> = {
     inherits: false,
     scopes: ['tableCell', 'inline'],
   },
-};
+} as const;
 
 export function getStyleMeta(
   property: keyof CSS.Properties,
