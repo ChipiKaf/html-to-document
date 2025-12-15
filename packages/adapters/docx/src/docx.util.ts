@@ -1,11 +1,3 @@
-import {
-  TextRun,
-  ImageRun,
-  MathRun,
-  Paragraph,
-  Table,
-  ExternalHyperlink,
-} from 'docx';
 import { DocumentElement, Styles } from 'html-to-document-core';
 import { DocxElement } from './docx.types';
 
@@ -77,16 +69,3 @@ export function toBinaryBuffer(
   // For ArrayBuffer input, always return a Uint8Array
   return new Uint8Array(input);
 }
-
-export const isInline = (
-  el: TextRun | ImageRun | MathRun | Paragraph | Table
-) => {
-  if (
-    el instanceof TextRun ||
-    el instanceof ImageRun ||
-    el instanceof MathRun ||
-    el instanceof ExternalHyperlink
-  )
-    return true;
-  return false;
-};

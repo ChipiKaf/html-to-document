@@ -3,7 +3,6 @@ import {
   base64ToUint8Array,
   handleChildren,
   toBinaryBuffer,
-  isInline,
 } from '../src/docx.util';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
@@ -83,13 +82,6 @@ describe('docx.util', () => {
       expect((result as any)[0]).toEqual({ type: 'a' });
       // @ts-ignore
       expect((result as any)[1]).toEqual({ type: 'x' });
-    });
-  });
-
-  describe('isInline', () => {
-    it('recognizes inline text, image, and math runs', () => {
-      expect(isInline(new TextRun('t'))).toBe(true);
-      expect(isInline(new MathRun('x'))).toBe(true);
     });
   });
 });
