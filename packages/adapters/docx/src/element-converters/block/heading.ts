@@ -12,18 +12,18 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     return element.type === 'heading';
   }
 
-  convertEement(
+  async convertEement(
     { styleMapper, converter, defaultStyles }: ElementConverterDependencies,
     element: HeadingElement,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
+  ): Promise<FileChild[]> {
     const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...inherited,
       ...element.styles,
     };
-    let children: ParagraphChild[] = converter.convertInlineTextOrContent(
+    let children: ParagraphChild[] = await converter.convertInlineTextOrContent(
       element,
       mergedStyles
     );

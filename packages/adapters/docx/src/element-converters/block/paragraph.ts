@@ -16,7 +16,7 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
     { styleMapper, converter, defaultStyles }: ElementConverterDependencies,
     element: ParagraphElement,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
+  ): FileChild[] | Promise<FileChild[]> {
     // Paragraph element must only have inline children or else it could corrupt the document structure.
     const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {

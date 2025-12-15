@@ -7,6 +7,7 @@ import {
   Styles,
 } from 'html-to-document-core';
 import { ElementConverterDependencies, IBlockConverter } from '../types';
+import { promiseAllFlat } from '../../docx.util';
 
 type DocumentElementType = ListElement;
 
@@ -19,7 +20,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     dependencies: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
+  ): FileChild[] | Promise<FileChild[]> {
     const { defaultStyles } = dependencies;
     const inherited = filterForScope(cascadedStyles, element.scope);
     // Paragraph element must only have inline children or else it could corrupt the document structure.
@@ -33,13 +34,15 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     //     converter.convertInline(child, mergedStyles)
     //   ) ?? [];
 
-    return element.content.flatMap((child) => {
-      child.metadata ??= {};
-      child.metadata.reference = `${element.listType}${
-        element.markerStyle ? `-${element.markerStyle}` : ''
-      }`;
-      return this.convertListItem(dependencies, child, mergedStyles);
-    });
+    return promiseAllFlat(
+      element.content.map((child) => {
+        child.metadata ??= {};
+        child.metadata.reference = `${element.listType}${
+          element.markerStyle ? `-${element.markerStyle}` : ''
+        }`;
+        return this.convertListItem(dependencies, child, mergedStyles);
+      })
+    );
   }
 
   convertListItem(

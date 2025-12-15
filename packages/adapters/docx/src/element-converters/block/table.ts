@@ -25,11 +25,11 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     return element.type === 'table';
   }
 
-  public convertEement(
+  public async convertEement(
     dependencies: ElementConverterDependencies,
     element: TableElement,
     cascadedStyles?: Styles
-  ): FileChild[] {
+  ): Promise<FileChild[]> {
     const { styleMapper, converter, defaultStyles, styleMeta } = dependencies;
     const captions: { side: string; paragraph: Paragraph }[] = [];
 
@@ -61,19 +61,21 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     if (Array.isArray(element.metadata?.caption)) {
       const caption = element.metadata.caption as AttributeElement[];
       captions.push(
-        ...caption.map((c) => ({
-          side: (c.styles?.captionSide || 'top') as string,
-          paragraph: new Paragraph({
-            // children: [
-            //   new TextRun({
-            //     text: c.text,
-            //     ...styleMapper.mapStyles(c.styles || {}, c),
-            //   }),
-            // ],
-            children: converter.convertInline(c, c.styles),
-            ...styleMapper.mapStyles(c.styles || {}, c),
-          }),
-        }))
+        ...(await Promise.all(
+          caption.map(async (c) => ({
+            side: (c.styles?.captionSide || 'top') as string,
+            paragraph: new Paragraph({
+              // children: [
+              //   new TextRun({
+              //     text: c.text,
+              //     ...styleMapper.mapStyles(c.styles || {}, c),
+              //   }),
+              // ],
+              children: await converter.convertInline(c, c.styles),
+              ...styleMapper.mapStyles(c.styles || {}, c),
+            }),
+          }))
+        ))
       );
     }
     // --- end colgroup support ---
@@ -211,7 +213,8 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
 
           cells.push(
             new TableCell({
-              children: cellContent,
+              // TODO: make concurrent iterations
+              children: await cellContent,
               columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalMerge: verticalMerge,
               verticalAlign: VerticalAlign.CENTER,

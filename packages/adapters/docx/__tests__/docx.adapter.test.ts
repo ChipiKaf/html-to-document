@@ -119,6 +119,81 @@ describe('Docx.adapter.convert', () => {
         );
       });
     });
+
+    describe('Alt text', () => {
+      it("should convert an image's alt text into DOCX description", async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const altText = 'Sample Alt Text';
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+            attributes: {
+              alt: altText,
+            },
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+
+        // Traverse to find the drawing element and check its description.
+        const runs = body['w:p']['w:r'];
+        const drawing = runs['w:drawing'];
+        const docPr = drawing['wp:inline']['wp:docPr'];
+        expect(docPr['@_descr']).toBe(altText);
+      });
+    });
+
+    describe('Inline image', () => {
+      it('should correctly embed an inline image next to text', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Here is an image: ' },
+              {
+                type: 'image',
+                src: dataUri,
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const hasDrawing = findDrawingInObject(body);
+        expect(hasDrawing).toBe(true);
+
+        // Make sure that the image is alongside the text in the same paragraph.
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        expect(paragraph).toHaveLength(2);
+
+        expect(
+          paragraph.some(
+            (run: any) =>
+              run['w:r'] &&
+              run['w:r']['w:t'] &&
+              run['w:r']['w:t']['#text'].startsWith('Here is an image:')
+          )
+        ).toBe(true);
+        expect(paragraph.some((run: any) => 'w:drawing' in run['w:r'])).toBe(
+          true
+        );
+      });
+    });
   });
 
   describe('heading', () => {

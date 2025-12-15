@@ -7,11 +7,11 @@ export class LineConverter implements IBlockConverter<LineElement> {
     return element.type === 'line';
   }
 
-  convertEement(
+  async convertEement(
     { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
     element: LineElement,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
+  ): Promise<FileChild[]> {
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...cascadedStyles,
@@ -20,7 +20,7 @@ export class LineConverter implements IBlockConverter<LineElement> {
 
     const children = converter.runFallthroughWrapConvertedChildren(
       element,
-      converter.convertInlineTextOrContent(element, mergedStyles),
+      await converter.convertInlineTextOrContent(element, mergedStyles),
       mergedStyles
     );
 

@@ -23,6 +23,9 @@ import { HeadingConverter } from './block/heading';
 import { TableConverter } from './block/table';
 import { IdInlineConverter } from './fallthrough/id';
 import { DocxAdapterConfig } from '../docx.types';
+import { ImageConverter } from './inline/image';
+import { ImageBlockConverter } from './block/image';
+import { promiseAllFlat } from '../docx.util';
 
 export class ElementConverter {
   private readonly blockConverters: IBlockConverter[];
@@ -50,6 +53,7 @@ export class ElementConverter {
     } = config ?? {};
     this.blockConverters = [
       ...blockConverters,
+      new ImageBlockConverter(),
       new LineConverter(),
       new ListConverter(),
       new HeadingConverter(),
@@ -64,6 +68,7 @@ export class ElementConverter {
       ...inlineConverters,
       idConverter,
       new LinkConverter(),
+      new ImageConverter(),
       this.textConverter,
     ];
     this.styleMapper = styleMapper;
@@ -124,7 +129,7 @@ export class ElementConverter {
   public convertBlock(
     element: DocumentElement,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
+  ): FileChild[] | Promise<FileChild[]> {
     const converter = this.findBlockConverter(element);
     if (!converter) {
       return [];
@@ -143,7 +148,7 @@ export class ElementConverter {
   public convertInline(
     element: DocumentElement,
     cascadedStyles: Styles = {}
-  ): ParagraphChild[] {
+  ): ParagraphChild[] | Promise<ParagraphChild[]> {
     const converter = this.findInlineConverter(element);
     if (!converter) {
       return [];
@@ -162,7 +167,7 @@ export class ElementConverter {
   public convertText(
     element: DocumentElement,
     cascadedStyles: Styles = {}
-  ): ParagraphChild[] {
+  ): ParagraphChild[] | Promise<ParagraphChild[]> {
     return this.textConverter.convertEement(
       this.elementConverterDependencies,
       element,
@@ -226,16 +231,19 @@ export class ElementConverter {
    * If an element only can have inline children, you can use this method.
    * It will convert nested blocks to inline elements as well.
    */
-  public convertInlineTextOrContent(
+  public async convertInlineTextOrContent(
     element: DocumentElement,
     cascadedStyles: Styles = {}
-  ): ParagraphChild[] {
-    let children: ParagraphChild[] = [];
+  ): Promise<ParagraphChild[]> {
+    let children: ParagraphChild[] | Promise<ParagraphChild[]> = [];
 
     if (element.content && element.content.length > 0) {
-      children = element.content.flatMap((child) =>
-        this.convertInline(child, cascadedStyles)
+      const converted = await promiseAllFlat(
+        element.content.map((child) =>
+          this.convertInline(child, cascadedStyles)
+        )
       );
+      children = converted;
     } else {
       children = this.convertText(element, cascadedStyles);
     }
@@ -254,7 +262,7 @@ export class ElementConverter {
    * Some elements might have nested bloks.
    * You can use this method to convert the element to blocks and wrapping all inline element "chunks" in a block as well.
    */
-  public convertToBlocks(options: {
+  public async convertToBlocks(options: {
     element: DocumentElement;
     cascadedStyles?: Styles;
     /**
@@ -268,13 +276,13 @@ export class ElementConverter {
       element: DocumentElement,
       index: number,
       cascadedStyles?: Styles
-    ) => FileChild[];
+    ) => FileChild[] | Promise<FileChild[]>;
     /** Handler for wrapping inline elements "chunks" in a block element. */
     wrapInlineElements: (
       elements: ParagraphChild[],
       index: number
     ) => FileChild[];
-  }): FileChild[] {
+  }): Promise<FileChild[]> {
     const {
       element,
       cascadedStyles = {},
@@ -286,7 +294,7 @@ export class ElementConverter {
 
     if (!element.content || element.content.length <= 0) {
       // If the provided element has no content it probably has text and we can convert it inline or directly with the text converter?
-      const inlineElements = this.convertInline(element, cascadedStyles);
+      const inlineElements = await this.convertInline(element, cascadedStyles);
       // const wrappedChildren = this.runFallthroughWrapConvertedChildren(
       //   element,
       //   inlineElements,
@@ -373,31 +381,35 @@ export class ElementConverter {
       [] as typeof marked
     );
 
-    const wrapped = markedWithMergedInlines.flatMap((item, i) => {
-      if (item.type === 'blocks') {
-        return convertBlock(
-          this.elementConverterDependencies,
-          item.children,
-          i,
-          cascadedStyles
+    const wrapped = await promiseAllFlat(
+      markedWithMergedInlines.map(async (item, i) => {
+        if (item.type === 'blocks') {
+          return convertBlock(
+            this.elementConverterDependencies,
+            item.children,
+            i,
+            cascadedStyles
+          );
+        }
+
+        let newChildren = await promiseAllFlat(
+          item.children.map((child) =>
+            this.convertInline(child, cascadedStyles)
+          )
         );
-      }
 
-      let newChildren = item.children.flatMap((child) =>
-        this.convertInline(child, cascadedStyles)
-      );
+        // const wrappedChildren = this.runFallthroughWrapConvertedChildren(
+        //   element,
+        //   newChildren,
+        //   cascadedStyles,
+        //   i
+        // );
+        //
+        // return wrapInlineElements(wrappedChildren, i);
 
-      // const wrappedChildren = this.runFallthroughWrapConvertedChildren(
-      //   element,
-      //   newChildren,
-      //   cascadedStyles,
-      //   i
-      // );
-      //
-      // return wrapInlineElements(wrappedChildren, i);
-
-      return wrapInlineElements(newChildren, i);
-    });
+        return wrapInlineElements(newChildren, i);
+      })
+    );
 
     return wrapped;
   }

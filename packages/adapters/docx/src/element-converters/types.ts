@@ -23,7 +23,7 @@ export interface IElementConverter<
     dependencies: ElementConverterDependencies,
     element: T,
     cascadedStyles?: Styles
-  ): Output;
+  ): Output | Promise<Output>;
 }
 
 export interface IBlockConverter<T extends DocumentElement = DocumentElement>

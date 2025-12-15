@@ -6,6 +6,7 @@ import {
   TextElement,
 } from 'html-to-document-core';
 import { ElementConverterDependencies, IInlineConverter } from '../types';
+import { promiseAllFlat } from '../../docx.util';
 
 type DocumentElementType = TextElement;
 
@@ -18,7 +19,7 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
     { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
-  ): ParagraphChild[] {
+  ): ParagraphChild[] | Promise<ParagraphChild[]> {
     const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
@@ -27,9 +28,11 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
     };
 
     if (element.content && element.content.length > 0) {
-      return element.content.flatMap((content) => {
-        return converter.convertInline(content, mergedStyles);
-      });
+      return promiseAllFlat(
+        element.content.map((content) =>
+          converter.convertInline(content, mergedStyles)
+        )
+      );
     }
 
     return [

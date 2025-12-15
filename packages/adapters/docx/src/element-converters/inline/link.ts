@@ -13,11 +13,11 @@ export class LinkConverter implements IInlineConverter<DocumentElementType> {
     return element.type === 'text' && !!element.attributes?.href;
   }
 
-  convertEement(
+  async convertEement(
     { converter, defaultStyles }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
-  ): ParagraphChild[] {
+  ): Promise<ParagraphChild[]> {
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...cascadedStyles,
@@ -25,7 +25,7 @@ export class LinkConverter implements IInlineConverter<DocumentElementType> {
     };
     const href = element.attributes.href;
     const children =
-      converter.convertInlineTextOrContent(element, mergedStyles) ?? [];
+      (await converter.convertInlineTextOrContent(element, mergedStyles)) ?? [];
     if (href.startsWith('#')) {
       return [
         new InternalHyperlink({
