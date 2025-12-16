@@ -182,6 +182,41 @@ describe('Docx.adapter.convert', () => {
         // Original image is 1x1 pixel, so height should also be 200 to maintain aspect ratio.
         expect(Number(extent['@_cy'])).toBe(pxToEmus(200));
       });
+
+      it('sets width to not be larger than max-width', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+            styles: { maxWidth: '150px' },
+            attributes: { width: '200' },
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const run = paragraph['w:r'];
+        expect(run).toBeDefined();
+        const drawing = run['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        // const pxToEmus = (px: number) => px * 9525;
+        const emusToPx = (emus: number) => emus / 9525;
+        // Width should be capped at max-width of 150px
+        expect(emusToPx(Number(extent['@_cx']))).toBe(150);
+        // Original image is 1x1 pixel, so height should also be 150 to maintain aspect ratio.
+        expect(emusToPx(Number(extent['@_cy']))).toBe(150);
+      });
     });
 
     describe('Inline image', () => {

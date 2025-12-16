@@ -4,7 +4,12 @@ import {
   SupportedImageType,
   toBinaryBuffer,
 } from '../../docx.util';
-import { DocumentElement, ImageElement, Styles } from 'html-to-document-core';
+import {
+  DocumentElement,
+  ImageElement,
+  Styles,
+  parseImageSizePx,
+} from 'html-to-document-core';
 import { imageSize } from 'image-size';
 import { ParagraphChild } from 'docx';
 import { ElementConverterDependencies, IInlineConverter } from '../types';
@@ -78,14 +83,28 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
     const transformation =
       (mappedStyles.transformation as Record<string, unknown> | undefined) ||
       {};
-    const width =
+    let width =
       typeof transformation?.width === 'number'
         ? transformation.width
         : originalWidth;
-    const height =
+
+    if (mergedStyles.maxWidth !== undefined) {
+      width = Math.min(
+        width,
+        parseImageSizePx(mergedStyles.maxWidth.toString()) ?? Infinity
+      );
+    }
+
+    let height =
       typeof transformation?.height === 'number'
         ? transformation.height
         : Math.round(width / originalAspectRatio);
+    if (mergedStyles.maxHeight !== undefined) {
+      height = Math.min(
+        height,
+        parseImageSizePx(mergedStyles.maxHeight.toString()) ?? Infinity
+      );
+    }
 
     // TODO: run fallthrough converter
 
@@ -141,7 +160,6 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
         transformation: {
           width,
           height,
-          ...(mappedStyles.transformation || {}),
         },
       }),
     ];
