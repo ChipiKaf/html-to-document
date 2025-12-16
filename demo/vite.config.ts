@@ -25,6 +25,22 @@ const devAliases = isDev
 
 export default defineConfig({
   root: path.resolve(__dirname),
+  server: {
+    fs: isDev
+      ? {
+          allow: ['..'],
+        }
+      : undefined,
+  },
+  optimizeDeps: {
+    exclude: isDev
+      ? [
+          'html-to-document',
+          'html-to-document-core',
+          'html-to-document-adapter-docx',
+        ]
+      : [],
+  },
   resolve: {
     alias: {
       ...devAliases,

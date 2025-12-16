@@ -28,6 +28,10 @@ export interface IElementConverter<
 
 export interface IBlockConverter<T extends DocumentElement = DocumentElement>
   extends IElementConverter<T, FileChild[]> {
+  /**
+   * @beta This field is still experimental and may change to another type in the future
+   */
+  readonly preferInlineConversion?: boolean;
   // convertEement(
   //   dependencies: ElementConverterDependencies,
   //   element: T,

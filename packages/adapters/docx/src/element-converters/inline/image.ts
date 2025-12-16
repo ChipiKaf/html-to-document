@@ -4,12 +4,7 @@ import {
   SupportedImageType,
   toBinaryBuffer,
 } from '../../docx.util';
-import {
-  DocumentElement,
-  filterForScope,
-  ImageElement,
-  Styles,
-} from 'html-to-document-core';
+import { DocumentElement, ImageElement, Styles } from 'html-to-document-core';
 import { imageSize } from 'image-size';
 import { ParagraphChild } from 'docx';
 import { ElementConverterDependencies, IInlineConverter } from '../types';
@@ -35,15 +30,35 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
   }
 
   async convertEement(
-    { styleMeta, defaultStyles, styleMapper }: ElementConverterDependencies,
+    { defaultStyles, styleMapper }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): Promise<ParagraphChild[]> {
     const { imageType = 'png', dataBuffer } = await this.getImageData(element);
-    const inherited = filterForScope(cascadedStyles, element.scope, styleMeta);
+    const attributeSizeToStyle = {
+      ...(element.attributes?.width
+        ? {
+            width: `${
+              typeof element.attributes.width === 'string'
+                ? parseInt(element.attributes.width, 10)
+                : element.attributes.width
+            }px`,
+          }
+        : {}),
+      ...(element.attributes?.height
+        ? {
+            height: `${
+              typeof element.attributes.height === 'string'
+                ? parseInt(element.attributes.height, 10)
+                : element.attributes.height
+            }px`,
+          }
+        : {}),
+    };
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...inherited,
+      ...attributeSizeToStyle,
+      ...cascadedStyles,
       ...element.styles,
     };
     const mappedStyles = styleMapper.mapStyles(mergedStyles, element);

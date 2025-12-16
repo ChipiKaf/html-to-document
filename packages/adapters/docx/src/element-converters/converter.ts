@@ -264,6 +264,9 @@ export class ElementConverter {
    */
   public async convertToBlocks(options: {
     element: DocumentElement;
+    /**
+     * The styles that will be passed to inline elements and convert block function
+     */
     cascadedStyles?: Styles;
     /**
      * Whether nested paragraphs should be inline with newlines around it
@@ -345,7 +348,7 @@ export class ElementConverter {
     const marked = content.map((child) => {
       const blockConverter = this.findBlockConverter(child);
 
-      if (blockConverter) {
+      if (blockConverter && !blockConverter.preferInlineConversion) {
         return {
           type: 'blocks',
           children: child,

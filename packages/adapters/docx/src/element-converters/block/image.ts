@@ -15,6 +15,9 @@ type DocumentElementType = ImageElement & {
 export class ImageBlockConverter
   implements IBlockConverter<DocumentElementType>
 {
+  // If an image is encountered within a convertToBlocks, we want it to be converted inline together with other inline elements
+  public readonly preferInlineConversion = true;
+
   isMatch(element: DocumentElement): element is DocumentElementType {
     return element.type === 'image';
   }

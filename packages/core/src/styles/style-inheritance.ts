@@ -25,6 +25,16 @@ const DEFAULT_STYLE_META: Partial<
     scopes: ['block', 'tableCell'],
     cascadeTo: ['block'],
   },
+  fontStyle: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
+  fontWeight: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
 
   // Layout / box-model (NOT inherited)
   border: {
@@ -175,10 +185,10 @@ export function getStyleMeta(
   const meta = metaRegistry[property];
   if (meta) return meta;
 
-  // Default to not inherited and valid everywhere
+  // Default to be inherited, since some styles would otherwise be lost
   // Mapper can still decide how to use it
   return {
-    inherits: false,
+    inherits: true,
     scopes: ['block', 'inline', 'table', 'tableRow', 'tableCell'],
   };
 }
@@ -263,4 +273,36 @@ export function filterForScope(
     }
   }
   return result;
+}
+
+/**
+ * Gets styles that will cascade further down the element tree, excluding those consumed at the current scope.
+ *
+ * For example a width property on a paragraph would be consumed at the paragraph level, not cascading to other elements.
+ * @returns The styles that will cascade
+ */
+export function cascadeStyles(
+  styles: Styles,
+  scope: StyleScope | undefined = 'block',
+  metaRegistry:
+    | Partial<Record<keyof CSS.Properties, StyleMeta>>
+    | undefined = DEFAULT_STYLE_META
+): Styles {
+  const cascadingStyles: Styles = {};
+
+  for (const [prop, value] of Object.entries(styles)) {
+    const key = prop as keyof CSS.Properties;
+    const meta = getStyleMeta(key, metaRegistry);
+    if (meta.inherits) {
+      cascadingStyles[key] = value;
+      continue;
+    }
+
+    const isConsumedHere = meta.scopes.includes(scope as StyleScope);
+    if (!isConsumedHere) {
+      cascadingStyles[key] = value;
+    }
+  }
+
+  return cascadingStyles;
 }

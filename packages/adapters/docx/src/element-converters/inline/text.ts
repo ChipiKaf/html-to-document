@@ -16,11 +16,16 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
   }
 
   convertEement(
-    { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
+    {
+      converter,
+      styleMapper,
+      defaultStyles,
+      styleMeta,
+    }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): ParagraphChild[] | Promise<ParagraphChild[]> {
-    const inherited = filterForScope(cascadedStyles, element.scope);
+    const inherited = filterForScope(cascadedStyles, element.scope, styleMeta);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...inherited,

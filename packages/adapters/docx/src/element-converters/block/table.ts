@@ -1,8 +1,8 @@
 import {
   AttributeElement,
+  cascadeStyles,
   computeInheritedStyles,
   DocumentElement,
-  filterForScope,
   GridCell,
   Styles,
   TableElement,
@@ -34,16 +34,17 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     const captions: { side: string; paragraph: Paragraph }[] = [];
 
     // We filter the cascaded styles for the table scope
-    const inherited = filterForScope(
-      cascadedStyles ?? {},
+    const mergedStyles = {
+      ...(defaultStyles?.[element.type] ?? {}),
+      ...cascadedStyles,
+      ...element.styles,
+    };
+
+    const cascadingStyles = cascadeStyles(
+      mergedStyles,
       element.scope,
       styleMeta
     );
-    const mergedStyles = {
-      ...(defaultStyles?.[element.type] ?? {}),
-      ...inherited,
-      ...element.styles,
-    };
 
     // --- begin colgroup support ---
     // let widths: ITableWidthProperties[] = [];
@@ -53,7 +54,13 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       stylesCol =
         (colgroupMeta?.metadata as { col: DocumentElement[] })?.col.map(
           (col) => {
-            return styleMapper.mapStyles(col.styles || {}, col);
+            return styleMapper.mapStyles(
+              {
+                ...cascadingStyles,
+                ...(col.styles || {}),
+              },
+              col
+            );
           }
         ) ?? [];
     }
@@ -62,19 +69,27 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       const caption = element.metadata.caption as AttributeElement[];
       captions.push(
         ...(await Promise.all(
-          caption.map(async (c) => ({
-            side: (c.styles?.captionSide || 'top') as string,
-            paragraph: new Paragraph({
-              // children: [
-              //   new TextRun({
-              //     text: c.text,
-              //     ...styleMapper.mapStyles(c.styles || {}, c),
-              //   }),
-              // ],
-              children: await converter.convertInline(c, c.styles),
-              ...styleMapper.mapStyles(c.styles || {}, c),
-            }),
-          }))
+          caption.map(async (c) => {
+            const innerMergedStyles = {
+              ...cascadingStyles,
+              ...(c.styles || {}),
+            };
+            const innerCascadingStyles = cascadeStyles(
+              innerMergedStyles,
+              c.scope,
+              styleMeta
+            );
+            return {
+              side: (c.styles?.captionSide || 'top') as string,
+              paragraph: new Paragraph({
+                children: await converter.convertInline(
+                  c,
+                  innerCascadingStyles
+                ),
+                ...styleMapper.mapStyles(innerMergedStyles, c),
+              }),
+            };
+          })
         ))
       );
     }

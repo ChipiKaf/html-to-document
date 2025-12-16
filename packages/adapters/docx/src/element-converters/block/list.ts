@@ -1,5 +1,6 @@
 import { FileChild, Paragraph } from 'docx';
 import {
+  cascadeStyles,
   DocumentElement,
   filterForScope,
   ListElement,
@@ -46,7 +47,12 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
   }
 
   convertListItem(
-    { styleMapper, converter, defaultStyles }: ElementConverterDependencies,
+    {
+      styleMapper,
+      converter,
+      defaultStyles,
+      styleMeta,
+    }: ElementConverterDependencies,
     element: ListItemElement,
     cascadedStyles: Styles = {}
   ) {
@@ -61,10 +67,15 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
       inlineParagraphs: true,
       element,
       wrapInlineElements: (inlines, i) => {
+        const cascadingStyles = cascadeStyles(
+          mergedStyles,
+          element.scope,
+          styleMeta
+        );
         const children = converter.runFallthroughWrapConvertedChildren(
           element,
           inlines,
-          mergedStyles,
+          cascadingStyles,
           i
         );
         return [
