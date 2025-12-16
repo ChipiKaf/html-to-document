@@ -150,6 +150,40 @@ describe('Docx.adapter.convert', () => {
       });
     });
 
+    describe('Height and Width', () => {
+      it('sets height to be relative to original aspect ratio when height is not set', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+            attributes: { width: '200' },
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const run = paragraph['w:r'];
+        expect(run).toBeDefined();
+        const drawing = run['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        const pxToEmus = (px: number) => px * 9525;
+        expect(Number(extent['@_cx'])).toBe(pxToEmus(200));
+        // Original image is 1x1 pixel, so height should also be 200 to maintain aspect ratio.
+        expect(Number(extent['@_cy'])).toBe(pxToEmus(200));
+      });
+    });
+
     describe('Inline image', () => {
       it('should correctly embed an inline image next to text', async () => {
         const base64Png =

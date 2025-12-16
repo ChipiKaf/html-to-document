@@ -64,15 +64,28 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
     const mappedStyles = styleMapper.mapStyles(mergedStyles, element);
 
     // default image size to 100x100 if size cannot be determined
-    let width = 100;
-    let height = 100;
+    let originalWidth = 100;
+    let originalHeight = 100;
     try {
       const { width: w = 100, height: h = 100 } = imageSize(dataBuffer);
-      width = w;
-      height = h;
+      originalWidth = w;
+      originalHeight = h;
       // Ignore errors from image-size
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {}
+    const originalAspectRatio = originalWidth / originalHeight;
+
+    const transformation =
+      (mappedStyles.transformation as Record<string, unknown> | undefined) ||
+      {};
+    const width =
+      typeof transformation?.width === 'number'
+        ? transformation.width
+        : originalWidth;
+    const height =
+      typeof transformation?.height === 'number'
+        ? transformation.height
+        : Math.round(width / originalAspectRatio);
 
     // TODO: run fallthrough converter
 
@@ -103,7 +116,6 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
           transformation: {
             width,
             height,
-            ...(mappedStyles.transformation || {}),
           },
         }),
       ];
