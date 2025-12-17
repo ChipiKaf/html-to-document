@@ -97,7 +97,7 @@ export const parseImageType = (input: string): SupportedImageType | null => {
 
 export const isSupportedImageType = <S>(
   type: S
-): type is Extract<S, SupportedImageType> => {
+): type is S & SupportedImageType => {
   return supportedImageTypes.includes(type as IImageOptions['type']);
 };
 
