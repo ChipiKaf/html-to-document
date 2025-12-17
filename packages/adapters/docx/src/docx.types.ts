@@ -19,7 +19,10 @@ export type DocxElement =
   | ImageRun
   | ExternalHyperlink;
 
-type OptionalOptions = Omit<Partial<IPropertiesOptions>, 'sections'>;
+export type OptionalDocumentOptions = Omit<
+  Partial<IPropertiesOptions>,
+  'sections'
+>;
 
 export type DocxAdapterConfig = {
   blockConverters?: IBlockConverter[];
@@ -30,6 +33,6 @@ export type DocxAdapterConfig = {
    * Can either be an object that overrides the default options, or a function that takes the default options and returns the modified options.
    */
   documentOptions?:
-    | OptionalOptions
-    | ((defaultOptions: OptionalOptions) => OptionalOptions);
+    | OptionalDocumentOptions
+    | ((defaultOptions: OptionalDocumentOptions) => OptionalDocumentOptions);
 };

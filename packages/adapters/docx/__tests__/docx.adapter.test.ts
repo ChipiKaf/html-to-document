@@ -1943,9 +1943,10 @@ describe('Docx.adapter.convert', () => {
       const parsed = await parseDocxXml(buffer, 'word/numbering.xml');
       const abstractNums = parsed['w:numbering']['w:abstractNum'];
       expect(abstractNums).toBeDefined();
-      expect(abstractNums).toHaveLength(2);
+      // The docx library generates an additional abstract numbering definition for built-in lists, so a total of three definitions is expected here.
+      expect(abstractNums).toHaveLength(3);
       const custom = abstractNums.find(
-        (a: any) => a['@_w:abstractNumId'] === '2'
+        (a: any) => a['@_w:abstractNumId'] === '3'
       );
       expect(custom).toBeDefined();
       expect(custom['w:lvl']).toHaveLength(2);
