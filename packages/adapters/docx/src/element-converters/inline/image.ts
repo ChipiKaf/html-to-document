@@ -197,7 +197,7 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
       const arrayBuffer = await response.arrayBuffer();
       const dataBuffer = toBinaryBuffer(arrayBuffer);
       const contentType = response.headers.get('content-type');
-      let imageType: string | undefined = undefined;
+      let imageType: string | undefined;
       if (contentType && contentType.startsWith('image/')) {
         imageType = contentType.split('/')[1];
       }
@@ -217,6 +217,7 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
         /* @vite-ignore */
         'path'
       );
+      // TODO: consider using promises instead of sync methods
       if (!fsMod.existsSync(src)) {
         throw new Error(`File not found: ${src}`);
       }
