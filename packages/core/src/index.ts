@@ -1,4 +1,5 @@
 export { init } from './converter';
+export * from './adapter-utilities';
 export * from './types';
 export * from './middleware';
 export * from './parser';

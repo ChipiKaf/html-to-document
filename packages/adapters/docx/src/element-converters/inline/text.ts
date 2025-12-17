@@ -4,6 +4,7 @@ import {
   filterForScope,
   Styles,
   TextElement,
+  splitTextElementByLineBreaks,
 } from 'html-to-document-core';
 import { ElementConverterDependencies, IInlineConverter } from '../types';
 import { promiseAllFlat } from '../../docx.util';
@@ -40,12 +41,18 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
       );
     }
 
-    return [
-      new TextRun({
-        text: element.text ?? '',
-        break: (element.metadata?.break as number) || undefined,
+    // TODO: Parser should split text elements by line breaks if they are `<pre>` elements or it has `white-space: pre` style or one of the other pre-styles.
+    const lineElements = splitTextElementByLineBreaks(element);
+    return lineElements.map((lineElement) => {
+      const breaks =
+        typeof lineElement.metadata?.break === 'number'
+          ? lineElement.metadata.break
+          : Number(lineElement.metadata?.break) || 0;
+      return new TextRun({
+        text: lineElement.text,
+        break: breaks > 0 ? breaks : undefined,
         ...styleMapper.mapStyles(mergedStyles, element),
-      }),
-    ];
+      });
+    });
   }
 }
