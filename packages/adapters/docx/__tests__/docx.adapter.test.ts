@@ -416,6 +416,96 @@ describe('Docx.adapter.convert', () => {
     });
   });
 
+  describe('Text converter', () => {
+    describe('Newlines', () => {
+      it('should insert line breaks for newline characters in text elements', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'Line 1\nLine 2\nLine 3',
+              },
+            ],
+            styles: {},
+            attributes: {},
+          },
+        ];
+        const buffer = await adapter.convert(elements);
+        const jsonDocument = await parseDocxDocument(buffer);
+        const paragraph = jsonDocument['w:document']['w:body']['w:p'];
+        const runs = paragraph['w:r'];
+
+        expect(runs).toHaveLength(3);
+
+        expect(runs[0]['w:t']['#text']).toBe('Line 1');
+        expect(runs[0]['w:br']).toBeDefined();
+        expect(runs[1]['w:t']['#text']).toBe('Line 2');
+        expect(runs[1]['w:br']).toBeDefined();
+        expect(runs[2]['w:t']['#text']).toBe('Line 3');
+        expect(runs[2]['w:br']).not.toBeDefined();
+      });
+
+      it('should insert multiple line breaks for consecutive newline characters', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'Line 1\n\n\nLine 2',
+              },
+            ],
+            styles: {},
+            attributes: {},
+          },
+        ];
+        const buffer = await adapter.convert(elements);
+        const jsonDocument = await parseDocxDocument(buffer);
+        const paragraph = jsonDocument['w:document']['w:body']['w:p'];
+        const runs = paragraph['w:r'];
+
+        expect(runs).toHaveLength(2);
+
+        expect(runs[0]['w:t']['#text']).toBe('Line 1');
+        expect(runs[0]['w:br']).toBeDefined();
+        expect(runs[0]['w:br']).toHaveLength(3);
+
+        expect(runs[1]['w:t']['#text']).toBe('Line 2');
+        expect(runs[1]['w:br']).not.toBeDefined();
+      });
+
+      it('should have a trailing break if text ends with a newline', async () => {
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'Line 1\nLine 2\n',
+              },
+            ],
+            styles: {},
+            attributes: {},
+          },
+        ];
+        const buffer = await adapter.convert(elements);
+        const jsonDocument = await parseDocxDocument(buffer);
+        const paragraph = jsonDocument['w:document']['w:body']['w:p'];
+        const runs = paragraph['w:r'];
+
+        expect(runs).toHaveLength(2);
+
+        expect(runs[0]['w:t']['#text']).toBe('Line 1');
+        expect(runs[0]['w:br']).toBeDefined();
+
+        expect(runs[1]['w:t']['#text']).toBe('Line 2');
+        expect(runs[1]['w:br']).toBeDefined();
+      });
+    });
+  });
+
   describe('heading', () => {
     it('should create a DOCX buffer with different headings and their heading levels', async () => {
       const elements: DocumentElement[] = [
