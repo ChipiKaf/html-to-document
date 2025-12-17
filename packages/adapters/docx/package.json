@@ -55,7 +55,8 @@
   "dependencies": {
     "docx": "^9.4.0",
     "image-size": "^2.0.2",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "remeda": "^2.32.0"
   },
   "engines": {
     "node": ">=14"
