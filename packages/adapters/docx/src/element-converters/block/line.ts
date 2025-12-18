@@ -7,7 +7,7 @@ export class LineConverter implements IBlockConverter<LineElement> {
     return element.type === 'line';
   }
 
-  async convertEement(
+  async convertElement(
     { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
     element: LineElement,
     cascadedStyles: Styles = {}

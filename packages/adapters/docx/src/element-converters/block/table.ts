@@ -25,7 +25,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     return element.type === 'table';
   }
 
-  public async convertEement(
+  public async convertElement(
     dependencies: ElementConverterDependencies,
     element: TableElement,
     cascadedStyles?: Styles

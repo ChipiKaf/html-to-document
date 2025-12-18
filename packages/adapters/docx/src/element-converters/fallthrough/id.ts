@@ -36,7 +36,7 @@ export class IdInlineConverter
     );
   }
 
-  public async convertEement(
+  public async convertElement(
     dependencies: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}

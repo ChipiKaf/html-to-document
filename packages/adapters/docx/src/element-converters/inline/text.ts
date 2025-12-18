@@ -15,7 +15,7 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
     return true || element.type === 'text';
   }
 
-  convertEement(
+  convertElement(
     {
       converter,
       styleMapper,

@@ -22,7 +22,7 @@ export class ImageBlockConverter
     return element.type === 'image';
   }
 
-  async convertEement(
+  async convertElement(
     { converter }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}

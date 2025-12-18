@@ -34,7 +34,7 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
     return element.type === 'image';
   }
 
-  async convertEement(
+  async convertElement(
     { defaultStyles, styleMapper }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}

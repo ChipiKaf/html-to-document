@@ -12,7 +12,7 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     return element.type === 'heading';
   }
 
-  async convertEement(
+  async convertElement(
     {
       styleMapper,
       converter,

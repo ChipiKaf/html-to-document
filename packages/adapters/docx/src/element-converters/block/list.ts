@@ -17,7 +17,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     return element.type === 'list';
   }
 
-  convertEement(
+  convertElement(
     dependencies: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}

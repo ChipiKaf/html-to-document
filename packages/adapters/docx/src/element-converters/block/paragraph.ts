@@ -13,7 +13,7 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
     return element.type === 'paragraph';
   }
 
-  async convertEement(
+  async convertElement(
     {
       styleMapper,
       converter,

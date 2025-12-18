@@ -13,7 +13,7 @@ export class LinkConverter implements IInlineConverter<DocumentElementType> {
     return element.type === 'text' && !!element.attributes?.href;
   }
 
-  async convertEement(
+  async convertElement(
     { converter, defaultStyles }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}

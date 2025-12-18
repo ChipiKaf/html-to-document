@@ -135,7 +135,7 @@ export class ElementConverter {
       return [];
     }
 
-    return converter.convertEement(
+    return converter.convertElement(
       this.elementConverterDependencies,
       element,
       cascadedStyles
@@ -154,7 +154,7 @@ export class ElementConverter {
       return [];
     }
 
-    return converter.convertEement(
+    return converter.convertElement(
       this.elementConverterDependencies,
       element,
       cascadedStyles
@@ -168,7 +168,7 @@ export class ElementConverter {
     element: DocumentElement,
     cascadedStyles: Styles = {}
   ): ParagraphChild[] | Promise<ParagraphChild[]> {
-    return this.textConverter.convertEement(
+    return this.textConverter.convertElement(
       this.elementConverterDependencies,
       element,
       cascadedStyles

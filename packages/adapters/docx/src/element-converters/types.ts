@@ -19,7 +19,7 @@ export interface IElementConverter<
   T extends DocumentElement,
   Output extends FileChild[] | ParagraphChild[],
 > extends IIsMatch<T> {
-  convertEement(
+  convertElement(
     dependencies: ElementConverterDependencies,
     element: T,
     cascadedStyles?: Styles
