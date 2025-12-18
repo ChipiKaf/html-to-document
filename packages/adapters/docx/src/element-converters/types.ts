@@ -32,11 +32,6 @@ export interface IBlockConverter<T extends DocumentElement = DocumentElement>
    * @beta This field is still experimental and may change to another type in the future
    */
   readonly preferInlineConversion?: boolean;
-  // convertEement(
-  //   dependencies: ElementConverterDependencies,
-  //   element: T,
-  //   cascadedStyles?: Styles
-  // ): FileChild[];
 }
 export interface IInlineConverter<T extends DocumentElement = DocumentElement>
   extends IElementConverter<T, ParagraphChild[]> {}

@@ -47,7 +47,6 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     );
 
     // --- begin colgroup support ---
-    // let widths: ITableWidthProperties[] = [];
     let stylesCol: Record<string, unknown>[] = [];
     if (Array.isArray(element.metadata?.colgroup)) {
       const [colgroupMeta] = element.metadata.colgroup as AttributeElement[];

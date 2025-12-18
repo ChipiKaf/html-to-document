@@ -22,7 +22,6 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     element: HeadingElement,
     cascadedStyles: Styles = {}
   ): Promise<FileChild[]> {
-    // const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...cascadedStyles,

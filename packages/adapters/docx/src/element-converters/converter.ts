@@ -401,15 +401,6 @@ export class ElementConverter {
           )
         );
 
-        // const wrappedChildren = this.runFallthroughWrapConvertedChildren(
-        //   element,
-        //   newChildren,
-        //   cascadedStyles,
-        //   i
-        // );
-        //
-        // return wrapInlineElements(wrappedChildren, i);
-
         return wrapInlineElements(newChildren, i);
       })
     );

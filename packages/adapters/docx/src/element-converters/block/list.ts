@@ -30,10 +30,6 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
       ...inherited,
       ...element.styles,
     };
-    // const children =
-    //   element.content?.flatMap((child) =>
-    //     converter.convertInline(child, mergedStyles)
-    //   ) ?? [];
 
     return promiseAllFlat(
       element.content.map((child) => {
