@@ -29,6 +29,9 @@ export class DocxAdapter implements IDocumentConverter {
   private readonly documentOptions: NonNullable<
     DocxAdapterConfig['documentOptions']
   >;
+  private readonly defaultSectionOptions: NonNullable<
+    DocxAdapterConfig['defaultSectionOptions']
+  >;
 
   constructor(
     {
@@ -51,6 +54,7 @@ export class DocxAdapter implements IDocumentConverter {
     );
     this._docxElementConverter = docxElementConverter;
     this.documentOptions = config?.documentOptions ?? {};
+    this.defaultSectionOptions = config?.defaultSectionOptions ?? {};
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
@@ -78,6 +82,7 @@ export class DocxAdapter implements IDocumentConverter {
         ? await this.convertFooter(sec.footer)
         : globalFooterDocx;
       const options: ISectionOptions = {
+        ...this.defaultSectionOptions,
         children,
         ...(header ? { headers: { default: header } } : {}),
         ...(footer ? { footers: { default: footer } } : {}),
