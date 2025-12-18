@@ -158,6 +158,9 @@ importers:
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
+      remeda:
+        specifier: ^2.32.0
+        version: 2.32.0
     devDependencies:
       '@types/probe-image-size':
         specifier: ^7.2.5
@@ -6408,6 +6411,9 @@ packages:
 
   remark-stringify@11.0.0:
     resolution: {integrity: sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==}
+
+  remeda@2.32.0:
+    resolution: {integrity: sha512-BZx9DsT4FAgXDTOdgJIc5eY6ECIXMwtlSPQoPglF20ycSWigttDDe88AozEsPPT4OWk5NujroGSBC1phw5uU+w==}
 
   renderkid@3.0.0:
     resolution: {integrity: sha512-q/7VIQA8lmM1hF+jn+sFSPWGlMkSAeNYcPLmDQx2zzuiDfaLrOmumR8iaUKlenFgh0XRPIUeSPlH3A+AW3Z5pg==}
@@ -15622,6 +15628,10 @@ snapshots:
       '@types/mdast': 4.0.4
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
+
+  remeda@2.32.0:
+    dependencies:
+      type-fest: 4.41.0
 
   renderkid@3.0.0:
     dependencies:

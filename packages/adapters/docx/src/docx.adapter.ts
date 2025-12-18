@@ -6,7 +6,7 @@ import {
   Footer,
   ISectionOptions,
   Table,
-  IPropertiesOptions,
+  INumberingOptions,
 } from 'docx';
 import {
   DocumentElement,
@@ -18,8 +18,9 @@ import {
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { ElementConverter } from './element-converters/converter';
-import { DocxAdapterConfig } from './docx.types';
+import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
+import { pipe } from 'remeda';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: StyleMapper;
@@ -84,65 +85,69 @@ export class DocxAdapter implements IDocumentConverter {
       docSections.push(options);
     }
 
-    const defaultOptions: Partial<IPropertiesOptions> = {
-      numbering: {
-        config: [
-          {
-            reference: 'unordered',
-            levels: [
-              {
-                level: 0,
-                format: NumberFormat.BULLET,
-                text: '•',
-                alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 240, hanging: 240 } } },
-              },
-              {
-                level: 1,
-                format: NumberFormat.BULLET,
-                text: '◦',
-                alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 480, hanging: 240 } } },
-              },
-              {
-                level: 2,
-                format: NumberFormat.BULLET,
-                text: '▪',
-                alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 720, hanging: 240 } } },
-              },
-            ],
-          },
-          {
-            reference: 'ordered',
-            levels: [
-              {
-                level: 0,
-                format: NumberFormat.DECIMAL,
-                text: '%1.',
-                alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 240, hanging: 240 } } },
-              },
-              {
-                level: 1,
-                format: NumberFormat.DECIMAL,
-                text: '%2.',
-                alignment: AlignmentType.LEFT,
-                style: { paragraph: { indent: { left: 480, hanging: 240 } } },
-              },
-            ],
-          },
-        ],
-      },
+    const buildOrderedNumberingConfig =
+      (): INumberingOptions['config'][number] => {
+        return {
+          reference: 'ordered',
+          levels: Array.from({ length: 9 }, (_, i) => ({
+            level: i,
+            format: NumberFormat.DECIMAL,
+            text: '%' + (i + 1) + '.',
+            alignment: AlignmentType.LEFT,
+            style: {
+              paragraph: { indent: { left: 240 * (i + 1), hanging: 240 } },
+            },
+          })),
+        };
+      };
+    const buildUnorderedNumberingConfig =
+      (): INumberingOptions['config'][number] => {
+        return {
+          reference: 'unordered',
+          levels: Array.from({ length: 9 }, (_, i) => ({
+            level: i,
+            format: NumberFormat.BULLET,
+            text: ['•', '◦', '▪'][i % 3],
+            alignment: AlignmentType.LEFT,
+            style: {
+              paragraph: { indent: { left: 240 * (i + 1), hanging: 240 } },
+            },
+          })),
+        };
+      };
+    const addDefaultNumberingConfig = (
+      config: OptionalDocumentOptions
+    ): OptionalDocumentOptions => {
+      const unorderedNumbering =
+        config.numbering?.config?.find((n) => n.reference === 'unordered') ??
+        buildUnorderedNumberingConfig();
+      const orderedNumbering =
+        config.numbering?.config?.find((n) => n.reference === 'ordered') ??
+        buildOrderedNumberingConfig();
+      return {
+        ...config,
+        numbering: {
+          ...config.numbering,
+          config: [
+            unorderedNumbering,
+            orderedNumbering,
+            ...(config.numbering?.config?.filter(
+              (n) => n.reference !== 'unordered' && n.reference !== 'ordered'
+            ) ?? []),
+          ],
+        },
+      };
+    };
+    const addDefaultOptions = (
+      options: OptionalDocumentOptions
+    ): OptionalDocumentOptions => {
+      return pipe(options, addDefaultNumberingConfig);
     };
 
-    const documentOptions =
+    const documentOptions: OptionalDocumentOptions =
       typeof this.documentOptions === 'function'
-        ? this.documentOptions(defaultOptions)
-        : {
-            ...defaultOptions,
-            ...this.documentOptions,
-          };
+        ? this.documentOptions(addDefaultOptions({}))
+        : addDefaultOptions(this.documentOptions);
 
     const doc = new Document({
       ...documentOptions,
