@@ -35,6 +35,16 @@ const DEFAULT_STYLE_META: Partial<
     scopes: ['block', 'inline', 'tableCell'],
     cascadeTo: ['block', 'inline'],
   },
+  font: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
+  whiteSpace: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
 
   // Layout / box-model (NOT inherited)
   border: {
@@ -185,10 +195,10 @@ export function getStyleMeta(
   const meta = metaRegistry[property];
   if (meta) return meta;
 
-  // Default to be inherited, since some styles would otherwise be lost
+  // Default to not inherited and valid everywhere
   // Mapper can still decide how to use it
   return {
-    inherits: true,
+    inherits: false,
     scopes: ['block', 'inline', 'table', 'tableRow', 'tableCell'],
   };
 }
