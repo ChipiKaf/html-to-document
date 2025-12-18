@@ -2316,4 +2316,40 @@ describe('Docx.adapter.convert', () => {
       expect(custom['w:lvl'][1]['w:lvlText']['@_w:val']).toBe('%2:');
     });
   });
+
+  describe('Default section options', () => {
+    it('should apply properties from default section options config', async () => {
+      const customAdapter = new DocxAdapter(
+        {
+          styleMapper: new StyleMapper(),
+        },
+        {
+          defaultSectionOptions: {
+            properties: {
+              page: {
+                margin: {
+                  top: 1234,
+                  right: 1235,
+                  bottom: 1236,
+                  left: 1237,
+                },
+              },
+            },
+          },
+        }
+      );
+
+      const html = `<p>Test</p>`;
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const body = parsed['w:document']['w:body'];
+      const sectPr = body['w:sectPr'];
+      expect(sectPr).toBeDefined();
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('1234');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('1235');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('1236');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('1237');
+    });
+  });
 });
