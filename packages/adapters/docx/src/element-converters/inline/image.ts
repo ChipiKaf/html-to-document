@@ -8,9 +8,8 @@ import {
   DocumentElement,
   ImageElement,
   Styles,
-  parseImageSizePx,
+  resolveImageSize,
 } from 'html-to-document-core';
-import { imageSize } from 'image-size';
 import { ParagraphChild } from 'docx';
 import { ElementConverterDependencies, IInlineConverter } from '../types';
 import { isServer } from '../../utils/environment';
@@ -68,43 +67,8 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
     };
     const mappedStyles = styleMapper.mapStyles(mergedStyles, element);
 
-    // default image size to 100x100 if size cannot be determined
-    let originalWidth = 100;
-    let originalHeight = 100;
-    try {
-      const { width: w = 100, height: h = 100 } = imageSize(dataBuffer);
-      originalWidth = w;
-      originalHeight = h;
-      // Ignore errors from image-size
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {}
-    const originalAspectRatio = originalWidth / originalHeight;
-
-    const transformation =
-      (mappedStyles.transformation as Record<string, unknown> | undefined) ||
-      {};
-    let width =
-      typeof transformation?.width === 'number'
-        ? transformation.width
-        : originalWidth;
-
-    if (mergedStyles.maxWidth !== undefined) {
-      width = Math.min(
-        width,
-        parseImageSizePx(mergedStyles.maxWidth.toString()) ?? Infinity
-      );
-    }
-
-    let height =
-      typeof transformation?.height === 'number'
-        ? transformation.height
-        : Math.round(width / originalAspectRatio);
-    if (mergedStyles.maxHeight !== undefined) {
-      height = Math.min(
-        height,
-        parseImageSizePx(mergedStyles.maxHeight.toString()) ?? Infinity
-      );
-    }
+    const finalDimensions = resolveImageSize(dataBuffer, mergedStyles);
+    const { width, height } = finalDimensions;
 
     // TODO: run fallthrough converter
 

@@ -29,7 +29,11 @@ export const parseWidth = (value: string) => {
   return undefined;
 };
 
-// Helper: convert common CSS length values to pixel count for ImageRun transformations
+const DPI = 96; // Standard screen DPI
+
+/**
+ * Helper: convert common CSS length values to pixel count
+ */
 export const parseImageSizePx = (
   value: string | undefined
 ): number | undefined => {
@@ -43,11 +47,11 @@ export const parseImageSizePx = (
   }
   if (val.endsWith('in')) {
     const inches = parseFloat(val);
-    return isNaN(inches) ? undefined : inches * 96; // 96 px per inch
+    return isNaN(inches) ? undefined : inches * DPI; // 96 px per inch
   }
   if (val.endsWith('cm')) {
     const cm = parseFloat(val);
-    return isNaN(cm) ? undefined : (cm / 2.54) * 96; // cm → inch → px
+    return isNaN(cm) ? undefined : (cm / 2.54) * DPI; // cm → inch → px
   }
   // If the value is a bare number, assume pixels
   const num = parseFloat(val);
