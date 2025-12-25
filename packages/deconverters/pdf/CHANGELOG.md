@@ -1,5 +1,12 @@
 # html-to-document-deconverter-pdf
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [[`a10ac85`](https://github.com/ChipiKaf/html-to-document/commit/a10ac85f27362ceacd586f31bd715d51e91fadaf), [`61d7ca4`](https://github.com/ChipiKaf/html-to-document/commit/61d7ca433297988e0b9796cf5b709030226dac5b)]:
+  - html-to-document-core@0.4.3
+
 ## 0.1.3
 
 ### Patch Changes
