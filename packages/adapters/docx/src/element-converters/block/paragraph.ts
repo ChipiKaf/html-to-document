@@ -1,5 +1,6 @@
 import { FileChild, Paragraph } from 'docx';
 import {
+  cascadeStyles,
   DocumentElement,
   filterForScope,
   ParagraphElement,
@@ -12,45 +13,56 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
     return element.type === 'paragraph';
   }
 
-  convertEement(
-    { styleMapper, converter, defaultStyles }: ElementConverterDependencies,
+  async convertElement(
+    {
+      styleMapper,
+      converter,
+      defaultStyles,
+      styleMeta,
+    }: ElementConverterDependencies,
     element: ParagraphElement,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
+  ): Promise<FileChild[]> {
     // Paragraph element must only have inline children or else it could corrupt the document structure.
-    const inherited = filterForScope(cascadedStyles, element.scope);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...inherited,
+      ...cascadedStyles,
       ...element.styles,
     };
 
+    const cascadingStyles = cascadeStyles(
+      mergedStyles,
+      element.scope,
+      styleMeta
+    );
+    const consumedStyles = filterForScope(mergedStyles, element.scope);
+
     return converter.convertToBlocks({
       element,
-      cascadedStyles: mergedStyles,
-      convertBlock: (dependencies, childBlock, index, styles) => {
+      cascadedStyles: cascadingStyles,
+      convertBlock: (dependencies, childBlock) => {
         const { converter } = dependencies;
         const newChildBlock = converter.runFallthroughNestedBlock(
           dependencies,
           element,
           childBlock,
-          styles
+          mergedStyles
         );
 
-        return converter.convertBlock(newChildBlock, styles);
+        return converter.convertBlock(newChildBlock, mergedStyles);
       },
       wrapInlineElements: (inlines, i) => {
         let children = inlines;
         children = converter.runFallthroughWrapConvertedChildren(
           element,
           children,
-          mergedStyles,
+          cascadingStyles,
           i
         );
         return [
           new Paragraph({
             children,
-            ...styleMapper.mapStyles(mergedStyles, element),
+            ...styleMapper.mapStyles(consumedStyles, element),
           }),
         ];
       },

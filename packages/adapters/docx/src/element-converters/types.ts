@@ -19,20 +19,19 @@ export interface IElementConverter<
   T extends DocumentElement,
   Output extends FileChild[] | ParagraphChild[],
 > extends IIsMatch<T> {
-  convertEement(
+  convertElement(
     dependencies: ElementConverterDependencies,
     element: T,
     cascadedStyles?: Styles
-  ): Output;
+  ): Output | Promise<Output>;
 }
 
 export interface IBlockConverter<T extends DocumentElement = DocumentElement>
   extends IElementConverter<T, FileChild[]> {
-  // convertEement(
-  //   dependencies: ElementConverterDependencies,
-  //   element: T,
-  //   cascadedStyles?: Styles
-  // ): FileChild[];
+  /**
+   * @beta This field is still experimental and may change to another type in the future
+   */
+  readonly preferInlineConversion?: boolean;
 }
 export interface IInlineConverter<T extends DocumentElement = DocumentElement>
   extends IElementConverter<T, ParagraphChild[]> {}

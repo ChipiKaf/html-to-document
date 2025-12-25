@@ -119,6 +119,301 @@ describe('Docx.adapter.convert', () => {
         );
       });
     });
+
+    describe('Alt text', () => {
+      it("should convert an image's alt text into DOCX description", async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const altText = 'Sample Alt Text';
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+            attributes: {
+              alt: altText,
+            },
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+
+        // Traverse to find the drawing element and check its description.
+        const runs = body['w:p']['w:r'];
+        const drawing = runs['w:drawing'];
+        const docPr = drawing['wp:inline']['wp:docPr'];
+        expect(docPr['@_descr']).toBe(altText);
+      });
+    });
+
+    describe('Height and Width', () => {
+      it('sets height to be relative to original aspect ratio when height is not set', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+            attributes: { width: '200' },
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const run = paragraph['w:r'];
+        expect(run).toBeDefined();
+        const drawing = run['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        const pxToEmus = (px: number) => px * 9525;
+        expect(Number(extent['@_cx'])).toBe(pxToEmus(200));
+        // Original image is 1x1 pixel, so height should also be 200 to maintain aspect ratio.
+        expect(Number(extent['@_cy'])).toBe(pxToEmus(200));
+      });
+
+      it('sets width to not be larger than max-width', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'image',
+            src: dataUri,
+            styles: { maxWidth: '150px' },
+            attributes: { width: '200' },
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const run = paragraph['w:r'];
+        expect(run).toBeDefined();
+        const drawing = run['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        // const pxToEmus = (px: number) => px * 9525;
+        const emusToPx = (emus: number) => emus / 9525;
+        // Width should be capped at max-width of 150px
+        expect(emusToPx(Number(extent['@_cx']))).toBe(150);
+        // Original image is 1x1 pixel, so height should also be 150 to maintain aspect ratio.
+        expect(emusToPx(Number(extent['@_cy']))).toBe(150);
+      });
+    });
+
+    describe('Inline image', () => {
+      it('should correctly embed an inline image next to text', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Here is an image: ' },
+              {
+                type: 'image',
+                src: dataUri,
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const hasDrawing = findDrawingInObject(body);
+        expect(hasDrawing).toBe(true);
+
+        // Make sure that the image is alongside the text in the same paragraph.
+        const paragraph = body['w:p'];
+        const runs = paragraph['w:r'];
+        expect(runs).toBeDefined();
+        expect(runs).toHaveLength(2);
+
+        expect(
+          runs.some(
+            (run: any) =>
+              run['w:t'] && run['w:t']['#text'].startsWith('Here is an image:')
+          )
+        ).toBe(true);
+        expect(runs.some((run: any) => 'w:drawing' in run)).toBe(true);
+      });
+
+      it('should not inherit width from paragraph', async () => {
+        // This image is a 1x1 pixel png.
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            styles: { width: '500px' },
+            content: [
+              { type: 'text', text: 'Here is an image: ' },
+              {
+                type: 'image',
+                src: dataUri,
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const runs = paragraph['w:r'];
+        expect(runs).toHaveLength(2);
+        const imageRun = runs.find((run: any) => 'w:drawing' in run);
+        expect(imageRun).toBeDefined();
+        const drawing = imageRun['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        // The image should have its own width/height, not inherited from paragraph.
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        const pxToEmus = (px: number) => px * 9525;
+        expect(Number(extent['@_cx'])).not.toBe(pxToEmus(500));
+      });
+
+      it('should set custom width and height based on the styles', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Here is an image: ' },
+              {
+                type: 'image',
+                src: dataUri,
+                styles: { width: '100px', height: '50px' },
+              },
+            ],
+          },
+        ];
+
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const runs = paragraph['w:r'];
+        expect(runs).toHaveLength(2);
+        const imageRun = runs.find((run: any) => 'w:drawing' in run);
+        expect(imageRun).toBeDefined();
+        const drawing = imageRun['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        const pxToEmus = (px: number) => px * 9525;
+        expect(Number(extent['@_cx'])).toBe(pxToEmus(100));
+        expect(Number(extent['@_cy'])).toBe(pxToEmus(50));
+      });
+
+      it('should set custom width and height based on the attributes', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Here is an image: ' },
+              {
+                type: 'image',
+                src: dataUri,
+                attributes: { width: '120', height: '60' },
+              },
+            ],
+          },
+        ];
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const runs = paragraph['w:r'];
+        expect(runs).toHaveLength(2);
+        const imageRun = runs.find((run: any) => 'w:drawing' in run);
+        expect(imageRun).toBeDefined();
+        const drawing = imageRun['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        const pxToEmus = (px: number) => px * 9525;
+        expect(Number(extent['@_cx'])).toBe(pxToEmus(120));
+        expect(Number(extent['@_cy'])).toBe(pxToEmus(60));
+      });
+
+      it('should prioritize styles over attributes for width and height', async () => {
+        const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAn8B9w8rKQAAAABJRU5ErkJggg==';
+        const dataUri = `data:image/png;base64,${base64Png}`;
+        const elements: DocumentElement[] = [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Here is an image: ' },
+              {
+                type: 'image',
+                src: dataUri,
+                styles: { width: '150px', height: '75px' },
+                attributes: { width: '200', height: '100' },
+              },
+            ],
+          },
+        ];
+        const buffer = await adapter.convert(elements);
+        expect(buffer).toBeInstanceOf(Buffer);
+        const jsonDocument = await parseDocxDocument(buffer);
+        const body = jsonDocument['w:document']['w:body'];
+        const paragraph = body['w:p'];
+        expect(paragraph).toBeDefined();
+        const runs = paragraph['w:r'];
+        expect(runs).toHaveLength(2);
+        const imageRun = runs.find((run: any) => 'w:drawing' in run);
+        expect(imageRun).toBeDefined();
+        const drawing = imageRun['w:drawing'];
+        expect(drawing).toBeDefined();
+        const extent = drawing['wp:inline']['wp:extent'];
+        expect(extent['@_cx']).toBeDefined();
+        expect(extent['@_cy']).toBeDefined();
+        const pxToEmus = (px: number) => px * 9525;
+        expect(Number(extent['@_cx'])).toBe(pxToEmus(150));
+        expect(Number(extent['@_cy'])).toBe(pxToEmus(75));
+      });
+    });
   });
 
   describe('heading', () => {

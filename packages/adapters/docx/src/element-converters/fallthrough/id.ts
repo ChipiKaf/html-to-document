@@ -36,16 +36,16 @@ export class IdInlineConverter
     );
   }
 
-  public convertEement(
+  public async convertElement(
     dependencies: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
-  ): ParagraphChild[] {
+  ): Promise<ParagraphChild[]> {
     const { converter } = dependencies;
 
     const ids = this.getIds(element);
 
-    const children = converter.convertInline(
+    const children = await converter.convertInline(
       {
         ...element,
         metadata: {
@@ -64,24 +64,6 @@ export class IdInlineConverter
         }),
       ];
     }, children);
-
-    // const children = converter.convertInline(
-    //   {
-    //     ...element,
-    //     metadata: {
-    //       ...element.metadata,
-    //       [convertingIdMetadataKey]: true, // Mark this element as being processed for ID conversion
-    //     },
-    //   },
-    //   cascadedStyles
-    // );
-    //
-    // return [
-    //   new Bookmark({
-    //     children,
-    //     id,
-    //   }),
-    // ];
   }
 
   private getIds(element: DocumentElementType): string[] {

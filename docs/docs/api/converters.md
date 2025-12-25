@@ -125,7 +125,7 @@ class HeadingBlockConverter implements IBlockConverter<HeadingElement> {
   isMatch(el: DocumentElement): el is HeadingElement {
     return el.type === 'heading';
   }
-  convertEement(
+  convertElement(
     deps: ElementConverterDependencies,
     el: HeadingElement,
     styles: Styles = {}
@@ -145,7 +145,7 @@ class BoldInlineConverter implements IInlineConverter<TextElement> {
   isMatch(el: DocumentElement): el is TextElement {
     return el.type === 'text' && el.styles.fontWeight === 'bold';
   }
-  convertEement(
+  convertElement(
     deps: ElementConverterDependencies,
     el: TextElement,
     styles: Styles

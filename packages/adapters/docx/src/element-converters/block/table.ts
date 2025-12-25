@@ -1,8 +1,8 @@
 import {
   AttributeElement,
+  cascadeStyles,
   computeInheritedStyles,
   DocumentElement,
-  filterForScope,
   GridCell,
   Styles,
   TableElement,
@@ -25,35 +25,41 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     return element.type === 'table';
   }
 
-  public convertEement(
+  public async convertElement(
     dependencies: ElementConverterDependencies,
     element: TableElement,
     cascadedStyles?: Styles
-  ): FileChild[] {
+  ): Promise<FileChild[]> {
     const { styleMapper, converter, defaultStyles, styleMeta } = dependencies;
     const captions: { side: string; paragraph: Paragraph }[] = [];
 
     // We filter the cascaded styles for the table scope
-    const inherited = filterForScope(
-      cascadedStyles ?? {},
-      element.scope,
-      styleMeta
-    );
     const mergedStyles = {
       ...(defaultStyles?.[element.type] ?? {}),
-      ...inherited,
+      ...cascadedStyles,
       ...element.styles,
     };
 
+    const cascadingStyles = cascadeStyles(
+      mergedStyles,
+      element.scope,
+      styleMeta
+    );
+
     // --- begin colgroup support ---
-    // let widths: ITableWidthProperties[] = [];
     let stylesCol: Record<string, unknown>[] = [];
     if (Array.isArray(element.metadata?.colgroup)) {
       const [colgroupMeta] = element.metadata.colgroup as AttributeElement[];
       stylesCol =
         (colgroupMeta?.metadata as { col: DocumentElement[] })?.col.map(
           (col) => {
-            return styleMapper.mapStyles(col.styles || {}, col);
+            return styleMapper.mapStyles(
+              {
+                ...cascadingStyles,
+                ...(col.styles || {}),
+              },
+              col
+            );
           }
         ) ?? [];
     }
@@ -61,19 +67,29 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     if (Array.isArray(element.metadata?.caption)) {
       const caption = element.metadata.caption as AttributeElement[];
       captions.push(
-        ...caption.map((c) => ({
-          side: (c.styles?.captionSide || 'top') as string,
-          paragraph: new Paragraph({
-            // children: [
-            //   new TextRun({
-            //     text: c.text,
-            //     ...styleMapper.mapStyles(c.styles || {}, c),
-            //   }),
-            // ],
-            children: converter.convertInline(c, c.styles),
-            ...styleMapper.mapStyles(c.styles || {}, c),
-          }),
-        }))
+        ...(await Promise.all(
+          caption.map(async (c) => {
+            const innerMergedStyles = {
+              ...cascadingStyles,
+              ...(c.styles || {}),
+            };
+            const innerCascadingStyles = cascadeStyles(
+              innerMergedStyles,
+              c.scope,
+              styleMeta
+            );
+            return {
+              side: (c.styles?.captionSide || 'top') as string,
+              paragraph: new Paragraph({
+                children: await converter.convertInline(
+                  c,
+                  innerCascadingStyles
+                ),
+                ...styleMapper.mapStyles(innerMergedStyles, c),
+              }),
+            };
+          })
+        ))
       );
     }
     // --- end colgroup support ---
@@ -211,7 +227,8 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
 
           cells.push(
             new TableCell({
-              children: cellContent,
+              // TODO: make concurrent iterations
+              children: await cellContent,
               columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalMerge: verticalMerge,
               verticalAlign: VerticalAlign.CENTER,

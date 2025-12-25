@@ -1,7 +1,7 @@
 import { FileChild, HeadingLevel, Paragraph, ParagraphChild } from 'docx';
 import {
   DocumentElement,
-  filterForScope,
+  cascadeStyles,
   HeadingElement,
   Styles,
 } from 'html-to-document-core';
@@ -12,26 +12,35 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     return element.type === 'heading';
   }
 
-  convertEement(
-    { styleMapper, converter, defaultStyles }: ElementConverterDependencies,
+  async convertElement(
+    {
+      styleMapper,
+      converter,
+      defaultStyles,
+      styleMeta,
+    }: ElementConverterDependencies,
     element: HeadingElement,
     cascadedStyles: Styles = {}
-  ): FileChild[] {
-    const inherited = filterForScope(cascadedStyles, element.scope);
+  ): Promise<FileChild[]> {
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...inherited,
+      ...cascadedStyles,
       ...element.styles,
     };
-    let children: ParagraphChild[] = converter.convertInlineTextOrContent(
+    const cascadingStyles = cascadeStyles(
+      mergedStyles,
+      element.scope,
+      styleMeta
+    );
+    let children: ParagraphChild[] = await converter.convertInlineTextOrContent(
       element,
-      mergedStyles
+      cascadingStyles
     );
 
     children = converter.runFallthroughWrapConvertedChildren(
       element,
       children,
-      mergedStyles
+      cascadingStyles
     );
 
     const level =

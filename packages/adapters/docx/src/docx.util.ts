@@ -1,13 +1,6 @@
-import {
-  TextRun,
-  ImageRun,
-  MathRun,
-  Paragraph,
-  Table,
-  ExternalHyperlink,
-} from 'docx';
 import { DocumentElement, Styles } from 'html-to-document-core';
 import { DocxElement } from './docx.types';
+import { IImageOptions } from 'docx';
 
 // --- Utility Functions ---
 export function mergeStyles(...sources: Styles[]): Styles {
@@ -78,15 +71,39 @@ export function toBinaryBuffer(
   return new Uint8Array(input);
 }
 
-export const isInline = (
-  el: TextRun | ImageRun | MathRun | Paragraph | Table
-) => {
-  if (
-    el instanceof TextRun ||
-    el instanceof ImageRun ||
-    el instanceof MathRun ||
-    el instanceof ExternalHyperlink
-  )
-    return true;
-  return false;
+export const supportedImageTypes = [
+  'png',
+  'jpg',
+  'gif',
+  'bmp',
+  'svg',
+] as const satisfies IImageOptions['type'][];
+
+export type SupportedImageType = (typeof supportedImageTypes)[number];
+
+export const parseImageType = (input: string): SupportedImageType | null => {
+  const lowerInput = input.toLowerCase();
+  if (supportedImageTypes.includes(lowerInput as IImageOptions['type'])) {
+    return lowerInput as SupportedImageType;
+  }
+  if (lowerInput === 'jpeg') {
+    return 'jpg';
+  }
+  if (lowerInput === 'svg+xml') {
+    return 'svg';
+  }
+  return null;
+};
+
+export const isSupportedImageType = <S>(
+  type: S
+): type is S & SupportedImageType => {
+  return supportedImageTypes.includes(type as IImageOptions['type']);
+};
+
+export const promiseAllFlat = async <T>(
+  items: (Promise<T[]> | T[])[]
+): Promise<T[]> => {
+  const results = await Promise.all(items);
+  return results.flat();
 };

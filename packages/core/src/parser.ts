@@ -566,7 +566,7 @@ export class Parser {
         return {
           type: 'image',
           src: (element as HTMLImageElement).src,
-          scope: 'block', // default to block for images often, but can be inline
+          scope: 'inline', // default to inline, but can be changed to block depending on context
           ...options,
         };
 
