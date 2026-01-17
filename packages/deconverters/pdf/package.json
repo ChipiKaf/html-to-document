@@ -1,6 +1,6 @@
 {
   "name": "html-to-document-deconverter-pdf",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "PDF deconverter for html-to-document-core — converts PDF files to DocumentElement[] using pdf-parse.",
   "keywords": [
     "html-to-document",
