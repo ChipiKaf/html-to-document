@@ -1,5 +1,7 @@
-import { startContent1, startContent2, startContent3 } from './utils/constants';
-import { startContent4 } from './utils/test-content';
+import { basicContentHtml } from './test-content/basic';
+import { complexLayoutHtml } from './test-content/complex-layout';
+import { pageStructureHtml } from './test-content/page-structure';
+import { styleInheritanceHtml } from './test-content/style-inheritance';
 
 export interface TestCase {
   id: string;
@@ -14,27 +16,27 @@ export const testCases: TestCase[] = [
     title: 'Basic Content',
     description:
       'Simple paragraphs, headings, and lists to test basic functionality.',
-    content: startContent1,
+    content: basicContentHtml,
   },
   {
     id: 'complex',
     title: 'Complex Layout',
     description:
       'Includes nested lists, tables, and images to test complex structure parsing.',
-    content: startContent2,
+    content: complexLayoutHtml,
   },
   {
     id: 'page-structure',
     title: 'Page Structure',
     description: 'Tests page breaks, headers, and footers.',
-    content: startContent3,
+    content: pageStructureHtml,
   },
   {
     id: 'style-inheritance',
     title: 'Style Inheritance (Table Borders)',
     description:
       'Verifies correct border behavior. Default: Borders on cell only. Custom: Borders on paragraphs too (if configured).',
-    content: startContent4,
+    content: styleInheritanceHtml,
   },
   {
     id: 'forced-inheritance',

@@ -1,4 +1,4 @@
-export const startContent4 = `
+export const styleInheritanceHtml = `
 <div>
   <h1>Style Inheritance Test</h1>
   <p>This test verifies that table borders are NOT inherited by paragraphs inside cells.</p>
