@@ -1,5 +1,17 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.5.0
+
+### Minor Changes
+
+- [#59](https://github.com/ChipiKaf/html-to-document/pull/59) [`38da5bc`](https://github.com/ChipiKaf/html-to-document/commit/38da5bca09e9a4e2f3fd26a72f815153cd4922b2) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Added split text node by newlines utility and docx text converter will split them by default
+
+### Patch Changes
+
+- [#49](https://github.com/ChipiKaf/html-to-document/pull/49) [`a10ac85`](https://github.com/ChipiKaf/html-to-document/commit/a10ac85f27362ceacd586f31bd715d51e91fadaf) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Fix table row not getting the correct style mapping and vertical align top
+
+- [#58](https://github.com/ChipiKaf/html-to-document/pull/58) [`61d7ca4`](https://github.com/ChipiKaf/html-to-document/commit/61d7ca433297988e0b9796cf5b709030226dac5b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Added resolve image functionality
+
 ## 0.4.2
 
 ### Patch Changes
