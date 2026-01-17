@@ -30,6 +30,29 @@ jobs:
           # We need to fetch all branches and commits so that changesets can generate the correct changelogs.
           fetch-depth: 0
 
+      # If the current commit is `chore: version packages` checkout the previous commit, since version packages removes all changesets
+      - name: Checkout previous if version packages
+        shell: bash
+        run: |
+          # 1. Get the current commit message directly from git
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          # Debugging outputs
+          echo "DEBUG: Current Commit Hash: $(git rev-parse HEAD)"
+          echo "DEBUG: Current Commit Message: $COMMIT_MSG"
+
+          # 2. Check if message starts with specific string
+          if [[ "$COMMIT_MSG" == "chore: version packages"* ]]; then
+            echo "MATCH: logic triggered. Checking out previous commit..."
+            
+            # Checkout the parent of the current commit
+            git checkout HEAD~1
+            
+            echo "SUCCESS: Now at commit: $(git rev-parse HEAD)"
+          else
+            echo "NO MATCH: Staying on current commit."
+          fi
+
       - name: Setup PNPM
         # Uses the packageManager field from package.json to determine the PNPM version.
         uses: pnpm/action-setup@v4
