@@ -1,6 +1,5 @@
 import * as CSS from 'csstype';
 import {
-  borderStyleValues,
   colorConversion,
   mapBorderStyle,
   pixelsToTwips,
@@ -22,6 +21,7 @@ import {
 import { DeepPartial } from './utils/types';
 import { capitalize } from './utils/text';
 import { parseImageSizePx, parseWidth } from './utils/parse';
+import { expandBorderShorthands } from './styles/shorthands/border';
 
 function deepMerge<T extends object, U extends object>(
   target: T,
@@ -436,7 +436,12 @@ export class StyleMapper {
           (floatDir === 'left' || floatDir === 'right')
         ) {
           const distT = pixelsToTwips(px);
-          return { floating: { wrap: { margins: { distT } } } };
+          return {
+            floating: {
+              // @ts-expect-error type is missing, but will be set elsewhere - DeepPartial doesn't actually work as expected here
+              wrap: { margins: { distT } },
+            },
+          } satisfies DeepPartial<IImageOptions>;
         }
         if (el.type === 'table') return {};
         const twips = px * 20;
@@ -456,7 +461,12 @@ export class StyleMapper {
           (floatDir === 'left' || floatDir === 'right')
         ) {
           const distB = pixelsToTwips(px);
-          return { floating: { wrap: { margins: { distB } } } };
+          return {
+            floating: {
+              // @ts-expect-error type is missing, but will be set elsewhere - DeepPartial doesn't actually work as expected here
+              wrap: { margins: { distB } },
+            },
+          } satisfies DeepPartial<IImageOptions>;
         }
         if (el.type === 'table') return {};
         const twips = px * 20;
@@ -476,7 +486,14 @@ export class StyleMapper {
           (floatDir === 'left' || floatDir === 'right')
         ) {
           const distL = pixelsToTwips(px);
-          return { floating: { wrap: { margins: { distL } } } };
+          return {
+            floating: {
+              // @ts-expect-error type is missing, but will be set elsewhere - DeepPartial doesn't actually work as expected here
+              wrap: {
+                margins: { distL },
+              },
+            },
+          } satisfies DeepPartial<IImageOptions>;
         }
         if (el.type === 'table') return {};
         const twips = pixelsToTwips(px);
@@ -572,90 +589,7 @@ export class StyleMapper {
     const mappedStyles: Partial<Record<keyof CSS.Properties, string | number>> =
       { ...rawStyles };
 
-    const directions = ['top', 'right', 'bottom', 'left'] as const;
-    const capitalizedDirections = directions.map((dir) => capitalize(dir));
-
-    const borderDirections = capitalizedDirections.map(
-      (dir) => `border${dir}` as keyof CSS.Properties
-    );
-
-    const borderShorthand = (
-      prop: string | number
-    ): { width?: string | number; style?: string; color?: string } => {
-      if (typeof prop === 'number') {
-        return {
-          width: prop,
-        };
-      }
-      // TODO: Make sure that the order is corect
-      const widthRegex =
-        /^(thin|medium|thick|(\d+(\.\d+)?(px|em|rem|pt|cm|mm|in|pc|ex|ch|vw|vh|vmin|vmax|%)))$/i;
-      let width: string | undefined;
-      let style: string | undefined;
-      let color: string | undefined;
-      const parts = String(prop).split(/\s+/).filter(Boolean);
-      for (const part of parts) {
-        if (!width && widthRegex.test(part)) {
-          width = part;
-        } else if (
-          !style &&
-          borderStyleValues.includes(
-            // as any is okay when using .includes
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            part as any
-          )
-        ) {
-          style = part;
-        } else if (!color) {
-          color = part;
-        }
-      }
-      return { width, style, color };
-    };
-
-    // Expand 'border' shorthand into individual border properties if not already set
-    if (mappedStyles.border) {
-      const borderValue = mappedStyles.border;
-      const { width, style, color } = borderShorthand(borderValue);
-      mappedStyles['borderWidth'] ??= width;
-      mappedStyles['borderStyle'] ??= style;
-      mappedStyles['borderColor'] ??= color;
-    }
-
-    // FIXME: currently if border specifies a color, but the direction doesn't, the direction does not override it, but it should set it to the default.
-    borderDirections.forEach((borderDir) => {
-      const style = mappedStyles[borderDir];
-      if (style === undefined) return;
-      const { width, style: borderStyleValue, color } = borderShorthand(style);
-      const widthProp = `${borderDir}Width` as keyof CSS.Properties;
-      const styleProp = `${borderDir}Style` as keyof CSS.Properties;
-      const colorProp = `${borderDir}Color` as keyof CSS.Properties;
-      mappedStyles[widthProp] ??= width;
-      mappedStyles[styleProp] ??= borderStyleValue;
-      mappedStyles[colorProp] ??= color;
-    });
-
-    if (mappedStyles.borderWidth) {
-      const widthValue = mappedStyles.borderWidth;
-      capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Width` as keyof CSS.Properties;
-        mappedStyles[prop] ??= widthValue;
-      });
-    }
-    if (mappedStyles.borderStyle) {
-      const styleValue = mappedStyles.borderStyle;
-      capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Style` as keyof CSS.Properties;
-        mappedStyles[prop] ??= styleValue;
-      });
-    }
-    if (mappedStyles.borderColor) {
-      const colorValue = mappedStyles.borderColor;
-      capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Color` as keyof CSS.Properties;
-        mappedStyles[prop] ??= colorValue;
-      });
-    }
+    expandBorderShorthands(mappedStyles);
 
     return mappedStyles;
   }
