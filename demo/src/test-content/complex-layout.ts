@@ -54,6 +54,13 @@ export const complexLayoutHtml = `
 <dt>Test Case</dt>
 <dd>A scenario used to validate functionality.</dd>
 </dl>
+<h2>Image alignments</h2>
+<h3>Left Aligned Image</h3>
+<img style="margin-right: auto;" src="https://images.pexels.com/photos/31579434/pexels-photo-31579434/free-photo-of-scenic-rocky-beach-in-antalya-turkiye.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1260&amp;h=750&amp;dpr=1" alt="Floating image">
+<h3>Center Aligned Image</h3>
+<img style="display: block; margin-left: auto; margin-right: auto;" src="https://images.pexels.com/photos/31579434/pexels-photo-31579434/free-photo-of-scenic-rocky-beach-in-antalya-turkiye.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1260&amp;h=750&amp;dpr=1" alt="Floating image">
+<h3>Right Aligned Image</h3>
+<img style="display: block; margin-left: auto;" src="https://images.pexels.com/photos/31579434/pexels-photo-31579434/free-photo-of-scenic-rocky-beach-in-antalya-turkiye.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1260&amp;h=750&amp;dpr=1" alt="Floating image">
 <h2>Media Figure</h2>
 <figure style="text-align: center; margin: 20px;"><img style="width: 150px; height: 150px; border: 1px solid #ccc;" src="https://images.pexels.com/photos/31579434/pexels-photo-31579434/free-photo-of-scenic-rocky-beach-in-antalya-turkiye.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1260&amp;h=750&amp;dpr=1" alt="Sample">
 <figcaption>Figure&nbsp;1: Sample placeholder image</figcaption>
