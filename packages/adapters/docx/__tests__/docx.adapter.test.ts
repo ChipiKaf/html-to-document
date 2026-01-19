@@ -1635,6 +1635,18 @@ describe('Docx.adapter.convert', () => {
       return body['w:tbl'];
     };
 
+    it('should convert an empty table without failing', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      expect(jsonDocument).toBeDefined();
+    });
+
     it('should convert a simple table with one row and one cell', async () => {
       const table: DocumentElement = {
         type: 'table',
