@@ -12,6 +12,10 @@ const devAliases = isDev
         __dirname,
         '../packages/adapters/docx/src/index.ts'
       ),
+      'html-to-document-adapter-pdf': path.resolve(
+        __dirname,
+        '../packages/adapters/pdf/src/index.ts'
+      ),
       'html-to-document-core': path.resolve(
         __dirname,
         '../packages/core/src/index.ts'

@@ -38,6 +38,7 @@ export class PDFAdapter implements IDocumentConverter {
   }
 
   private convertElement(doc: typeof PDFDocument, elements: DocumentElement[]) {
+    console.log('PDFAdapter: convertElement called with elements:', elements);
     for (const element of elements) {
       switch (element.type) {
         case 'page': {
@@ -45,14 +46,16 @@ export class PDFAdapter implements IDocumentConverter {
           this.convertElement(doc, element.content || []);
           break;
         }
-        // case 'heading': {
-        //   if (element.text) {
-        //     doc.text(element.text);
-        //   } else {
-        //     this.convertElement(doc, element.content || []);
-        //   }
-        //   break;
-        // }
+        case 'heading': {
+          // doc.fontSize();
+          if (element.text) {
+            doc.text(element.text);
+          } else {
+            this.convertElement(doc, element.content || []);
+          }
+          doc.fontSize(12); // Reset to default)
+          break;
+        }
         case 'text': {
           if (element.text) {
             doc.text(element.text);

@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@types/pdfkit": "^0.13.9",
+    "csstype": "^3.2.3",
     "html-to-document-adapter-docx": "workspace:^",
     "html-to-document-core": "workspace:*",
     "pdf-parse": "^1.1.1",
