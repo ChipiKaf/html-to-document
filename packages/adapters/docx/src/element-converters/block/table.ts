@@ -105,8 +105,10 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       numCols = Math.max(numCols, colCount);
     }
 
+    const effectiveNumCols = Math.max(numCols, 1);
+
     const grid: (GridCell | null)[][] = Array.from({ length: numRows }, () => {
-      return Array(numCols).fill(null);
+      return Array(effectiveNumCols).fill(null);
     });
 
     for (let i = 0; i < numRows; i++) {
@@ -116,8 +118,9 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
 
       for (const cell of row.cells) {
         const currentRow = grid[i]!;
-        while (colIndex < numCols && currentRow[colIndex] !== null) colIndex++;
-        if (colIndex >= numCols) break;
+        while (colIndex < effectiveNumCols && currentRow[colIndex] !== null)
+          colIndex++;
+        if (colIndex >= effectiveNumCols) break;
         const colSpan = cell.colspan || 1;
         const rowSpan = cell.rowspan || 1;
 
@@ -158,7 +161,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     for (let i = 0; i < numRows; i++) {
       const cells: TableCell[] = [];
       let j = 0;
-      while (j < numCols) {
+      while (j < effectiveNumCols) {
         const gridCell = grid[i]?.[j];
         if (!gridCell) {
           cells.push(
@@ -261,6 +264,13 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
         })
       );
     }
+
+    // Drop table if it has no rows
+    if (tableRows.length === 0) {
+      // TODO: return captions?
+      return [];
+    }
+
     const rawStyles = styleMapper.mapStyles(
       { ...mergedStyles, ...element.styles },
       element
