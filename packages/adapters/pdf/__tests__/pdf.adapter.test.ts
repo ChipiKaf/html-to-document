@@ -1,5 +1,5 @@
 import { PDFAdapter } from '../src/pdf.adapter';
-import { DocumentElement, StyleMapper } from 'html-to-document-core';
+import { DocumentElement } from 'html-to-document-core';
 import { JSDOM } from 'jsdom';
 import {
   vi,
@@ -75,13 +75,10 @@ const isPdf = (buffer: Buffer): boolean => {
 
 describe('PDFAdapter', () => {
   let adapter: PDFAdapter;
-  let styleMapper: StyleMapper;
   let mockDocxAdapter: Mocked<DocxAdapter>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    styleMapper = new StyleMapper();
 
     // Create a mock DocxAdapter instance
     mockDocxAdapter = {
@@ -93,7 +90,19 @@ describe('PDFAdapter', () => {
       () => mockDocxAdapter
     );
 
-    adapter = new PDFAdapter({ styleMapper });
+    adapter = new PDFAdapter({});
+  });
+
+  it('forwards nested docx config to the internal DocxAdapter', () => {
+    const docxConfig = {
+      documentOptions: {
+        creator: 'pdf-test',
+      },
+    };
+
+    new PDFAdapter({}, { docx: docxConfig } as any);
+
+    expect(DocxAdapter).toHaveBeenCalledWith({}, docxConfig);
   });
 
   describe('Node.js environment', () => {

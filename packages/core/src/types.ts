@@ -1,5 +1,4 @@
 import * as CSS from 'csstype';
-import { StyleMapper } from './style.mapper';
 
 /**
  * Represents a style object, allowing both arbitrary keys and known CSS properties.
@@ -356,11 +355,9 @@ export type TagHandlerObject = {
   handler: TagHandler;
 };
 /**
- * Dependencies required by a document converter, such as the style mapper and default styles.
+ * Dependencies required by a document converter, such as default styles and style inheritance metadata.
  */
 export interface IConverterDependencies {
-  /** Style mapper instance for mapping CSS to docx styles */
-  styleMapper: StyleMapper;
   /** Optional default styles for each element type */
   defaultStyles?: Partial<
     Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
@@ -370,12 +367,6 @@ export interface IConverterDependencies {
   [key: string]: unknown;
 }
 
-/**
- * Maps CSS properties to transformation functions for style conversion.
- */
-export type StyleMapping = Partial<
-  Record<keyof CSS.Properties, (value: string, el: DocumentElement) => unknown>
->;
 /**
  * Constructor type for adapter providers, given converter dependencies.
  */
@@ -391,7 +382,6 @@ export type AdapterProvider<ConfigType = unknown> = new (
 //   register?: {
 //     format: Formats;
 //     adapter: IDocumentConverter;
-//     styleMapper: StyleMapper;
 //   }[];
 //   /** Optional default styles for specific formats */
 //   defaultStyles?: {
@@ -428,9 +418,8 @@ export type AdapterRegistration<
  * @property middleware Optional array of middleware functions to apply during conversion.
  * @property tagHandlers Optional array of custom tag handlers to use for parsing HTML elements.
  * @property clearMiddleware If true, clears the default middleware stack before applying custom middleware.
- * @property adapters Optional configuration object for registering adapters, styles, and style mappings for different formats.
+ * @property adapters Optional configuration object for registering adapters and styles for different formats.
  *   - defaultStyles: Array of default style objects for each format (used by adapters).
- *   - styleMappings: Array of style mapping objects for each format, mapping HTML/CSS styles to document styles.
  *   - register: Array of adapter registration objects, each with a format and an AdapterProvider.
  * @property domParser Optional custom DOM parser implementation to use for HTML parsing.
  */
@@ -476,7 +465,6 @@ export type InitOptions<
    * Optional adapters configuration for supported formats.
    *
    * - defaultStyles: Array of default style objects for each format, used to initialize adapters.
-   * - styleMappings: Array of style mapping objects for each format, mapping HTML/CSS styles to document styles.
    * - register: Array of adapter registration objects, each specifying a format and its AdapterProvider implementation.
    */
   adapters?: {
@@ -504,28 +492,6 @@ export type InitOptions<
       format: Formats;
       /** The default styles object to use for this format. */
       styles: IConverterDependencies['defaultStyles'];
-    }[];
-    /**
-     * Style mappings for each supported format.
-     *
-     * This array allows you to specify how HTML/CSS styles should be mapped to document styles for each target format.
-     * Each entry should include:
-     *  - format: The format identifier (e.g., 'docx', 'pdf').
-     *  - handlers: A style mapping object or function for that format.
-     *
-     * Example:
-     *   styleMappings: [
-     *     {
-     *       format: 'docx',
-     *       handlers: { bold: { fontWeight: 'bold' }, italic: { fontStyle: 'italic' } }
-     *     }
-     *   ]
-     */
-    styleMappings?: readonly {
-      /** The document format this mapping applies to (e.g. 'docx', 'pdf'). */
-      format: Formats;
-      /** The mapping of HTML/CSS styles to document styles for this format. */
-      handlers: StyleMapping;
     }[];
     /**
      * Adapter registration for each supported format.
@@ -566,7 +532,6 @@ export type ConverterOptions = Omit<
   registerAdapters?: {
     format: Formats;
     adapter: IDocumentConverter;
-    styleMapper: StyleMapper;
   }[];
 };
 

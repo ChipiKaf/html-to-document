@@ -14,18 +14,19 @@ Adapters convert the intermediate [`DocumentElement[]`](./types) into a specific
 
 A **style mapping** defines how HTML/CSS styles like `font-weight`, `text-align`, or `padding` should be transformed into document-native properties (e.g., for DOCX: `{ bold: true }` or `{ spacing: { line: 240 } }`).
 
-You can register these mappings per format using the `adapters.styleMappings` array during [`init`](./html-to-document).
+The built-in DOCX adapter owns these mappings through its adapter-specific `config`.
 
 ---
 
 ## Example: Custom Style Mapping for DOCX
 
-For type definitions like `StyleMapping`, see the [Types Reference](./types).
+For DOCX-specific mapping types, import them from `html-to-document-adapter-docx`.
 
 ```ts
-import { init, StyleMapping } from 'html-to-document';
+import { init } from 'html-to-document';
+import { DocxAdapter, DocxStyleMapping } from 'html-to-document-adapter-docx';
 
-const mapping: StyleMapping = {
+const mapping: DocxStyleMapping = {
   fontWeight: (value) => ({ bold: value === 'bold' }),
   fontStyle: (value) => ({ italics: value === 'italic' }),
   color: (value) => ({ color: value }), // use hex or theme color string
@@ -33,10 +34,13 @@ const mapping: StyleMapping = {
 
 const converter = init({
   adapters: {
-    styleMappings: [
+    register: [
       {
         format: 'docx',
-        handlers: mapping,
+        adapter: DocxAdapter,
+        config: {
+          styleMappings: mapping,
+        },
       },
     ],
   },
@@ -78,6 +82,7 @@ const converter = init({
 ```
 
 Each `styles` object uses the internal [`ElementType`](./types#document-elements) keys, such as:
+
 - `paragraph`
 - `heading`
 - `text`
@@ -87,28 +92,29 @@ Each `styles` object uses the internal [`ElementType`](./types#document-elements
 
 ---
 
-## About the Built-in StyleMapper
+## About the Built-in DocxStyleMapper
 
-Internally, each adapter uses a [`StyleMapper`](./types) instance to apply mappings. The `docx` adapter includes comprehensive mappings for:
+Internally, the DOCX adapter uses a `DocxStyleMapper` instance to apply mappings. It includes comprehensive mappings for:
 
-| CSS Property         | Mapped To (docx)                 |
-|----------------------|----------------------------------|
-| `font-weight`        | `{ bold: true }`                 |
-| `font-style`         | `{ italics: true }`              |
-| `text-align`         | `{ alignment: 'center' }`        |
-| `color`              | `{ color: '#RRGGBB' }`           |
-| `background-color`   | `{ shading: { fill: ... } }`     |
-| `font-size`          | `{ size: px × 1.5 }`             |
-| `line-height`        | `{ spacing: { line: value×240 }}`|
-| `margin/padding`     | `{ spacing, indent, margins }`   |
-| `border`             | `{ borders or outline }`         |
+| CSS Property       | Mapped To (docx)                  |
+| ------------------ | --------------------------------- |
+| `font-weight`      | `{ bold: true }`                  |
+| `font-style`       | `{ italics: true }`               |
+| `text-align`       | `{ alignment: 'center' }`         |
+| `color`            | `{ color: '#RRGGBB' }`            |
+| `background-color` | `{ shading: { fill: ... } }`      |
+| `font-size`        | `{ size: px × 1.5 }`              |
+| `line-height`      | `{ spacing: { line: value×240 }}` |
+| `margin/padding`   | `{ spacing, indent, margins }`    |
+| `border`           | `{ borders or outline }`          |
 
-You can override or extend this behavior by adding your own `StyleMapping`.
+You can override or extend this behavior by adding your own `DocxStyleMapping`.
 
 Each style mapping function receives two arguments:
 
 ```ts
-(key: keyof CSS.Properties, value: string | number, el: DocumentElement) => object
+(key: keyof CSS.Properties, value: string | number, el: DocumentElement) =>
+  object;
 ```
 
 This allows for **context-aware styling**, meaning you can vary the output depending on the element type.
@@ -149,38 +155,48 @@ margin: (v: string, el: DocumentElement) => {
     spacing: { before, after },
     indent: { left: horiz, right: horiz },
   };
-}
+};
 ```
 
-This flexibility makes `StyleMapper` a powerful mechanism for fine-tuning how layout and design decisions translate across formats.
+This flexibility makes `DocxStyleMapper` a powerful mechanism for fine-tuning how layout and design decisions translate into DOCX output.
 
 ---
 
-## Advanced: Replace or Extend StyleMapper
+## Advanced: Replace or Extend DocxStyleMapper
 
-You can also instantiate a [`StyleMapper`](./types) manually and pass it into your adapter:
+You can also instantiate a `DocxStyleMapper` manually and pass it into the DOCX adapter config:
 
 ```ts
-import { StyleMapper } from 'html-to-document';
+import { init } from 'html-to-document';
+import { DocxAdapter, DocxStyleMapper } from 'html-to-document-adapter-docx';
 
-const customMapper = new StyleMapper();
+const customMapper = new DocxStyleMapper();
 customMapper.addMapping({
   letterSpacing: (v) => ({ characterSpacing: parseFloat(v) * 10 }),
 });
 
-const adapter = new DocxAdapter({ styleMapper: customMapper });
-converter.registerConverter('docx', adapter);
+const converter = init({
+  adapters: {
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        config: { styleMapper: customMapper },
+      },
+    ],
+  },
+});
 ```
 
 ---
 
 ## Summary
 
-| Feature             | Purpose                                        |
-|---------------------|------------------------------------------------|
-| `styleMappings`     | Maps CSS styles → document format properties   |
-| `defaultStyles`     | Applies fallback styles for missing styles     |
-| [`StyleMapper`](./types)       | Built-in logic engine for mapping styles       |
-| `.addMapping()`     | Extend or override the behavior dynamically    |
+| Feature                | Purpose                                      |
+| ---------------------- | -------------------------------------------- |
+| `config.styleMappings` | Maps CSS styles → DOCX properties            |
+| `defaultStyles`        | Applies fallback styles for missing styles   |
+| `DocxStyleMapper`      | Built-in logic engine for DOCX style mapping |
+| `.addMapping()`        | Extend or override the behavior dynamically  |
 
-Want more detail? Explore the [StyleMapper source](https://github.com/ChipiKaf/html-to-document/blob/main/src/core/style.mapper.ts) for complete coverage.
+Want more detail? Explore the `DocxStyleMapper` source in the DOCX adapter package for complete coverage.

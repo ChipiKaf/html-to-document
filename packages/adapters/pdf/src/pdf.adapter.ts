@@ -5,6 +5,7 @@ import {
   toHtml,
 } from 'html-to-document-core';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
+import { PDFAdapterConfig } from './pdf.types';
 
 // ---- html2pdf.js type helpers -------------------------------------------
 type Html2PdfBuilder = {
@@ -29,8 +30,8 @@ export class PDFAdapter implements IDocumentConverter {
   private docxAdapter: DocxAdapter;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
 
-  constructor(dependencies: IConverterDependencies) {
-    this.docxAdapter = new DocxAdapter(dependencies);
+  constructor(dependencies: IConverterDependencies, config?: PDFAdapterConfig) {
+    this.docxAdapter = new DocxAdapter(dependencies, config?.docx);
     this._defaultStyles = { ...(dependencies.defaultStyles ?? {}) };
   }
 

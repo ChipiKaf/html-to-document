@@ -1,10 +1,7 @@
-import { BorderStyle } from 'docx';
 import {
   parseStyles,
   parseAttributes,
   colorConversion,
-  pixelsToTwips,
-  mapBorderStyle,
   extractAttributesToMetadata,
   extractAllAttributes,
 } from '../src/utils/html.utils';
@@ -58,27 +55,6 @@ describe('html.utils', () => {
       expect(colorConversion('notacolor')).toBe('000000');
     });
   });
-
-  describe('pixelsToTwips', () => {
-    it('converts pixels to twips', () => {
-      expect(pixelsToTwips(5)).toBe(50);
-      expect(pixelsToTwips(0)).toBe(0);
-    });
-  });
-
-  describe('mapBorderStyle', () => {
-    it('maps CSS border styles to BorderStyle', () => {
-      expect(mapBorderStyle('none')).toBe(BorderStyle.NONE);
-      expect(mapBorderStyle('hidden')).toBe(BorderStyle.NONE);
-      expect(mapBorderStyle('solid')).toBe(BorderStyle.SINGLE);
-      expect(mapBorderStyle('dashed')).toBe(BorderStyle.DASHED);
-      expect(mapBorderStyle('dotted')).toBe(BorderStyle.DOTTED);
-      expect(mapBorderStyle('double')).toBe(BorderStyle.DOUBLE);
-      expect(mapBorderStyle('groove')).toBe(BorderStyle.SINGLE);
-      expect(mapBorderStyle('unknown')).toBe(BorderStyle.SINGLE);
-    });
-  });
-
   describe('extractAttributesToMetadata', () => {
     it('extracts attribute children into metadata and removes them from content', () => {
       const element: DocumentElement = {

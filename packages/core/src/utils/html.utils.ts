@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import colornames from 'colornames';
-
-import { BorderStyle } from 'docx';
 import { AttributeElement, DocumentElement } from '../types';
 
 export function parseStyles(
@@ -58,46 +56,6 @@ export function colorConversion(color: string): string {
 
   // 3) Last resort, black
   return '000000';
-}
-
-export function pixelsToTwips(pixels: number): number {
-  return Math.round(pixels * 10); // 1px = 15 twips (approx)
-}
-
-export const borderStyleValues = [
-  'none',
-  'hidden',
-  'dotted',
-  'dashed',
-  'solid',
-  'double',
-  'groove',
-  'ridge',
-  'inset',
-  'outset',
-] as const;
-
-export function mapBorderStyle(style: string): string {
-  switch (style.toLowerCase()) {
-    case 'none':
-    case 'hidden':
-      return BorderStyle.NONE;
-    case 'solid':
-      return BorderStyle.SINGLE;
-    case 'dashed':
-      return BorderStyle.DASHED;
-    case 'dotted':
-      return BorderStyle.DOTTED;
-    case 'double':
-      return BorderStyle.DOUBLE;
-    case 'groove':
-    case 'ridge':
-    case 'inset':
-    case 'outset':
-      return BorderStyle.SINGLE; // No direct mapping, using solid as fallback
-    default:
-      return BorderStyle.SINGLE;
-  }
 }
 
 interface SimpleAttr {

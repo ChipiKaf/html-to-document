@@ -20,26 +20,30 @@ https://www.npmjs.com/package/html-to-document
 
 ```ts
 import { init } from 'html-to-document';
-import { PdfAdapter } from 'html-to-document-adapter-pdf';
+import { PDFAdapter } from 'html-to-document-adapter-pdf';
 
 const converter = init({
   adapters: {
-    register: [{ format: 'pdf', adapter: PdfAdapter }],
+    register: [
+      {
+        format: 'pdf',
+        adapter: PDFAdapter,
+        config: {
+          docx: {
+            styleMappings: {
+              fontWeight: (v) => ({ bold: v === 'bold' }),
+              textAlign: (v) => ({ alignment: v }),
+            },
+          },
+        },
+      },
+    ],
     defaultStyles: [
       {
         format: 'pdf',
         styles: {
           paragraph: { lineHeight: 1.5 },
           heading: { fontSize: '18px', fontWeight: 'bold' },
-        },
-      },
-    ],
-    styleMappings: [
-      {
-        format: 'pdf',
-        handlers: {
-          fontWeight: (v) => ({ bold: v === 'bold' }),
-          textAlign: (v) => ({ align: v }),
         },
       },
     ],
@@ -55,21 +59,21 @@ const pdfBlob = await converter.convert(elements, 'pdf');
 
 ## API
 
-### `PdfAdapter`
+### `PDFAdapter`
 
 Adapter class implementing `IDocumentConverter` for PDF.
 
 #### Constructor
 
 ```ts
-new PdfAdapter(options: {
-  styleMapper: StyleMapper;
-  defaultStyles?: Record<string, any>;
-});
+new PDFAdapter(
+  dependencies: IConverterDependencies,
+  config?: PDFAdapterConfig
+);
 ```
 
-- `styleMapper`: a `StyleMapper` instance carrying style mappings.
-- `defaultStyles`: optional defaults for styling elements.
+- `dependencies.defaultStyles`: optional defaults for styling elements.
+- `config.docx`: optional DOCX adapter configuration for the Node DOCX-to-PDF conversion path. This is ignored in the browser.
 
 #### Methods
 

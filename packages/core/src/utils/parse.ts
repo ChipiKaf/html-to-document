@@ -1,34 +1,3 @@
-import { WidthType } from 'docx';
-
-export const parseWidth = (value: string) => {
-  if (value.endsWith('px')) {
-    const px = parseFloat(value);
-    return {
-      size: Math.round(px * 15),
-      type: WidthType.DXA,
-    };
-  } else if (value.endsWith('%')) {
-    const percent = parseFloat(value);
-    return {
-      size: Math.round(percent),
-      type: WidthType.PERCENTAGE,
-    };
-  } else if (value.endsWith('in')) {
-    const inches = parseFloat(value);
-    return {
-      size: Math.round(inches * 1440),
-      type: WidthType.DXA,
-    };
-  } else if (value.endsWith('cm')) {
-    const cm = parseFloat(value);
-    return {
-      size: Math.round(cm * 567),
-      type: WidthType.DXA,
-    };
-  }
-  return undefined;
-};
-
 const DPI = 96; // Standard screen DPI
 
 /**

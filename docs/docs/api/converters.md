@@ -6,7 +6,7 @@ sidebar_position: 6
 
 # Custom Converters
 
-You can register custom adapter implementations to handle new output formats by implementing the [`IDocumentConverter`](./types) interface. Adapters receive styling helpers such as [`StyleMapper`](./types) and defaults via their constructor.
+You can register custom adapter implementations to handle new output formats by implementing the [`IDocumentConverter`](./types) interface. Adapters receive generic dependencies such as `defaultStyles` and `styleMeta` via their constructor. Format-specific mappers are owned by the adapter package, not by core.
 
 ## Adapter Constructor & Dependencies
 
@@ -22,12 +22,7 @@ import {
 } from 'html-to-document';
 
 export class MyAdapter implements IDocumentConverter {
-  constructor({
-    styleMapper,
-    defaultStyles,
-    styleMeta,
-  }: IConverterDependencies) {
-    // styleMapper: StyleMapper for CSS→format mapping
+  constructor({ defaultStyles, styleMeta }: IConverterDependencies) {
     // defaultStyles?: default style definitions per element type
     // styleMeta?: style inheritance metadata
   }
@@ -37,8 +32,7 @@ export class MyAdapter implements IDocumentConverter {
     for (const el of elements) {
       const base = defaultStyles?.[el.type] || {};
       const merged = { ...base, ...el.styles };
-      const props = styleMapper.mapStyles(merged, el);
-      // create format-specific nodes using props
+      // create format-specific nodes using merged + styleMeta
     }
     return new Blob();
   }
@@ -59,16 +53,10 @@ import {
 } from 'html-to-document';
 
 export class PlainTextAdapter implements IDocumentConverter {
-  private mapper: StyleMapper;
   private defaults: Record<string, any>;
   private styleMeta: IConverterDependencies['styleMeta'];
 
-  constructor({
-    styleMapper,
-    defaultStyles,
-    styleMeta,
-  }: IConverterDependencies) {
-    this.mapper = styleMapper;
+  constructor({ defaultStyles, styleMeta }: IConverterDependencies) {
     this.defaults = defaultStyles ?? {};
     this.styleMeta = styleMeta;
   }
@@ -77,14 +65,15 @@ export class PlainTextAdapter implements IDocumentConverter {
     const text = elements
       .map((el) => {
         const styles = { ...this.defaults[el.type], ...el.styles };
-        const props = this.mapper.mapStyles(styles, el);
         switch (el.type) {
           case 'paragraph':
             return (el.text ?? '') + '\n\n';
           case 'heading':
             return '#'.repeat(el.level || 1) + ' ' + (el.text ?? '') + '\n\n';
           case 'text':
-            return props.bold ? '**' + (el.text ?? '') + '**' : (el.text ?? '');
+            return styles.fontWeight === 'bold'
+              ? '**' + (el.text ?? '') + '**'
+              : (el.text ?? '');
           default:
             return '';
         }
@@ -198,7 +187,7 @@ const converter = init({
 });
 ```
 
-You can also supply default styles and style mappings for your custom adapter:
+You can also supply default styles for your custom adapter:
 
 ```ts
 const converter = init({
@@ -215,12 +204,6 @@ const converter = init({
       {
         format: 'md',
         styles: { paragraph: { marginBottom: 8, lineHeight: 1.6 } },
-      },
-    ],
-    styleMappings: [
-      {
-        format: 'md',
-        handlers: { fontWeight: (v) => ({ bold: v === 'bold' }) },
       },
     ],
   },
@@ -241,7 +224,7 @@ export class MyAdapter implements IDocumentConverter {
 }
 ```
 
-This method works well cause it handles the initialization of the style mapper and other dependencies for you.
+This method works well because it handles the initialization of generic adapter dependencies for you.
 
 ## Register at Runtime
 
@@ -260,13 +243,10 @@ converter.registerConverter(
 > **Note:** When registering at runtime, you must supply an `IConverterDependencies` object, typically:
 >
 > ```ts
-> import { StyleMapper, initStyleMeta } from 'html-to-document';
-> const styleMapper = new StyleMapper();
-> // Optionally add mappings:
-> styleMapper.addMapping({ fontWeight: (v) => ({ bold: v === 'bold' }) });
+> import { initStyleMeta } from 'html-to-document';
 > const defaultStyles = { paragraph: { lineHeight: 1.5 } };
 > converter.registerConverter(
 >   'md',
->   new MyAdapter({ styleMapper, defaultStyles, styleMeta: initStyleMeta() })
+>   new MyAdapter({ defaultStyles, styleMeta: initStyleMeta() })
 > );
 > ```

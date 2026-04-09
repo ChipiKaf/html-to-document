@@ -28,15 +28,14 @@ import { init, DocxAdapter } from 'html-to-document';
 
 const converter = init({
   adapters: {
-    register: [
-      { format: 'docx', adapter: DocxAdapter },
-    ],
+    register: [{ format: 'docx', adapter: DocxAdapter }],
   },
   // Other configuration
 });
 
 // Convert HTML string to DOCX buffer
-converter.convert('<h1>Hello World</h1><p>This is a paragraph.</p>', 'docx')
+converter
+  .convert('<h1>Hello World</h1><p>This is a paragraph.</p>', 'docx')
   .then((buffer) => {
     // handle Buffer in Node.js or Blob in browsers
   })
@@ -52,7 +51,7 @@ Initialize a new [`Converter`](./types) instance.
 - **options**: [`InitOptions`](./types) (optional)
   - `middleware?: [`Middleware`](./types)[]` – custom middleware functions.
   - `tags?: { tagHandlers?: [`TagHandlerObject`](./types)[]; defaultStyles?: ...; defaultAttributes?: ... }` – custom tag handlers and default tag options.
-- `adapters?: { defaultStyles?: ...; styleMappings?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object }[] }` – register adapters, style mappings, and adapter-specific config.
+- `adapters?: { defaultStyles?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object }[] }` – register adapters and adapter-specific config.
   - `clearMiddleware?: boolean` – clear default middleware.
   - `domParser?: [`IDOMParser`](./types)` – custom DOM parser implementation.
 
@@ -79,7 +78,7 @@ Create a Converter with raw options:
 
 - `tags?: ...` – alias for `options.tags` in `init`.
 - `adapters?: ...`
-- `registerAdapters?: { format: string; adapter: [`IDocumentConverter`](./types); styleMapper: [`StyleMapper`](./types) }[]`
+- `registerAdapters?: { format: string; adapter: [`IDocumentConverter`](./types) }[]`
 - `domParser?: [`IDOMParser`](./types)`
 
 #### Methods
@@ -116,20 +115,19 @@ Register a custom document converter adapter.
 
 ## Types
 
-| Type                  | Description                                                             |
-|-----------------------|-------------------------------------------------------------------------|
-| [`InitOptions`](./types)         | Options for initializing the converter via `init`.                      |
-| [`ConverterOptions`](./types)    | Internal options for the `Converter` constructor.                       |
-| [`Converter`](./types)           | Main class for conversion and parsing.                                  |
-| [`Middleware`](./types)          | Asynchronous function taking an HTML string and returning a Promise of string. |
-| [`TagHandler`](./types)          | Handler that processes an `HTMLElement` with optional `TagHandlerOptions` and returns a `DocumentElement` or an array of `DocumentElement`. |
-| [`TagHandlerObject`](./types)    | `{ key: string; handler: TagHandler }`                                 |
-| [`DocumentElement`](./types)     | Union type for intermediate document elements (paragraph, heading, etc.). |
-| [`ElementType`](./types)         | String literal type of element kinds (`'paragraph'`, `'heading'`, etc.). |
-| [`Styles`](./types)              | Map of style properties to values (string or number), with support for CSS properties. |
-| [`IDOMParser`](./types)          | Interface for custom DOM parser with `parse(html: string): Document`.   |
-| [`IDocumentConverter`](./types)  | Interface for adapter converters. Method `convert(elements: DocumentElement[])` returns a Promise resolving to a `Buffer` or `Blob`. |
-| [`AdapterProvider`](./types)     | Constructor type for adapters (`new(deps: IConverterDependencies) => IDocumentConverter`). |
-| [`StyleMapper`](./types)         | Class for mapping CSS styles to document styles.                        |
+| Type                            | Description                                                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`InitOptions`](./types)        | Options for initializing the converter via `init`.                                                                                          |
+| [`ConverterOptions`](./types)   | Internal options for the `Converter` constructor.                                                                                           |
+| [`Converter`](./types)          | Main class for conversion and parsing.                                                                                                      |
+| [`Middleware`](./types)         | Asynchronous function taking an HTML string and returning a Promise of string.                                                              |
+| [`TagHandler`](./types)         | Handler that processes an `HTMLElement` with optional `TagHandlerOptions` and returns a `DocumentElement` or an array of `DocumentElement`. |
+| [`TagHandlerObject`](./types)   | `{ key: string; handler: TagHandler }`                                                                                                      |
+| [`DocumentElement`](./types)    | Union type for intermediate document elements (paragraph, heading, etc.).                                                                   |
+| [`ElementType`](./types)        | String literal type of element kinds (`'paragraph'`, `'heading'`, etc.).                                                                    |
+| [`Styles`](./types)             | Map of style properties to values (string or number), with support for CSS properties.                                                      |
+| [`IDOMParser`](./types)         | Interface for custom DOM parser with `parse(html: string): Document`.                                                                       |
+| [`IDocumentConverter`](./types) | Interface for adapter converters. Method `convert(elements: DocumentElement[])` returns a Promise resolving to a `Buffer` or `Blob`.        |
+| [`AdapterProvider`](./types)    | Constructor type for adapters (`new(deps: IConverterDependencies) => IDocumentConverter`).                                                  |
 
 For more details, refer to the [source code](https://github.com/ChipiKaf/html-to-document).

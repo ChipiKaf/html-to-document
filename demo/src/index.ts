@@ -92,16 +92,6 @@ export const run: () => Promise<any> = async () => {
           },
         },
       ],
-      styleMappings: [
-        {
-          format: 'docx',
-          handlers: {
-            // Changed the default textAlign handler from expecting the css standard ("start", "end", etc)
-            // To expecting docx alignment values ("left", "right", etc)
-            // textAlign: (v) => ({ alignment: v }),
-          },
-        },
-      ],
     },
   });
 

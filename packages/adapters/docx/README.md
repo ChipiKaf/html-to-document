@@ -36,9 +36,10 @@ const converter = init({
         adapter: DocxAdapter,
         // Optional adapter-specific configuration:
         // config: {
-        //   blockConverters: [...],     // custom block converters
-        //   inlineConverters: [...],    // custom inline converters
-        //   fallthroughConverters: [...], // custom fallthrough converters
+        //   blockConverters: [...],
+        //   inlineConverters: [...],
+        //   fallthroughConverters: [...],
+        //   styleMappings: { textAlign: (value) => ({ alignment: value }) },
         // },
       },
     ],
@@ -49,15 +50,6 @@ const converter = init({
           /* your default styles, e.g.: */
           heading: { color: 'black', fontFamily: 'Arial', marginTop: '10px' },
           paragraph: { lineHeight: 1.5 },
-        },
-      },
-    ],
-    styleMappings: [
-      {
-        format: 'docx',
-        handlers: {
-          /* custom style handlers, e.g.: */
-          textAlign: (value) => ({ alignment: value }),
         },
       },
     ],
@@ -77,7 +69,7 @@ const docxBuffer = await converter.convert(elements, 'docx');
 `html-to-document` into a Word file using the
 [`docx`](https://www.npmjs.com/package/docx) library. During conversion each
 element becomes the appropriate DOCX node (paragraphs, runs, tables, images and
-so on) and styles are applied through the powerful `StyleMapper` system. The
+so on) and styles are applied through the adapter-owned `DocxStyleMapper`. The
 result is returned as a `Buffer` in Node.js or a `Blob` in the browser.
 
 ### Page Sections, Headers & Footers
@@ -106,6 +98,8 @@ Style mapping allows you to decide how CSS translates to DOCX. Provide mappings
 and defaults when initialising:
 
 ```ts
+import { DocxStyleMapper } from 'html-to-document-adapter-docx';
+
 const converter = init({
   adapters: {
     register: [
@@ -113,18 +107,14 @@ const converter = init({
         format: 'docx',
         adapter: DocxAdapter,
         // Optional adapter-specific configuration:
-        // config: {
-        //   blockConverters: [...],
-        //   inlineConverters: [...],
-        //   fallthroughConverters: [...],
-        // },
+        config: {
+          styleMappings: { textAlign: (v) => ({ alignment: v }) },
+          styleMapper: new DocxStyleMapper(),
+        },
       },
     ],
     defaultStyles: [
       { format: 'docx', styles: { paragraph: { lineHeight: 1.5 } } },
-    ],
-    styleMappings: [
-      { format: 'docx', handlers: { textAlign: (v) => ({ alignment: v }) } },
     ],
   },
 });
@@ -170,14 +160,16 @@ Adapter class implementing `IDocumentConverter` for DOCX.
 #### Constructor
 
 ```ts
-new DocxAdapter(options: {
-  styleMapper: StyleMapper;
-  defaultStyles?: Record<string, any>;
-});
+new DocxAdapter(
+  dependencies: IConverterDependencies,
+  config?: DocxAdapterConfig
+);
 ```
 
-- `styleMapper`: a `StyleMapper` instance carrying style mappings.
-- `defaultStyles`: optional defaults for styling elements.
+- `dependencies.defaultStyles`: optional defaults for styling elements.
+- `dependencies.styleMeta`: optional style inheritance metadata.
+- `config.styleMapper`: optional `DocxStyleMapper` instance to use as the base mapper.
+- `config.styleMappings`: optional handler overrides applied on top of the base mapper.
 
 #### Methods
 

@@ -10,7 +10,6 @@ import {
   Middleware,
 } from './types';
 import { Parser } from './parser';
-import { StyleMapper } from './style.mapper';
 import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
@@ -132,23 +131,11 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     }
   }
 
-  // Initialize registered adapters and inject style mapper
+  // Initialize registered adapters
   const registerAdapters = adapters?.register?.map(
     ({ format, adapter: Adapter, config }) => {
-      const mapper = adapters?.styleMappings?.find(
-        (map) => map.format === format
-      );
-      const styleMapper = new StyleMapper();
-
-      // Overwrite existing style mappings
-      if (mapper) {
-        styleMapper.addMapping(mapper.handlers);
-      }
-
-      // Instantiate Adapters passed in
       const adapter = new Adapter(
         {
-          styleMapper,
           defaultStyles:
             adapters?.defaultStyles?.find(
               ({ format: nFormat }) => nFormat === format
@@ -157,7 +144,7 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
         },
         config
       );
-      return { format, adapter, styleMapper };
+      return { format, adapter };
     }
   );
 

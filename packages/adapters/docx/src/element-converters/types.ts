@@ -1,11 +1,12 @@
-import { IConverterDependencies, StyleMapper } from 'html-to-document-core';
+import { IConverterDependencies } from 'html-to-document-core';
 import { ElementConverter } from './converter';
 import { FileChild, ParagraphChild } from 'docx';
 import { DocumentElement, Styles } from 'html-to-document-core';
 import { Object } from 'ts-toolbelt';
+import { DocxStyleMapper } from '../docx-style-mapper';
 
 export type ElementConverterDependencies = {
-  styleMapper: StyleMapper;
+  styleMapper: DocxStyleMapper;
   converter: ElementConverter;
   defaultStyles: IConverterDependencies['defaultStyles'];
   styleMeta: IConverterDependencies['styleMeta'];

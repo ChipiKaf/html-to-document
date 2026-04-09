@@ -1,11 +1,8 @@
-import * as CSS from 'csstype';
 import {
-  borderStyleValues,
   colorConversion,
-  mapBorderStyle,
-  pixelsToTwips,
-} from './utils/html.utils';
-import { DocumentElement, StyleMapping } from './types';
+  DocumentElement,
+  Styles,
+} from 'html-to-document-core';
 import {
   BorderStyle,
   ShadingType,
@@ -18,10 +15,119 @@ import {
   TextWrappingSide,
   IImageOptions,
   ITableRowOptions,
+  WidthType,
 } from 'docx';
-import { DeepPartial } from './utils/types';
-import { capitalize } from './utils/text';
-import { parseImageSizePx, parseWidth } from './utils/parse';
+import {
+  cmToInches,
+  cmToTwips,
+  inchesToPixels,
+  inchesToTwips,
+  pixelsToTwips,
+} from './utils/unit-conversion';
+
+type StyleKey = keyof Styles;
+
+export type DocxStyleMapping = Partial<
+  Record<StyleKey, (value: string, el: DocumentElement) => unknown>
+>;
+
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+const capitalize = <S extends string>(value: S): Capitalize<S> => {
+  // @ts-expect-error - The logic is correct, but TypeScript doesn't understand that the return type is Capitalize<S>
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+const borderStyleValues = [
+  'none',
+  'hidden',
+  'dotted',
+  'dashed',
+  'solid',
+  'double',
+  'groove',
+  'ridge',
+  'inset',
+  'outset',
+] as const;
+
+const mapBorderStyle = (style: string): string => {
+  switch (style.toLowerCase()) {
+    case 'none':
+    case 'hidden':
+      return BorderStyle.NONE;
+    case 'solid':
+      return BorderStyle.SINGLE;
+    case 'dashed':
+      return BorderStyle.DASHED;
+    case 'dotted':
+      return BorderStyle.DOTTED;
+    case 'double':
+      return BorderStyle.DOUBLE;
+    case 'groove':
+    case 'ridge':
+    case 'inset':
+    case 'outset':
+      return BorderStyle.SINGLE;
+    default:
+      return BorderStyle.SINGLE;
+  }
+};
+
+const parseWidth = (value: string) => {
+  if (value.endsWith('px')) {
+    const px = parseFloat(value);
+    return {
+      size: pixelsToTwips(px),
+      type: WidthType.DXA,
+    };
+  }
+  if (value.endsWith('%')) {
+    const percent = parseFloat(value);
+    return {
+      size: Math.round(percent),
+      type: WidthType.PERCENTAGE,
+    };
+  }
+  if (value.endsWith('in')) {
+    const inches = parseFloat(value);
+    return {
+      size: inchesToTwips(inches),
+      type: WidthType.DXA,
+    };
+  }
+  if (value.endsWith('cm')) {
+    const cm = parseFloat(value);
+    return {
+      size: cmToTwips(cm),
+      type: WidthType.DXA,
+    };
+  }
+  return undefined;
+};
+
+const parseImageSizePx = (value: string | undefined): number | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized.endsWith('px')) {
+    const px = parseFloat(normalized);
+    return isNaN(px) ? undefined : px;
+  }
+  if (normalized.endsWith('in')) {
+    const inches = parseFloat(normalized);
+    return isNaN(inches) ? undefined : inchesToPixels(inches);
+  }
+  if (normalized.endsWith('cm')) {
+    const cm = parseFloat(normalized);
+    return isNaN(cm) ? undefined : inchesToPixels(cmToInches(cm));
+  }
+  const num = parseFloat(normalized);
+  return isNaN(num) ? undefined : num;
+};
 
 function deepMerge<T extends object, U extends object>(
   target: T,
@@ -62,8 +168,8 @@ const textAlignMap: Record<string, string> = {
 };
 
 // @To-do: Consider making the conversion from px or any other size extensible
-export class StyleMapper {
-  protected mappings: StyleMapping = {};
+export class DocxStyleMapper {
+  protected mappings: DocxStyleMapping = {};
 
   constructor() {
     this.initializeDefaultMappings();
@@ -336,21 +442,21 @@ export class StyleMapper {
           const capDir = capitalize(dir);
           return [
             [
-              `border${capDir}Color` as keyof CSS.Properties,
+              `border${capDir}Color` satisfies StyleKey,
               (v: string) => ({
                 borders: { [dir]: { color: colorConversion(v) } },
                 border: { [dir]: { color: colorConversion(v) } },
               }),
             ],
             [
-              `border${capDir}Style` as keyof CSS.Properties,
+              `border${capDir}Style` satisfies StyleKey,
               (v: string) => ({
                 borders: { [dir]: { style: mapBorderStyle(v) } },
                 border: { [dir]: { style: mapBorderStyle(v) } },
               }),
             ],
             [
-              `border${capDir}Width` as keyof CSS.Properties,
+              `border${capDir}Width` satisfies StyleKey,
               (v: string) => {
                 const w = parseFloat(v);
                 return isNaN(w)
@@ -363,7 +469,7 @@ export class StyleMapper {
             ],
           ];
         })
-      ) as StyleMapping),
+      ) satisfies DocxStyleMapping),
 
       padding: (v, el) => {
         if (el.type === 'table') return {};
@@ -394,7 +500,7 @@ export class StyleMapper {
         const px = parseFloat(raw);
         if (isNaN(px)) return {};
         // Only apply wrap margins if image is floated
-        const floatDir = (el.styles as { float: string })?.float;
+        const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
@@ -430,7 +536,7 @@ export class StyleMapper {
         const px = parseFloat(String(v).trim());
         if (isNaN(px)) return {};
         // Only apply top wrap margin if image is floated
-        const floatDir = (el.styles as { float: string })?.float;
+        const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
@@ -450,7 +556,7 @@ export class StyleMapper {
         const px = parseFloat(String(v).trim());
         if (isNaN(px)) return {};
         // Only apply bottom wrap margin if image is floated
-        const floatDir = (el.styles as { float: string })?.float;
+        const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
@@ -470,7 +576,7 @@ export class StyleMapper {
         const px = parseFloat(String(v).trim());
         if (isNaN(px)) return {};
         // Only apply left wrap margin if image is floated
-        const floatDir = (el.styles as { float: string })?.float;
+        const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
@@ -567,16 +673,17 @@ export class StyleMapper {
   }
 
   private expandShorthands(
-    rawStyles: Partial<Record<keyof CSS.Properties, string | number>>
+    rawStyles: Partial<Record<StyleKey, string | number>>
   ) {
-    const mappedStyles: Partial<Record<keyof CSS.Properties, string | number>> =
-      { ...rawStyles };
+    const mappedStyles: Partial<Record<StyleKey, string | number>> = {
+      ...rawStyles,
+    };
 
     const directions = ['top', 'right', 'bottom', 'left'] as const;
     const capitalizedDirections = directions.map((dir) => capitalize(dir));
 
     const borderDirections = capitalizedDirections.map(
-      (dir) => `border${dir}` as keyof CSS.Properties
+      (dir) => `border${dir}` satisfies StyleKey
     );
 
     const borderShorthand = (
@@ -627,9 +734,9 @@ export class StyleMapper {
       const style = mappedStyles[borderDir];
       if (style === undefined) return;
       const { width, style: borderStyleValue, color } = borderShorthand(style);
-      const widthProp = `${borderDir}Width` as keyof CSS.Properties;
-      const styleProp = `${borderDir}Style` as keyof CSS.Properties;
-      const colorProp = `${borderDir}Color` as keyof CSS.Properties;
+      const widthProp = `${borderDir}Width` satisfies StyleKey;
+      const styleProp = `${borderDir}Style` satisfies StyleKey;
+      const colorProp = `${borderDir}Color` satisfies StyleKey;
       mappedStyles[widthProp] ??= width;
       mappedStyles[styleProp] ??= borderStyleValue;
       mappedStyles[colorProp] ??= color;
@@ -638,21 +745,21 @@ export class StyleMapper {
     if (mappedStyles.borderWidth) {
       const widthValue = mappedStyles.borderWidth;
       capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Width` as keyof CSS.Properties;
+        const prop = `border${dir}Width` satisfies StyleKey;
         mappedStyles[prop] ??= widthValue;
       });
     }
     if (mappedStyles.borderStyle) {
       const styleValue = mappedStyles.borderStyle;
       capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Style` as keyof CSS.Properties;
+        const prop = `border${dir}Style` satisfies StyleKey;
         mappedStyles[prop] ??= styleValue;
       });
     }
     if (mappedStyles.borderColor) {
       const colorValue = mappedStyles.borderColor;
       capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Color` as keyof CSS.Properties;
+        const prop = `border${dir}Color` satisfies StyleKey;
         mappedStyles[prop] ??= colorValue;
       });
     }
@@ -662,11 +769,11 @@ export class StyleMapper {
 
   // Method to map raw styles to a generic style object
   public mapStyles(
-    rawStyles: Partial<Record<keyof CSS.Properties, string | number>>,
+    rawStyles: Partial<Record<StyleKey, string | number>>,
     el: DocumentElement
   ): Record<string, unknown> {
     const expandedStyles = this.expandShorthands(rawStyles);
-    return (Object.keys(expandedStyles) as (keyof CSS.Properties)[]).reduce(
+    return (Object.keys(expandedStyles) as StyleKey[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper && typeof expandedStyles[cssProp] === 'string') {
@@ -681,9 +788,9 @@ export class StyleMapper {
   }
 
   // Method to add or override a mapping
-  public addMapping(mappings: StyleMapping): void {
+  public addMapping(mappings: DocxStyleMapping): void {
     Object.entries(mappings).forEach((entries) => {
-      this.mappings[entries[0] as keyof CSS.Properties] = entries[1];
+      this.mappings[entries[0] as StyleKey] = entries[1];
     });
   }
 }

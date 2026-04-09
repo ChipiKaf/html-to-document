@@ -12,6 +12,7 @@ import {
   IBlockConverter,
   IInlineConverter,
 } from './element-converters/types';
+import { DocxStyleMapper, DocxStyleMapping } from './docx-style-mapper';
 
 export type DocxElement =
   | Paragraph
@@ -30,6 +31,8 @@ export type DocxAdapterConfig = {
   inlineConverters?: IInlineConverter[];
   fallthroughConverters?: FallthroughConverter[];
   defaultSectionOptions?: Partial<ISectionOptions>;
+  styleMapper?: DocxStyleMapper;
+  styleMappings?: DocxStyleMapping;
   /**
    * Document options to pass to the docx Document constructor (from `docx`).
    * Can either be an object that overrides the default options, or a function that takes the default options and returns the modified options.
