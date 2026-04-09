@@ -173,30 +173,36 @@ describe('Converter initialization', () => {
       expect(resultB.toString()).toBe('adapter-b');
     });
 
-    it('should apply styleMappings in adapters', async () => {
+    it('should initialize adapters without a core-owned styleMapper', async () => {
+      let receivedDependencies: any;
+
       class StyleTestAdapter implements IDocumentConverter {
+        constructor(dependencies: any) {
+          receivedDependencies = dependencies;
+        }
+
         public parsed?: any;
         async convert(parsed: any): Promise<Buffer> {
           this.parsed = parsed;
           return Buffer.from('style-test');
         }
       }
-      const styleMapping = {
-        color: (value: string) => value.toUpperCase(),
-      };
       const converter = init({
         domParser: new JSDOMParser(),
         adapters: {
           register: [{ format: 'style', adapter: StyleTestAdapter }],
-          styleMappings: [{ format: 'style', handlers: styleMapping }],
         },
       });
       const result = await converter.convert(
         '<p style="color:blue">x</p>',
         'style'
       );
+
       expect(result.toString()).toBe('style-test');
-      // We cannot directly check the styleMapper, but at least no error
+      expect(receivedDependencies).toEqual({
+        defaultStyles: {},
+        styleMeta: expect.any(Object),
+      });
     });
 
     it('should not apply minifyMiddleware if clearMiddleware is true', async () => {

@@ -1,8 +1,8 @@
 import { DocxAdapter } from '../src/docx.adapter';
+import { DocxStyleMapper } from '../src/docx-style-mapper';
 import { DocumentElement } from 'html-to-document-core';
 import { minifyMiddleware } from 'html-to-document-core';
 import { Parser } from 'html-to-document-core';
-import { StyleMapper } from 'html-to-document-core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   JSDOMParser,
@@ -26,7 +26,7 @@ describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
   let parser: Parser;
   beforeEach(() => {
-    adapter = new DocxAdapter({ styleMapper: new StyleMapper() });
+    adapter = new DocxAdapter({});
     parser = new Parser([], new JSDOMParser());
   });
 
@@ -42,7 +42,7 @@ describe('Docx.adapter.convert', () => {
     let parser: Parser;
 
     beforeEach(() => {
-      adapter = new DocxAdapter({ styleMapper: new StyleMapper() });
+      adapter = new DocxAdapter({});
       parser = new Parser([], new JSDOMParser());
     });
 
@@ -725,6 +725,56 @@ describe('Docx.adapter.convert', () => {
       expect(para['w:pPr']['w:jc']['@_w:val']).toEqual('center');
       expect(para['w:r']['w:t']['#text']).toBe('Center text');
     });
+
+    it('should apply styleMappings from adapter config on top of default mappings', async () => {
+      const configAdapter = new DocxAdapter({}, {
+        styleMappings: {
+          textAlign: () => ({ alignment: 'right' }),
+        },
+      } as any);
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Center text',
+          styles: { textAlign: 'center' },
+          attributes: {},
+        },
+      ];
+
+      const buffer = await configAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const para = jsonDocument['w:document']['w:body']['w:p'];
+
+      expect(para['w:pPr']['w:jc']['@_w:val']).toEqual('right');
+    });
+
+    it('should apply config styleMappings on top of a provided styleMapper', async () => {
+      const styleMapper = new DocxStyleMapper();
+      styleMapper.addMapping({
+        textAlign: () => ({ alignment: 'left' }),
+      } as any);
+      const configAdapter = new DocxAdapter({}, {
+        styleMapper,
+        styleMappings: {
+          textAlign: () => ({ alignment: 'right' }),
+        },
+      } as any);
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'Center text',
+          styles: { textAlign: 'center' },
+          attributes: {},
+        },
+      ];
+
+      const buffer = await configAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const para = jsonDocument['w:document']['w:body']['w:p'];
+
+      expect(para['w:pPr']['w:jc']['@_w:val']).toEqual('right');
+    });
+
     it('should create a DOCX buffer with a bold paragraph', async () => {
       const elements: DocumentElement[] = [
         {
@@ -945,8 +995,8 @@ describe('Docx.adapter.convert', () => {
 
       // 1D) Indent: padding 15px→15*15=225 twips on left/right
       const ind = para['w:pPr']['w:ind'];
-      expect(Number(ind['@_w:left'])).toBe(150);
-      expect(Number(ind['@_w:right'])).toBe(150);
+      expect(Number(ind['@_w:left'])).toBe(225);
+      expect(Number(ind['@_w:right'])).toBe(225);
     });
 
     it('should render three runs and combine line‑through + underline on the second run', async () => {
@@ -1621,7 +1671,7 @@ describe('Docx.adapter.convert', () => {
     let parser: Parser;
 
     beforeEach(() => {
-      adapter = new DocxAdapter({ styleMapper: new StyleMapper() });
+      adapter = new DocxAdapter({});
       parser = new Parser();
     });
 
@@ -2297,9 +2347,7 @@ describe('Docx.adapter.convert', () => {
   describe('Custom docx document options', () => {
     it('should apply custom document options', async () => {
       const customAdapter = new DocxAdapter(
-        {
-          styleMapper: new StyleMapper(),
-        },
+        {},
         {
           documentOptions: {
             numbering: {
@@ -2357,9 +2405,7 @@ describe('Docx.adapter.convert', () => {
     });
     it('should apply custom document options with a function', async () => {
       const customAdapter = new DocxAdapter(
-        {
-          styleMapper: new StyleMapper(),
-        },
+        {},
         {
           documentOptions: (defaultOptions) => ({
             ...defaultOptions,
@@ -2422,9 +2468,7 @@ describe('Docx.adapter.convert', () => {
   describe('Default section options', () => {
     it('should apply properties from default section options config', async () => {
       const customAdapter = new DocxAdapter(
-        {
-          styleMapper: new StyleMapper(),
-        },
+        {},
         {
           defaultSectionOptions: {
             properties: {

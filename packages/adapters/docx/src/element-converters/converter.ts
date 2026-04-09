@@ -2,7 +2,6 @@ import { FileChild, ParagraphChild } from 'docx';
 import {
   DocumentElement,
   IConverterDependencies,
-  StyleMapper,
   Styles,
   initStyleMeta,
 } from 'html-to-document-core';
@@ -23,6 +22,7 @@ import { HeadingConverter } from './block/heading';
 import { TableConverter } from './block/table';
 import { IdInlineConverter } from './fallthrough/id';
 import { DocxAdapterConfig } from '../docx.types';
+import { DocxStyleMapper } from '../docx-style-mapper';
 import { ImageConverter } from './inline/image';
 import { ImageBlockConverter } from './block/image';
 import { promiseAllFlat } from '../docx.util';
@@ -32,7 +32,7 @@ export class ElementConverter {
   private readonly inlineConverters: IInlineConverter[];
   private readonly fallthroughConverters: FallthroughConverter[];
   private readonly textConverter: IInlineConverter<DocumentElement>;
-  private readonly styleMapper: StyleMapper;
+  private readonly styleMapper: DocxStyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
   private readonly styleMeta: IConverterDependencies['styleMeta'];
 
@@ -43,7 +43,9 @@ export class ElementConverter {
       styleMapper,
       defaultStyles,
       styleMeta = initStyleMeta(),
-    }: IConverterDependencies,
+    }: IConverterDependencies & {
+      styleMapper: DocxStyleMapper;
+    },
     config?: DocxAdapterConfig
   ) {
     const {

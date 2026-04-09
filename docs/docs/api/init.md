@@ -149,12 +149,11 @@ Customize how HTML tags are parsed and styled before conversion.
 {
   register?: { format: string; adapter: AdapterProvider; config?: object }[];
   defaultStyles?: { format: string; styles: Record<ElementType, Styles> }[];
-  styleMappings?: { format: string; handlers: StyleMapping }[];
 }
 ```
 
 Adapters determine how the parsed content is rendered into a final document format. You can register your own adapter (e.g., for Markdown) or extend existing ones like the built-in DOCX adapter.
-Controls which adapters are registered and how CSS styles map to document properties.
+Controls which adapters are registered and which default styles they receive.
 
 - **register:** List of custom adapters implementing [`IDocumentConverter`](./types):
   ```ts
@@ -177,22 +176,7 @@ Controls which adapters are registered and how CSS styles map to document proper
     },
   });
   ```
-- **styleMappings:** Custom CSS → document property mappings via [`StyleMapping`](./style-mappings):
-
-  ```ts
-  init({
-    adapters: {
-      styleMappings: [
-        {
-          format: 'docx',
-          handlers: { fontWeight: (v) => ({ bold: v === 'bold' }) },
-        },
-      ],
-    },
-  });
-  ```
-
-- **config:** Optional adapter-specific configuration object for each registered adapter. For example, the built-in `DocxAdapter` supports custom block, inline, and fallthrough converters:
+- **config:** Optional adapter-specific configuration object for each registered adapter. For example, the built-in `DocxAdapter` supports custom block, inline, and fallthrough converters, plus DOCX-specific style mapping:
 
   ```ts
   init({
@@ -205,6 +189,9 @@ Controls which adapters are registered and how CSS styles map to document proper
             blockConverters: [new MyBlockConverter()],
             inlineConverters: [new MyInlineConverter()],
             fallthroughConverters: [new MyFallthroughConverter()],
+            styleMappings: {
+              fontWeight: (v) => ({ bold: v === 'bold' }),
+            },
           },
         },
       ],
@@ -244,12 +231,6 @@ const converter = init({
   adapters: {
     register: [{ format: 'md', adapter: MyAdapter }],
     defaultStyles: [{ format: 'md', styles: { paragraph: { indent: 20 } } }],
-    styleMappings: [
-      {
-        format: 'md',
-        handlers: { fontStyle: (v) => ({ italic: v === 'italic' }) },
-      },
-    ],
   },
   domParser: new CustomParser(), // custom DOM parser implementation
 });

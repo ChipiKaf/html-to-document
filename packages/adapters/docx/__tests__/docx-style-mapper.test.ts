@@ -1,13 +1,14 @@
-import { StyleMapper } from '../src/style.mapper';
-import { DocumentElement } from '../src/types';
+import { DocumentElement } from 'html-to-document-core';
 import { ShadingType, BorderStyle } from 'docx';
-import { pixelsToTwips } from '../src/utils/html.utils';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
+import { DocxStyleMapper } from '../src/docx-style-mapper';
+import { pixelsToTwips } from '../src/utils/unit-conversion';
 
-describe('StyleMapper', () => {
-  let mapper: StyleMapper;
+describe('DocxStyleMapper', () => {
+  let mapper: DocxStyleMapper;
+
   beforeEach(() => {
-    mapper = new StyleMapper();
+    mapper = new DocxStyleMapper();
   });
 
   it('maps basic text styles', () => {
@@ -125,7 +126,6 @@ describe('StyleMapper', () => {
   });
 
   it('allows custom mapping via addMapping and deep merges', () => {
-    // @ts-ignore allow custom keys for testing deepMerge functionality
     mapper.addMapping({ custom: (v: string) => ({ foo: v }) } as any);
     expect(
       mapper.mapStyles(
@@ -133,7 +133,6 @@ describe('StyleMapper', () => {
         { type: 'paragraph' } as DocumentElement
       )
     ).toEqual({ foo: 'bar' });
-    // @ts-ignore nested mappings for deep merging
     mapper.addMapping({
       nested1: () => ({ a: { x: 1 } }),
       nested2: () => ({ a: { y: 2 } }),
@@ -167,7 +166,6 @@ describe('StyleMapper', () => {
       { type: 'table', styles: {}, attributes: {} },
       { type: 'table-cell', styles: {}, attributes: {} },
     ] as DocumentElement[];
-    // Execute each mapping function for basic input to cover code paths
     const keys = Object.keys(
       (mapper as any).mappings
     ) as (keyof (typeof mapper)['mappings'])[];

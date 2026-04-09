@@ -11,19 +11,19 @@ import {
 import {
   DocumentElement,
   IConverterDependencies,
-  StyleMapper,
   IDocumentConverter,
   initStyleMeta,
 } from 'html-to-document-core';
 
 import { NumberFormat, AlignmentType } from 'docx';
+import { DocxStyleMapper } from './docx-style-mapper';
 import { ElementConverter } from './element-converters/converter';
 import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
 import { pipe } from 'remeda';
 
 export class DocxAdapter implements IDocumentConverter {
-  private _mapper: StyleMapper;
+  private _mapper: DocxStyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
   private _docxElementConverter: ElementConverter;
   private readonly documentOptions: NonNullable<
@@ -34,14 +34,13 @@ export class DocxAdapter implements IDocumentConverter {
   >;
 
   constructor(
-    {
-      styleMapper,
-      defaultStyles,
-      styleMeta = initStyleMeta(),
-    }: IConverterDependencies,
+    { defaultStyles, styleMeta = initStyleMeta() }: IConverterDependencies,
     config?: DocxAdapterConfig
   ) {
-    this._mapper = styleMapper;
+    this._mapper = config?.styleMapper ?? new DocxStyleMapper();
+    if (config?.styleMappings) {
+      this._mapper.addMapping(config.styleMappings);
+    }
     this._defaultStyles = { ...defaultStyles };
 
     const docxElementConverter = new ElementConverter(

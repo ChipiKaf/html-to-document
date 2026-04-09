@@ -62,9 +62,6 @@
     "rrweb-cssom": "^0.8.0",
     "tldts": "^6.1.32"
   },
-  "peerDependencies": {
-    "docx": "*"
-  },
   "engines": {
     "node": ">=14"
   },
