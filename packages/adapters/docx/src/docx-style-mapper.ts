@@ -2,7 +2,9 @@ import {
   colorConversion,
   DocumentElement,
   Styles,
+  parseImageSizePx,
 } from 'html-to-document-core';
+import { lengthToTwips, parseWidth } from './utils/parse';
 import {
   BorderStyle,
   ShadingType,
@@ -15,15 +17,8 @@ import {
   TextWrappingSide,
   IImageOptions,
   ITableRowOptions,
-  WidthType,
+  ISpacingProperties,
 } from 'docx';
-import {
-  cmToInches,
-  cmToTwips,
-  inchesToPixels,
-  inchesToTwips,
-  pixelsToTwips,
-} from './utils/unit-conversion';
 
 type StyleKey = keyof Styles;
 
@@ -34,6 +29,8 @@ export type DocxStyleMapping = Partial<
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
+
+const BASE_FONT_SIZE_PX = 16;
 
 const capitalize = <S extends string>(value: S): Capitalize<S> => {
   // @ts-expect-error - The logic is correct, but TypeScript doesn't understand that the return type is Capitalize<S>
@@ -74,59 +71,6 @@ const mapBorderStyle = (style: string): string => {
     default:
       return BorderStyle.SINGLE;
   }
-};
-
-const parseWidth = (value: string) => {
-  if (value.endsWith('px')) {
-    const px = parseFloat(value);
-    return {
-      size: pixelsToTwips(px),
-      type: WidthType.DXA,
-    };
-  }
-  if (value.endsWith('%')) {
-    const percent = parseFloat(value);
-    return {
-      size: Math.round(percent),
-      type: WidthType.PERCENTAGE,
-    };
-  }
-  if (value.endsWith('in')) {
-    const inches = parseFloat(value);
-    return {
-      size: inchesToTwips(inches),
-      type: WidthType.DXA,
-    };
-  }
-  if (value.endsWith('cm')) {
-    const cm = parseFloat(value);
-    return {
-      size: cmToTwips(cm),
-      type: WidthType.DXA,
-    };
-  }
-  return undefined;
-};
-
-const parseImageSizePx = (value: string | undefined): number | undefined => {
-  if (value === undefined) {
-    return undefined;
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized.endsWith('px')) {
-    const px = parseFloat(normalized);
-    return isNaN(px) ? undefined : px;
-  }
-  if (normalized.endsWith('in')) {
-    const inches = parseFloat(normalized);
-    return isNaN(inches) ? undefined : inchesToPixels(inches);
-  }
-  if (normalized.endsWith('cm')) {
-    const cm = parseFloat(normalized);
-    return isNaN(cm) ? undefined : inchesToPixels(cmToInches(cm));
-  }
-  const num = parseFloat(normalized);
-  return isNaN(num) ? undefined : num;
 };
 
 function deepMerge<T extends object, U extends object>(
@@ -182,12 +126,13 @@ export class DocxStyleMapper {
         if (el.type === 'table') {
           // CSS border-spacing accepts one or two values (horizontal [vertical])
           // const parts = v.trim().split(/\s+/);
-          const px = parseFloat(v);
-          if (!isNaN(px)) {
+          const token = v.trim().split(/\s+/)[0] ?? '';
+          const twips = lengthToTwips(token);
+          if (typeof twips === 'number') {
             // docx only supports uniform spacing, so use the horizontal value
             return {
               cellSpacing: {
-                value: pixelsToTwips(px),
+                value: twips,
                 type: 'dxa',
               },
             };
@@ -243,7 +188,7 @@ export class DocxStyleMapper {
       },
       fontStyle: (v) => (v === 'italic' ? { italics: true } : {}),
       textDecoration: (v: string) => {
-        const decorations = String(v)
+        const decorations = v
           .split(/\s+/)
           .map((s) => s.trim().toLowerCase())
           .filter(Boolean);
@@ -265,7 +210,7 @@ export class DocxStyleMapper {
             : {},
       textAlign: (v, el) => {
         if (el.type === 'table') return {};
-        const key = String(v).trim().toLowerCase();
+        const key = v.trim().toLowerCase();
         const alignment = textAlignMap[key];
         return alignment ? { alignment } : {};
       },
@@ -299,20 +244,43 @@ export class DocxStyleMapper {
       },
 
       // Line height and spacing
-      lineHeight: (v) => {
-        const num = parseFloat(v);
-        if (isNaN(num)) return {};
+      lineHeight: (v, el) => {
+        const raw = v.trim().toLowerCase();
+        const match = raw.match(/^([+-]?\d*\.?\d+)([a-z%]*)$/);
+        if (!match) return {};
+        const num = Number(match[1]);
+        if (!Number.isFinite(num)) return {};
+        const unit = match[2] ?? '';
+        if (!unit) {
+          return {
+            spacing: {
+              line: Math.round(num * 240), // 1 = 240 twips, which is single line spacing
+              lineRule: 'auto',
+            } satisfies ISpacingProperties,
+          };
+        }
+        // TODO: handle '%' unit which is relative to the font size of the original element
+
+        // TODO: get the font size in a better way
+        const fontSizeTwips =
+          lengthToTwips(el.styles?.fontSize ?? `${BASE_FONT_SIZE_PX}px`, {
+            basePx: BASE_FONT_SIZE_PX,
+          }) ?? Math.round(BASE_FONT_SIZE_PX * 15);
+        const basePx = fontSizeTwips / 15;
+        const lineTwips = lengthToTwips(raw, { basePx, unitless: 'none' });
+        if (typeof lineTwips !== 'number') return {};
 
         return {
           spacing: {
-            line: Math.round(num * 240), // 1 = 240 twips, which is single line spacing
-          },
+            line: lineTwips,
+            lineRule: 'exact',
+          } satisfies ISpacingProperties,
         };
       },
       width: (v, el) => {
         // For images, map CSS width → ImageRun transformation width
         if (el.type === 'image') {
-          const px = parseImageSizePx(String(v));
+          const px = parseImageSizePx(v);
           return typeof px === 'number'
             ? { transformation: { width: Math.round(px) } }
             : {};
@@ -325,7 +293,7 @@ export class DocxStyleMapper {
       height: (v, el) => {
         // For images, map CSS height → ImageRun transformation height
         if (el.type === 'image') {
-          const px = parseImageSizePx(String(v));
+          const px = parseImageSizePx(v);
           return typeof px === 'number'
             ? ({
                 transformation: { height: Math.round(px) },
@@ -333,10 +301,12 @@ export class DocxStyleMapper {
             : {};
         }
         if (el.type === 'table-row') {
+          const rowHeight = lengthToTwips(v);
+          if (typeof rowHeight !== 'number') return {};
           return {
             height: {
               rule: 'exact',
-              value: Math.round((parseImageSizePx(String(v)) ?? 0) * 15),
+              value: rowHeight,
             },
           } satisfies DeepPartial<ITableRowOptions>;
         }
@@ -345,10 +315,12 @@ export class DocxStyleMapper {
       },
       minHeight: (v, el) => {
         if (el.type === 'table-row') {
+          const rowHeight = lengthToTwips(v);
+          if (typeof rowHeight !== 'number') return {};
           return {
             height: {
               rule: 'atLeast',
-              value: Math.round((parseImageSizePx(String(v)) ?? 0) * 15),
+              value: rowHeight,
             },
           } satisfies DeepPartial<ITableRowOptions>;
         }
@@ -473,9 +445,9 @@ export class DocxStyleMapper {
 
       padding: (v, el) => {
         if (el.type === 'table') return {};
-        const px = parseFloat(v);
-        if (isNaN(px)) return {};
-        const twips = pixelsToTwips(px);
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const twips = lengthToTwips(token);
+        if (typeof twips !== 'number') return {};
 
         if (el.type === 'table-cell') {
           return {
@@ -496,20 +468,25 @@ export class DocxStyleMapper {
         };
       },
       margin: (v: string, el: DocumentElement) => {
-        const raw = String(v).trim();
-        const px = parseFloat(raw);
-        if (isNaN(px)) return {};
+        const raw = v.trim();
+        const token = raw.split(/\s+/)[0] ?? '';
+        const twips = lengthToTwips(token);
+        if (typeof twips !== 'number') return {};
         // Only apply wrap margins if image is floated
         const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
         ) {
-          const dist = pixelsToTwips(px);
           return {
             floating: {
               wrap: {
-                margins: { distL: dist, distR: dist, distT: dist, distB: dist },
+                margins: {
+                  distL: twips,
+                  distR: twips,
+                  distT: twips,
+                  distB: twips,
+                },
               },
             },
           };
@@ -518,34 +495,32 @@ export class DocxStyleMapper {
         if (el.type === 'table') return {};
         // Table cells: direct cell margins
         if (el.type === 'table-cell') {
-          const space = pixelsToTwips(px);
           return {
-            margins: { top: space, bottom: space, left: space, right: space },
+            margins: { top: twips, bottom: twips, left: twips, right: twips },
           };
         }
         // Paragraphs: spacing + indent
-        const before = px * 20;
-        const after = px * 20;
-        const horiz = pixelsToTwips(px);
+        const before = twips;
+        const after = twips;
+        const horiz = twips;
         return {
           spacing: { before, after },
           indent: { left: horiz, right: horiz },
         };
       },
       marginTop: (v: string, el: DocumentElement) => {
-        const px = parseFloat(String(v).trim());
-        if (isNaN(px)) return {};
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const twips = lengthToTwips(token);
+        if (typeof twips !== 'number') return {};
         // Only apply top wrap margin if image is floated
         const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
         ) {
-          const distT = pixelsToTwips(px);
-          return { floating: { wrap: { margins: { distT } } } };
+          return { floating: { wrap: { margins: { distT: twips } } } };
         }
         if (el.type === 'table') return {};
-        const twips = px * 20;
         if (el.type === 'table-cell') {
           return { margins: { top: twips } };
         }
@@ -553,19 +528,18 @@ export class DocxStyleMapper {
       },
 
       marginBottom: (v: string, el: DocumentElement) => {
-        const px = parseFloat(String(v).trim());
-        if (isNaN(px)) return {};
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const twips = lengthToTwips(token);
+        if (typeof twips !== 'number') return {};
         // Only apply bottom wrap margin if image is floated
         const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
         ) {
-          const distB = pixelsToTwips(px);
-          return { floating: { wrap: { margins: { distB } } } };
+          return { floating: { wrap: { margins: { distB: twips } } } };
         }
         if (el.type === 'table') return {};
-        const twips = px * 20;
         if (el.type === 'table-cell') {
           return { margins: { bottom: twips } };
         }
@@ -573,19 +547,18 @@ export class DocxStyleMapper {
       },
 
       marginLeft: (v: string, el: DocumentElement) => {
-        const px = parseFloat(String(v).trim());
-        if (isNaN(px)) return {};
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const twips = lengthToTwips(token);
+        if (typeof twips !== 'number') return {};
         // Only apply left wrap margin if image is floated
         const floatDir = (el.styles as Styles & { float?: string })?.float;
         if (
           el.type === 'image' &&
           (floatDir === 'left' || floatDir === 'right')
         ) {
-          const distL = pixelsToTwips(px);
-          return { floating: { wrap: { margins: { distL } } } };
+          return { floating: { wrap: { margins: { distL: twips } } } };
         }
         if (el.type === 'table') return {};
-        const twips = pixelsToTwips(px);
         if (el.type === 'table-cell') {
           return { margins: { left: twips } };
         }
@@ -593,9 +566,9 @@ export class DocxStyleMapper {
       },
       paddingLeft: (v: string, el: DocumentElement) => {
         if (el.type === 'table') return {};
-        const px = parseFloat(v);
-        if (isNaN(px)) return {};
-        const space = pixelsToTwips(px);
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const space = lengthToTwips(token);
+        if (typeof space !== 'number') return {};
         if (el.type === 'table-cell') {
           return {
             margins: {
@@ -611,9 +584,9 @@ export class DocxStyleMapper {
       },
       paddingRight: (v: string, el: DocumentElement) => {
         if (el.type === 'table') return {};
-        const px = parseFloat(v);
-        if (isNaN(px)) return {};
-        const space = pixelsToTwips(px);
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const space = lengthToTwips(token);
+        if (typeof space !== 'number') return {};
         if (el.type === 'table-cell') {
           return {
             margins: {
@@ -629,9 +602,9 @@ export class DocxStyleMapper {
       },
       paddingTop: (v: string, el: DocumentElement) => {
         if (el.type === 'table') return {};
-        const px = parseFloat(v);
-        if (isNaN(px)) return {};
-        const space = pixelsToTwips(px);
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const space = lengthToTwips(token);
+        if (typeof space !== 'number') return {};
         if (el.type === 'table-cell') {
           return {
             margins: {
@@ -647,9 +620,9 @@ export class DocxStyleMapper {
       },
       paddingBottom: (v: string, el: DocumentElement) => {
         if (el.type === 'table') return {};
-        const px = parseFloat(v);
-        if (isNaN(px)) return {};
-        const space = pixelsToTwips(px);
+        const token = v.trim().split(/\s+/)[0] ?? '';
+        const space = lengthToTwips(token);
+        if (typeof space !== 'number') return {};
         if (el.type === 'table-cell') {
           return {
             margins: {
@@ -700,7 +673,7 @@ export class DocxStyleMapper {
       let width: string | undefined;
       let style: string | undefined;
       let color: string | undefined;
-      const parts = String(prop).split(/\s+/).filter(Boolean);
+      const parts = prop.split(/\s+/).filter(Boolean);
       for (const part of parts) {
         if (!width && widthRegex.test(part)) {
           width = part;

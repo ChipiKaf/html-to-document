@@ -988,10 +988,10 @@ describe('Docx.adapter.convert', () => {
       expect(shd['@_w:fill']).toBe('F9F9F9');
       expect(shd['@_w:val']).toBe('clear');
 
-      // 1C) Spacing: marginTop=5px→5*20=100, marginBottom=5px→100
+      // 1C) Spacing: marginTop=5px→5*15=75, marginBottom=5px→75
       const spacing = para['w:pPr']['w:spacing'];
-      expect(Number(spacing['@_w:before'])).toBe(100);
-      expect(Number(spacing['@_w:after'])).toBe(100);
+      expect(Number(spacing['@_w:before'])).toBe(75);
+      expect(Number(spacing['@_w:after'])).toBe(75);
 
       // 1D) Indent: padding 15px→15*15=225 twips on left/right
       const ind = para['w:pPr']['w:ind'];
@@ -1634,8 +1634,8 @@ describe('Docx.adapter.convert', () => {
       const element: DocumentElement = {
         type: 'line',
         styles: {
-          marginTop: '10px', // should map to spacing.before (10 * 20 = 200)
-          marginBottom: '5px', // should map to spacing.after (5 * 20 = 100)
+          marginTop: '10px', // should map to spacing.before (10 * 15 = 150)
+          marginBottom: '5px', // should map to spacing.after (5 * 15 = 75)
           textAlign: 'center', // should map to w:jc with value "center"
         },
         attributes: {},
@@ -1657,10 +1657,10 @@ describe('Docx.adapter.convert', () => {
       expect(para['w:pPr']['w:pBdr']['w:bottom']['@_w:space']).toBe('1');
 
       // Verify that additional spacing styles are merged properly.
-      // marginTop "10px" maps to 10 * 20 = 200
-      // marginBottom "5px" maps to 5 * 20 = 100
-      expect(para['w:pPr']['w:spacing']['@_w:before']).toBe('200');
-      expect(para['w:pPr']['w:spacing']['@_w:after']).toBe('100');
+      // marginTop "10px" maps to 10 * 15 = 150
+      // marginBottom "5px" maps to 5 * 15 = 75
+      expect(para['w:pPr']['w:spacing']['@_w:before']).toBe('150');
+      expect(para['w:pPr']['w:spacing']['@_w:after']).toBe('75');
 
       // Verify that text alignment is mapped. For center alignment, DOCX uses w:jc.
       expect(para['w:pPr']['w:jc']['@_w:val']).toBe('center');

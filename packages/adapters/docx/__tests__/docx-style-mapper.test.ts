@@ -1,8 +1,8 @@
 import { DocumentElement } from 'html-to-document-core';
+import { lengthToTwips } from '../src/utils/parse';
 import { ShadingType, BorderStyle } from 'docx';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
-import { pixelsToTwips } from '../src/utils/unit-conversion';
 
 describe('DocxStyleMapper', () => {
   let mapper: DocxStyleMapper;
@@ -57,7 +57,23 @@ describe('DocxStyleMapper', () => {
       size: Math.round(16 * (200 / 100) * 1.5),
     });
     expect(mapper.mapStyles({ lineHeight: '2' }, el)).toEqual({
-      spacing: { line: Math.round(2 * 240) },
+      spacing: { line: Math.round(2 * 240), lineRule: 'auto' },
+    });
+    expect(mapper.mapStyles({ lineHeight: '24px' }, el)).toEqual({
+      spacing: { line: Math.round(24 * 15), lineRule: 'exact' },
+    });
+    expect(mapper.mapStyles({ lineHeight: '12pt' }, el)).toEqual({
+      spacing: { line: Math.round(12 * 20), lineRule: 'exact' },
+    });
+    const elWithFont = {
+      type: 'paragraph',
+      styles: { fontSize: '20px' },
+    } as DocumentElement;
+    expect(mapper.mapStyles({ lineHeight: '150%' }, elWithFont)).toEqual({
+      spacing: { line: Math.round(20 * 1.5 * 15), lineRule: 'exact' },
+    });
+    expect(mapper.mapStyles({ lineHeight: '1.2em' }, elWithFont)).toEqual({
+      spacing: { line: Math.round(20 * 1.2 * 15), lineRule: 'exact' },
     });
     expect(mapper.mapStyles({ lineHeight: 'abc' }, el)).toEqual({});
   });
@@ -93,17 +109,20 @@ describe('DocxStyleMapper', () => {
   it('maps borderSpacing for tables', () => {
     const t = { type: 'table' } as DocumentElement;
     const out = mapper.mapStyles({ borderSpacing: '4px' }, t) as any;
-    expect(out.cellSpacing).toEqual({ value: pixelsToTwips(4), type: 'dxa' });
+    expect(out.cellSpacing).toEqual({
+      value: lengthToTwips('4px'),
+      type: 'dxa',
+    });
   });
 
   it('maps padding and margin for table-cell and paragraphs', () => {
     const cell = { type: 'table-cell' } as DocumentElement;
     const pad = mapper.mapStyles({ padding: '2px' }, cell) as any;
     expect(pad.margins).toEqual({
-      top: pixelsToTwips(2),
-      bottom: pixelsToTwips(2),
-      left: pixelsToTwips(2),
-      right: pixelsToTwips(2),
+      top: lengthToTwips('2px'),
+      bottom: lengthToTwips('2px'),
+      left: lengthToTwips('2px'),
+      right: lengthToTwips('2px'),
     });
     const p = { type: 'paragraph' } as DocumentElement;
     const padP = mapper.mapStyles({ padding: '3px' }, p) as any;
