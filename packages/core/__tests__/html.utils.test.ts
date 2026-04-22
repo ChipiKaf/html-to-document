@@ -6,7 +6,7 @@ import {
   extractAllAttributes,
 } from '../src/utils/html.utils';
 import { DocumentElement } from '../src/types';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('html.utils', () => {
   describe('parseStyles', () => {
@@ -19,6 +19,7 @@ describe('html.utils', () => {
         fontSize: '16px',
       });
     });
+
     it('returns empty object when no style attribute', () => {
       const element = { getAttribute: () => null } as any;
       expect(parseStyles(element as HTMLElement)).toEqual({});
@@ -47,14 +48,17 @@ describe('html.utils', () => {
       expect(colorConversion('#aabbcc')).toBe('AABBCC');
       expect(colorConversion('ddeeff')).toBe('DDEEFF');
     });
+
     it('converts named colors using colornames', () => {
       expect(colorConversion('red')).toBe('FF0000');
       expect(colorConversion('lightgray')).toBe('D3D3D3');
     });
+
     it('falls back to black on unknown color', () => {
       expect(colorConversion('notacolor')).toBe('000000');
     });
   });
+
   describe('extractAttributesToMetadata', () => {
     it('extracts attribute children into metadata and removes them from content', () => {
       const element: DocumentElement = {
@@ -68,6 +72,7 @@ describe('html.utils', () => {
       expect(result.metadata).toEqual({ foo: [{ text: 'bar' }] });
       expect(result.content).toEqual([{ type: 'text', text: 'Hello' }]);
     });
+
     it('flattens nested attribute wrapper', () => {
       const element: DocumentElement = {
         type: 'fragment',
@@ -85,6 +90,7 @@ describe('html.utils', () => {
       });
       expect(result.content).toBeUndefined();
     });
+
     it('returns element unchanged when no attributes present', () => {
       const element: DocumentElement = { type: 'text', text: 'plain' } as any;
       expect(extractAttributesToMetadata(element)).toBe(element);
