@@ -18,6 +18,12 @@ import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
 import { initStyleMeta } from './styles/style-inheritance';
+import {
+  defaultStylesToStylesheetRules,
+  seedStylesheetBuiltInDefaults,
+  tagDefaultStylesToStylesheetRules,
+} from './styles/stylesheet-seeding';
+import { createStylesheet } from './styles/sheet';
 import * as CSS from 'csstype';
 
 export class Converter {
@@ -32,7 +38,6 @@ export class Converter {
     this._parser = new Parser(
       tags?.tagHandlers,
       domParser,
-      tags?.defaultStyles,
       tags?.defaultAttributes
     );
 
@@ -147,6 +152,8 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     domParser,
     clearMiddleware = false,
     styleInheritance,
+    stylesheetRules = [],
+    stylesheet = createStylesheet(),
   } = options ?? {};
 
   // Initialize style meta
@@ -163,6 +170,16 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     }
   }
 
+  seedStylesheetBuiltInDefaults(stylesheet);
+
+  for (const rule of tagDefaultStylesToStylesheetRules(tags?.defaultStyles)) {
+    stylesheet.add(rule);
+  }
+
+  for (const rule of stylesheetRules) {
+    stylesheet.add(rule);
+  }
+
   const defaultCreateAdapter: CreateAdapter = ({
     Adapter,
     dependencies,
@@ -172,12 +189,21 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
   // Initialize registered adapters
   const registerAdapters = adapters?.register?.map(
     ({ format, adapter: Adapter, config, createAdapter }) => {
+      const defaultStyles = cloneDefaultStyles(
+        adapters?.defaultStyles?.find(
+          ({ format: nFormat }) => nFormat === format
+        )?.styles
+      );
+      // FIXME: consider plugin stylesheet decoration and using custom implementation
+      const adapterStylesheet = createStylesheet(stylesheet.getStatements());
+
+      for (const rule of defaultStylesToStylesheetRules(defaultStyles)) {
+        adapterStylesheet.add(rule);
+      }
+
       const dependencies = {
-        defaultStyles: cloneDefaultStyles(
-          adapters?.defaultStyles?.find(
-            ({ format: nFormat }) => nFormat === format
-          )?.styles
-        ),
+        defaultStyles,
+        stylesheet: adapterStylesheet,
         styleMeta: cloneStyleMeta(styleMeta),
       };
       const adapter = (createAdapter ?? defaultCreateAdapter)({
@@ -195,6 +221,7 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     registerAdapters,
     domParser,
     adapters,
+    stylesheet,
   });
 
   // Default middleware

@@ -30,14 +30,14 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
     element: TableElement,
     cascadedStyles?: Styles
   ): Promise<FileChild[]> {
-    const { styleMapper, converter, defaultStyles, styleMeta } = dependencies;
+    const { styleMapper, converter, defaultStyles, stylesheet, styleMeta } =
+      dependencies;
     const captions: { side: string; paragraph: Paragraph }[] = [];
 
     // We filter the cascaded styles for the table scope
     const mergedStyles = {
-      ...(defaultStyles?.[element.type] ?? {}),
-      ...cascadedStyles,
-      ...element.styles,
+      ...defaultStyles?.[element.type],
+      ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
 
     const cascadingStyles = cascadeStyles(
@@ -55,8 +55,8 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           (col) => {
             return styleMapper.mapStyles(
               {
-                ...cascadingStyles,
-                ...(col.styles || {}),
+                ...defaultStyles?.[col.type],
+                ...stylesheet.getComputedStyles(col, cascadingStyles),
               },
               col
             );
@@ -70,8 +70,8 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
         ...(await Promise.all(
           caption.map(async (c) => {
             const innerMergedStyles = {
-              ...cascadingStyles,
-              ...(c.styles || {}),
+              ...defaultStyles?.[c.type],
+              ...stylesheet.getComputedStyles(c, cascadingStyles),
             };
             const innerCascadingStyles = cascadeStyles(
               innerMergedStyles,
@@ -197,12 +197,18 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           const colSpan = originalCell?.colspan ? originalCell.colspan : 1;
           const rowSpan = originalCell?.rowspan ? originalCell.rowspan : 1;
           const verticalMerge = rowSpan > 1 ? 'restart' : undefined;
+          const originalCellMatchedStyles = originalCell
+            ? {
+                ...defaultStyles?.[originalCell.type],
+                ...stylesheet.getMatchedStyles(originalCell),
+              }
+            : {};
           const cellContent = originalCell
             ? converter.convertToBlocks({
                 element: originalCell,
                 cascadedStyles: computeInheritedStyles({
                   parentStyles: {
-                    ...defaultStyles?.[originalCell.type],
+                    ...originalCellMatchedStyles,
                     ...stylesCol[j],
                     ...originalCell.styles,
                   },
@@ -216,7 +222,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
                       children: inlines,
                       ...styleMapper.mapStyles(
                         {
-                          ...(defaultStyles?.[originalCell.type] || {}),
+                          ...originalCellMatchedStyles,
                           ...stylesCol[j],
                           ...originalCell.styles,
                         },
@@ -238,7 +244,12 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
               ...stylesCol[j],
               ...styleMapper.mapStyles(
                 {
-                  ...(originalCell ? defaultStyles?.[originalCell.type] : {}),
+                  ...(originalCell
+                    ? {
+                        ...stylesheet?.getMatchedStyles(originalCell),
+                        ...defaultStyles?.[originalCell.type],
+                      }
+                    : {}),
                   ...originalCell?.styles,
                 },
                 originalCell!
@@ -249,14 +260,16 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
         }
       }
       const rowElement = element.rows[i];
-      const rowStyles = rowElement?.styles || {};
+      // TODO: cascaded styles?
+      const rowStyles = rowElement
+        ? stylesheet.getComputedStyles(rowElement, undefined)
+        : undefined;
       tableRows.push(
         new TableRow({
           children: cells,
           ...styleMapper.mapStyles(
             {
-              ...(defaultStyles?.['table-row'] ?? {}),
-              // ...mergedStyles,
+              ...(rowElement ? defaultStyles?.[rowElement?.type] : {}),
               ...rowStyles,
             },
             rowElement ?? element

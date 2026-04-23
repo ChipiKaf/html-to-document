@@ -22,13 +22,12 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): FileChild[] | Promise<FileChild[]> {
-    const { defaultStyles } = dependencies;
+    const { defaultStyles, stylesheet } = dependencies;
     const inherited = filterForScope(cascadedStyles, element.scope);
     // Paragraph element must only have inline children or else it could corrupt the document structure.
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...inherited,
-      ...element.styles,
+      ...stylesheet.getComputedStyles(element, inherited),
     };
 
     return promiseAllFlat(
@@ -47,6 +46,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
       styleMapper,
       converter,
       defaultStyles,
+      stylesheet,
       styleMeta,
     }: ElementConverterDependencies,
     element: ListItemElement,
@@ -54,8 +54,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
   ) {
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
-      ...element.styles,
+      ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
 
     return converter.convertToBlocks({

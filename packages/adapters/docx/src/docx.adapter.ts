@@ -9,6 +9,7 @@ import {
   INumberingOptions,
 } from 'docx';
 import {
+  createBaseStylesheet,
   DocumentElement,
   IConverterDependencies,
   IDocumentConverter,
@@ -18,6 +19,7 @@ import {
 import { NumberFormat, AlignmentType } from 'docx';
 import { DocxStyleMapper } from './docx-style-mapper';
 import { ElementConverter } from './element-converters/converter';
+import { ElementStylesheet } from './element-converters/types';
 import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
 import { pipe } from 'remeda';
@@ -25,6 +27,7 @@ import { pipe } from 'remeda';
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: DocxStyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
+  private _stylesheet: ElementStylesheet;
   private _docxElementConverter: ElementConverter;
   private readonly documentOptions: NonNullable<
     DocxAdapterConfig['documentOptions']
@@ -34,7 +37,11 @@ export class DocxAdapter implements IDocumentConverter {
   >;
 
   constructor(
-    { defaultStyles, styleMeta = initStyleMeta() }: IConverterDependencies,
+    {
+      defaultStyles,
+      stylesheet = createBaseStylesheet(),
+      styleMeta = initStyleMeta(),
+    }: IConverterDependencies,
     config?: DocxAdapterConfig
   ) {
     this._mapper = config?.styleMapper ?? new DocxStyleMapper();
@@ -42,11 +49,13 @@ export class DocxAdapter implements IDocumentConverter {
       this._mapper.addMapping(config.styleMappings);
     }
     this._defaultStyles = { ...defaultStyles };
+    this._stylesheet = stylesheet;
 
     const docxElementConverter = new ElementConverter(
       {
         styleMapper: this._mapper,
         defaultStyles: this._defaultStyles,
+        stylesheet: this._stylesheet,
         styleMeta,
       },
       config
