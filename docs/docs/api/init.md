@@ -42,30 +42,57 @@ declare function init(options?: InitOptions): Converter;
 
 The `options` object conforms to the [`InitOptions`](./types) type and supports the following properties:
 
-### `middleware?: Middleware[]`
+### `plugins?: Plugin[]`
 
-Register one or more middleware functions to transform the HTML before parsing.
-Middleware lets you transform or sanitize HTML before parsing—e.g., stripping scripts, normalizing whitespace, or injecting metadata.
+Register one or more plugins to transform HTML before parsing, transform `DocumentElement[]` after parsing, and configure explicit stylesheet instances.
 
-- **Type:** [`Middleware`](./types)[]
-- **Default:** _[minifyMiddleware] applied automatically unless `clearMiddleware` is `true`_
+- **Type:** [`Plugin`](./types)[]
+- **Default:** _A built-in HTML minify plugin is applied automatically unless `clearMiddleware` is `true`_
 - **Example:**
 
   ```ts
-  import { init } from 'html-to-document';
-  import { customMiddleware1, customMiddleware2 } from './middleware';
-
   const converter = init({
-    middleware: [customMiddleware1, customMiddleware2],
+    plugins: [
+      {
+        name: 'normalize-copy',
+        transformHtml: (html) => html.replace(/\s+/g, ' '),
+        transformDocument: (elements) =>
+          elements.map((element) =>
+            element.type === 'paragraph'
+              ? {
+                  ...element,
+                  metadata: {
+                    ...(element.metadata ?? {}),
+                    normalized: true,
+                  },
+                }
+              : element
+          ),
+      },
+    ],
+  });
+  ```
+
+### `middleware?: Middleware[]`
+
+> Deprecated: use `plugins[].transformHtml` for new integrations.
+
+Register one or more HTML-only middleware functions to transform the input before parsing.
+
+- **Type:** [`Middleware`](./types)[]
+- **Example:**
+
+  ```ts
+  const converter = init({
+    middleware: [async (html) => html.replace('foo', 'bar')],
   });
   ```
 
 ### `clearMiddleware?: boolean`
 
-Skips registering the default `minifyMiddleware`. When `true`, only your provided middleware functions will be used.
+Disables the built-in HTML minify plugin. When `true`, only your provided legacy middleware and explicit plugins are used.
 
 - **Type:** boolean
-- **Default:** `false`
 - **Default:** `false`
 
 ### `styleInheritance?`

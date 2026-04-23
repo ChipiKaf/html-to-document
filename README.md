@@ -15,30 +15,33 @@ Write HTML → get Word, PDFs, spreadsheets, and more — all with one unified T
 
 ## How It Works
 
-Below is a high-level overview of the conversion pipeline. The library processes the HTML input through optional middleware steps, parses it into a structured intermediate representation, and then delegates to an adapter to generate the desired output format.
+Below is a high-level overview of the conversion pipeline. The library processes the HTML input through optional plugin hooks, parses it into a structured intermediate representation, and then delegates to an adapter to generate the desired output format.
 
 ![Conversion Pipeline Diagram](./static/img/conversion-pipeline.png)
 
 The stages are:
 
 - **Input**: Raw HTML input as a string.
-- **Middleware**: One or more middleware functions can inspect or transform the HTML string before parsing (e.g., sanitization, custom tags).
-- **Parser**: Converts the (possibly modified) HTML string into an array of `DocumentElement` objects, representing a structured AST.
-- **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format (e.g., DOCX, PDF, Markdown) via a registered adapter.
+- **Plugins (HTML)**: Optional plugin `transformHtml` hooks can inspect or transform the HTML string before parsing.
+- **Parser**: Converts the transformed HTML string into an array of `DocumentElement` objects.
+- **Plugins (Document)**: Optional plugin `transformDocument` hooks can adjust the parsed document tree before rendering.
+- **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format.
+
+> `middleware` remains supported temporarily for backwards compatibility, but new integrations should use `plugins`.
 
 ---
 
 ## ✨ Key Features
 
-| Feature                     | Description                                                                                                      |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Format‑agnostic core**    | Converts HTML into a reusable `DocumentElement[]` structure                                                      |
-| **DOCX adapter (built‑in)** | Powered by [`docx`](https://npmjs.com/package/docx) with rich style support                                      |
-| **Pluggable adapters**      | Create and add your own adapter for PDF, XLSX, Markdown, etc.                                                    |
-| **Style mapping engine**    | Define your own css mappings for the adapters and set per‑format defaults                                        |
-| **Custom tag handlers**     | Override or extend how any HTML tag is parsed                                                                    |
-| **Page sections & headers** | Use `<section class="page">`, `<section class="page-break">`, `<header>` and `<footer>` to control pages in DOCX |
-| **Middleware pipeline**     | Transform or sanitise HTML before parsing                                                                        |
+| Feature                     | Description                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Format‑agnostic core**    | Converts HTML into a reusable `DocumentElement[]` structure                                                          |
+| **DOCX adapter (built‑in)** | Powered by [`docx`](https://npmjs.com/package/docx) with rich style support                                          |
+| **Pluggable adapters**      | Create and add your own adapter for PDF, XLSX, Markdown, etc.                                                        |
+| **Style mapping engine**    | Define your own css mappings for the adapters and set per‑format defaults                                            |
+| **Custom tag handlers**     | Override or extend how any HTML tag is parsed                                                                        |
+| **Page sections & headers** | Use `<section class="page">`, `<section class="page-break">`, `<header>` and `<footer>` to control pages in DOCX     |
+| **Plugin pipeline**         | Transform HTML before parsing, transform `DocumentElement[]` after parsing, and extend explicit stylesheet instances |
 
 ---
 

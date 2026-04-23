@@ -7,6 +7,8 @@ sidebar_position: 4
 
 # Middleware
 
+> Deprecated: use [`plugins`](./plugins) and `Plugin['transformHtml']` for new integrations.
+
 Middleware functions run on the HTML string _before_ it is parsed into `DocumentElement` nodes. They allow you to transform, sanitize, or minify the HTML content.
 
 ## Signature
@@ -22,10 +24,30 @@ See the [Types Reference](./types) for the full definition.
 ## Default Middleware
 
 By default, `init()` applies a built-in whitespace-minifying middleware (unless you set `clearMiddleware: true`). This default middleware:
+
 - Strips HTML comments (`<!-- ... -->`)
 - Collapses consecutive whitespace into a single space (outside `<pre>`)
 - Removes unnecessary whitespace between tags
 - Trims leading and trailing whitespace
+
+## Migration to Plugins
+
+```ts
+// before
+init({
+  middleware: [async (html) => html.replace('foo', 'bar')],
+});
+
+// after
+init({
+  plugins: [
+    {
+      name: 'replace-foo',
+      transformHtml: (html) => html.replace('foo', 'bar'),
+    },
+  ],
+});
+```
 
 ## Custom Middleware
 
@@ -41,7 +63,7 @@ const stripScripts: Middleware = async (html) =>
   html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, '');
 
 const converter = init({
-  clearMiddleware: true,    // skip default minifier
+  clearMiddleware: true, // skip default minifier
   middleware: [stripScripts],
 });
 ```
@@ -55,7 +77,6 @@ converter.useMiddleware(stripScripts);
 ```
 
 > **Note:** Middleware functions are executed in the order they are passed in or registered. Make sure to arrange them accordingly if one depends on the output of another.
-
 
 ## Example: Sanitizing HTML
 

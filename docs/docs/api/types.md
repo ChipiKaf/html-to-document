@@ -6,27 +6,48 @@ sidebar_position: 7
 
 # Types Reference
 
-| Type                 | Description                                                              |
-| -------------------- | ------------------------------------------------------------------------ |
-| `InitOptions`        | Options for initializing the converter via `init`.                       |
-| `ConverterOptions`   | Internal options for the `Converter` constructor.                        |
-| `Converter`          | Main class for conversion and parsing (methods: `convert`, `parse`).     |
-| `Middleware`         | Async function `(html: string) => Promise<string>`.                      |
-| `TagHandler`         | Handler `(element, options?) => DocumentElement \| DocumentElement[]`.   |
-| `TagHandlerObject`   | `{ key: string; handler: TagHandler }`.                                  |
-| `DocumentElement`    | Union of intermediate document element types (paragraph, heading, etc.). |
-| `ElementType`        | String literal type of element kinds (`'paragraph'`, `'heading'`, etc.). |
-| `Styles`             | Map of style keys to string/number, with CSS property support.           |
-| `IDOMParser`         | Interface for custom DOM parser with `parse(html: string): Document`.    |
-| `IDocumentConverter` | Adapter interface (`convert(elements): Promise<Buffer \| Blob>`).        |
-| `AdapterProvider`    | Constructor type `(new(deps) => IDocumentConverter)`.                    |
-| `IStylesheet`        | Rule-based stylesheet interface passed to adapters.                      |
-| `StyleRule`          | A selector rule with declarations.                                       |
-| `AtRule`             | A top-level or nested at-rule statement like `@page`.                    |
+| Type                     | Description                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `InitOptions`            | Options for initializing the converter via `init`.                                                   |
+| `ConverterOptions`       | Internal options for the `Converter` constructor.                                                    |
+| `Converter`              | Main class for conversion and parsing (methods: `convert`, `parse`).                                 |
+| `Plugin`                 | Hook-based extension object for HTML transforms, document transforms, and explicit stylesheet setup. |
+| `Middleware`             | HTML-only compatibility hook retained temporarily for backwards compatibility.                        |
+| `TagHandler`             | Handler `(element, options?) => DocumentElement \| DocumentElement[]`.                               |
+| `TagHandlerObject`       | `{ key: string; handler: TagHandler }`.                                                              |
+| `DocumentElement`        | Union of intermediate document element types (paragraph, heading, etc.).                             |
+| `ElementType`            | String literal type of element kinds (`'paragraph'`, `'heading'`, etc.).                             |
+| `Styles`                 | Map of style keys to string/number, with CSS property support.                                       |
+| `IDOMParser`             | Interface for custom DOM parser with `parse(html: string): Document`.                                |
+| `IDocumentConverter`     | Adapter interface (`convert(elements): Promise<Buffer \| Blob>`).                                    |
+| `AdapterProvider`        | Constructor type `(new(deps) => IDocumentConverter)`.                                                |
+| `IStylesheet`            | Rule-based stylesheet interface passed to adapters.                                                  |
+| `StyleRule`              | A selector rule with declarations.                                                                   |
+| `AtRule`                 | A top-level or nested at-rule statement like `@page`.                                                |
+| `IStylesheetDecorator`   | Public stylesheet wrapper interface returned by stylesheet plugin hooks.                              |
+| `IMatchElementDecorator` | Internal matcher decorator interface for advanced stylesheet plugins.                                 |
 
 DOCX-specific mapping helpers such as `DocxStyleMapping` and `DocxStyleMapper` now live in `html-to-document-adapter-docx`, not in core.
 
 For the stylesheet model and helpers, see [Stylesheet API](./stylesheet).
+
+## Plugin Types
+
+```ts
+import type {
+  Plugin,
+  HtmlTransformPluginHook,
+  DocumentTransformPluginHook,
+  IStylesheetDecorator,
+  IMatchElementDecorator,
+} from 'html-to-document';
+```
+
+- `Plugin` is the sparse hook object used by `init({ plugins })` and `createStylesheet(..., { plugins })`.
+- `HtmlTransformPluginHook` transforms HTML before parsing.
+- `DocumentTransformPluginHook` transforms parsed `DocumentElement[]` after parsing.
+- `IStylesheetDecorator` wraps the public stylesheet API.
+- `IMatchElementDecorator` wraps the internal `matchElement(element, selector)` matcher used by stylesheet resolution.
 
 For full definitions, refer to the TypeScript source in `src/core/types.ts`.
 
@@ -185,4 +206,4 @@ const converter = init({
 });
 ```
 
-This will produce `DocumentElement` nodes with `type: 'widget'`, which you can process in your custom adapter or middleware.
+This will produce `DocumentElement` nodes with `type: 'widget'`, which you can process in your custom adapter or plugin hooks.

@@ -49,10 +49,11 @@ converter
 Initialize a new [`Converter`](./types) instance.
 
 - **options**: [`InitOptions`](./types) (optional)
-  - `middleware?: [`Middleware`](./types)[]` – custom middleware functions.
+  - `plugins?: [`Plugin`](./types)[]` – plugin hooks for HTML transforms, document transforms, and explicit stylesheet setup.
+  - `middleware?: [`Middleware`](./types)[]` – deprecated HTML-only middleware functions.
   - `tags?: { tagHandlers?: [`TagHandlerObject`](./types)[]; defaultStyles?: ...; defaultAttributes?: ... }` – custom tag handlers and default tag options.
 - `adapters?: { defaultStyles?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object; createAdapter?: ... }[] }` – register adapters, customize construction per adapter, and pass adapter-specific config.
-  - `clearMiddleware?: boolean` – clear default middleware.
+  - `clearMiddleware?: boolean` – deprecated flag that disables the built-in HTML minify plugin.
   - `domParser?: [`IDOMParser`](./types)` – custom DOM parser implementation.
 
 Returns: a configured [`Converter`](./types) instance.
@@ -62,6 +63,7 @@ Returns: a configured [`Converter`](./types) instance.
 Explore further customization using the links below:
 
 - [Initialization](./init)
+- [Plugins](./plugins)
 - [Custom Tag Handlers](./tags)
 - [Middleware](./middleware)
 - [Style Mappings & Default Styles](./style-mappings)
@@ -121,7 +123,8 @@ Register a custom document converter adapter.
 | [`InitOptions`](./types)        | Options for initializing the converter via `init`.                                                                                          |
 | [`ConverterOptions`](./types)   | Internal options for the `Converter` constructor.                                                                                           |
 | [`Converter`](./types)          | Main class for conversion and parsing.                                                                                                      |
-| [`Middleware`](./types)         | Asynchronous function taking an HTML string and returning a Promise of string.                                                              |
+| [`Plugin`](./types)             | Hook-based extension object for HTML transforms, document transforms, and explicit stylesheet setup.                                        |
+| [`Middleware`](./types)         | HTML-only compatibility hook retained temporarily for backwards compatibility.                                                              |
 | [`TagHandler`](./types)         | Handler that processes an `HTMLElement` with optional `TagHandlerOptions` and returns a `DocumentElement` or an array of `DocumentElement`. |
 | [`TagHandlerObject`](./types)   | `{ key: string; handler: TagHandler }`                                                                                                      |
 | [`DocumentElement`](./types)    | Union type for intermediate document elements (paragraph, heading, etc.).                                                                   |
