@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Stylesheet } from '../src/styles/sheet';
+import { createStylesheet, Stylesheet } from '../src/styles/sheet';
 
 describe('stylesheet', () => {
   it('resolves matching style rules by specificity and source order', () => {
@@ -301,5 +301,109 @@ describe('stylesheet', () => {
       color: 'white',
       backgroundColor: 'blue',
     });
+  });
+
+  it('applies setupStylesheet hooks when creating a stylesheet with plugins', () => {
+    const sheet = createStylesheet([], {
+      plugins: [
+        {
+          name: 'defaults',
+          setupStylesheet: (target) => {
+            target.addStyleRule('.accent', { color: 'purple' });
+          },
+        },
+      ],
+    });
+
+    expect(sheet.getComputedStylesBySelector('.accent')).toEqual({
+      color: 'purple',
+    });
+  });
+
+  it('applies createStylesheetDecorator hooks in plugin order', () => {
+    const sheet = createStylesheet([], {
+      plugins: [
+        {
+          name: 'first',
+          createStylesheetDecorator: () => ({
+            decorate(target) {
+              return {
+                ...target,
+                getComputedStylesBySelector(selector) {
+                  return {
+                    ...target.getComputedStylesBySelector(selector),
+                    color: 'red',
+                  };
+                },
+              };
+            },
+          }),
+        },
+        {
+          name: 'second',
+          createStylesheetDecorator: () => ({
+            decorate(target) {
+              return {
+                ...target,
+                getComputedStylesBySelector(selector) {
+                  return {
+                    ...target.getComputedStylesBySelector(selector),
+                    backgroundColor: 'black',
+                  };
+                },
+              };
+            },
+          }),
+        },
+      ],
+    });
+
+    sheet.addStyleRule('.accent', { fontWeight: 'bold' });
+
+    expect(sheet.getComputedStylesBySelector('.accent')).toEqual({
+      fontWeight: 'bold',
+      color: 'red',
+      backgroundColor: 'black',
+    });
+  });
+
+  it('applies createMatchElementDecorator hooks to internal element matching', () => {
+    const sheet = createStylesheet(
+      [
+        {
+          kind: 'style',
+          selectors: ['.plugin-target'],
+          declarations: { color: 'orange' },
+        },
+      ],
+      {
+        plugins: [
+          {
+            name: 'metadata-class',
+            createMatchElementDecorator: () => ({
+              decorateMatchElement(next) {
+                return (element, selector) => {
+                  if (
+                    selector === '.plugin-target' &&
+                    element.metadata?.pluginClass === 'plugin-target'
+                  ) {
+                    return true;
+                  }
+
+                  return next(element, selector);
+                };
+              },
+            }),
+          },
+        ],
+      }
+    );
+
+    expect(
+      sheet.getComputedStyles({
+        type: 'paragraph',
+        metadata: { pluginClass: 'plugin-target' },
+      })
+    ).toEqual({ color: 'orange' });
   });
 });

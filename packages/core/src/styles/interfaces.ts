@@ -1,6 +1,6 @@
 import type Specificity from '@bramus/specificity';
 import type selectorParser from 'postcss-selector-parser';
-import { DocumentElement, Styles } from '../types';
+import type { DocumentElement, Plugin, Styles } from '../types';
 
 export type StylesheetValue = string | number;
 
@@ -61,6 +61,23 @@ export interface AtRule<Name extends string = string> {
 }
 
 export type StylesheetStatement = StyleRule | AtRule;
+
+export interface IStylesheetDecorator {
+  decorate(sheet: IStylesheet): IStylesheet;
+}
+
+export type MatchElement = (
+  element: DocumentElement,
+  selector: string
+) => boolean;
+
+export interface IMatchElementDecorator {
+  decorateMatchElement(next: MatchElement): MatchElement;
+}
+
+export interface IStylesheetFactoryOptions {
+  plugins?: readonly Plugin[];
+}
 
 export interface IStylesheet {
   /**

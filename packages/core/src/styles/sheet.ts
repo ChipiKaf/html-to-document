@@ -7,8 +7,11 @@ import type {
   StylesheetStatement,
   StyleRule,
   AtRule,
+  IMatchElementDecorator,
   IStylesheet,
+  IStylesheetFactoryOptions,
   CompiledStyleRule,
+  MatchElement,
 } from './interfaces';
 
 export type {
@@ -16,7 +19,11 @@ export type {
   StylesheetStatement,
   StyleRule,
   AtRule,
+  IMatchElementDecorator,
   IStylesheet,
+  IStylesheetDecorator,
+  IStylesheetFactoryOptions,
+  MatchElement,
 } from './interfaces';
 
 const DEFAULT_TAG_BY_TYPE: Partial<Record<DocumentElement['type'], string>> = {
@@ -31,14 +38,31 @@ const DEFAULT_TAG_BY_TYPE: Partial<Record<DocumentElement['type'], string>> = {
   // text: 'span', // <-- DO NOT add this, as it would cause all text nodes to be treated as <span> elements, which is not desirable for selector matching.
 };
 
+type StylesheetOptions = {
+  matchElementDecorators?: readonly IMatchElementDecorator[];
+};
+
 export class Stylesheet implements IStylesheet {
   private readonly statements: StylesheetStatement[] = [];
   private readonly compiledStyleRules: CompiledStyleRule[] = [];
   private readonly selectorProcessor: ReturnType<typeof selectorParser>;
+  private readonly matchElementFn: MatchElement;
   private nextOrder = 0;
 
-  constructor(statements: readonly StylesheetStatement[] = []) {
+  constructor(
+    statements: readonly StylesheetStatement[] = [],
+    options: StylesheetOptions = {}
+  ) {
     this.selectorProcessor = selectorParser();
+
+    let matchElement: MatchElement = (element, selector) =>
+      this.defaultMatchElement(element, selector);
+
+    for (const decorator of options.matchElementDecorators ?? []) {
+      matchElement = decorator.decorateMatchElement(matchElement);
+    }
+
+    this.matchElementFn = matchElement;
     statements.forEach((statement) => this.add(statement));
   }
 
@@ -115,7 +139,7 @@ export class Stylesheet implements IStylesheet {
   getComputedStyles(element: DocumentElement, cascadedStyles?: Styles): Styles {
     return {
       ...cascadedStyles,
-      ...this.getMatchedStyles(element),
+      ...this.resolveStylesForElement(element),
       ...(element.styles ?? {}),
     };
   }
@@ -208,6 +232,16 @@ export class Stylesheet implements IStylesheet {
       classes,
       attributes,
     };
+  }
+
+  private defaultMatchElement(
+    element: DocumentElement,
+    selector: string
+  ): boolean {
+    return this.defaultMatchesSelector(
+      this.parseSingleSelector(selector),
+      this.toTargetFromElement(element)
+    );
   }
 
   private toTargetFromSelector(selector: string): SelectorTarget | undefined {
@@ -354,7 +388,7 @@ export class Stylesheet implements IStylesheet {
     }
   }
 
-  private matchesSelector(
+  private defaultMatchesSelector(
     selector: selectorParser.Selector,
     target: SelectorTarget
   ): boolean {
@@ -450,8 +484,30 @@ export class Stylesheet implements IStylesheet {
 
     const matchingRules = this.compiledStyleRules
       .filter((rule) =>
-        targets.some((target) => this.matchesSelector(rule.ast, target))
+        targets.some((target) => this.defaultMatchesSelector(rule.ast, target))
       )
+      .sort((left, right) => {
+        const specificityResult = Specificity.compare(
+          left.specificity,
+          right.specificity
+        );
+
+        if (specificityResult !== 0) {
+          return specificityResult;
+        }
+
+        return left.order - right.order;
+      });
+
+    return matchingRules.reduce<Styles>(
+      (resolved, rule) => ({ ...resolved, ...rule.declarations }),
+      {}
+    );
+  }
+
+  private resolveStylesForElement(element: DocumentElement): Styles {
+    const matchingRules = this.compiledStyleRules
+      .filter((rule) => this.matchElementFn(element, rule.selector))
       .sort((left, right) => {
         const specificityResult = Specificity.compare(
           left.specificity,
@@ -472,8 +528,65 @@ export class Stylesheet implements IStylesheet {
   }
 }
 
+function createStylesheetFacade(sheet: IStylesheet): IStylesheet {
+  return {
+    add(statement) {
+      sheet.add(statement);
+    },
+    addStyleRule(selectors, declarations) {
+      sheet.addStyleRule(selectors, declarations);
+    },
+    addRule(selector, styles) {
+      sheet.addRule(selector, styles);
+    },
+    addAtRule(rule) {
+      sheet.addAtRule(rule);
+    },
+    getStatements() {
+      return sheet.getStatements();
+    },
+    getAtRules(name) {
+      return sheet.getAtRules(name);
+    },
+    getComputedStylesBySelector(selector) {
+      return sheet.getComputedStylesBySelector(selector);
+    },
+    getComputedStyles(element) {
+      return sheet.getComputedStyles(element);
+    },
+  };
+}
+
 export function createStylesheet(
-  statements: readonly StylesheetStatement[] = []
+  statements: readonly StylesheetStatement[] = [],
+  options: IStylesheetFactoryOptions = {}
 ): IStylesheet {
-  return new Stylesheet(statements);
+  const plugins = options.plugins ?? [];
+  const matchElementDecorators = plugins
+    .map((plugin) => plugin.createMatchElementDecorator?.())
+    .filter(
+      (decorator): decorator is IMatchElementDecorator =>
+        decorator !== undefined
+    );
+
+  const sheet = new Stylesheet(statements, { matchElementDecorators });
+
+  if (plugins.length === 0) {
+    return sheet;
+  }
+
+  for (const plugin of plugins) {
+    plugin.setupStylesheet?.(sheet);
+  }
+
+  let current: IStylesheet = createStylesheetFacade(sheet);
+
+  for (const plugin of plugins) {
+    const decorator = plugin.createStylesheetDecorator?.(current);
+    if (!decorator) continue;
+
+    current = createStylesheetFacade(decorator.decorate(current));
+  }
+
+  return current;
 }
