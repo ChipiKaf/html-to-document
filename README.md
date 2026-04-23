@@ -197,8 +197,84 @@ console.log(elements); // => DocumentElement[]
 ## 🛠 Extending
 
 - **Style mappings:** fine‑tune CSS → DOCX with `DocxStyleMapper` via `DocxAdapter` config
+- **Stylesheet API:** seed selector rules through `init()` and inspect them from adapters
 - **Tag handlers:** intercept `<custom-tag>` → your own `DocumentElement`
 - **Custom adapters:** implement `IDocumentConverter` to target new formats
+
+### Stylesheet rules in `init()`
+
+You can provide stylesheet rules directly when creating the converter.
+
+```ts
+import { init, DocxAdapter } from 'html-to-document';
+
+const converter = init({
+  stylesheetRules: [
+    {
+      kind: 'style',
+      selectors: ['p.note'],
+      declarations: {
+        color: 'rebeccapurple',
+        fontWeight: 'bold',
+      },
+    },
+    {
+      kind: 'at-rule',
+      name: 'page',
+      descriptors: {
+        size: 'A4',
+        margin: '1in',
+      },
+    },
+  ],
+  adapters: {
+    register: [{ format: 'docx', adapter: DocxAdapter }],
+  },
+});
+```
+
+This is the simplest way to seed stylesheet statements without manually creating a stylesheet instance.
+
+Style rules can also carry nested at-rules for forward-compatible rule trees. Those nested at-rules are preserved by the API, even though the current matcher does not evaluate them yet.
+
+### Custom stylesheet instances in `init()`
+
+If you want full control, you can provide a stylesheet instance too.
+
+```ts
+import { init, createStylesheet } from 'html-to-document';
+
+const stylesheet = createStylesheet();
+stylesheet.addStyleRule('p.note', { color: 'green' });
+stylesheet.addAtRule({
+  kind: 'at-rule',
+  name: 'page',
+  descriptors: { size: 'A4' },
+});
+
+const converter = init({
+  stylesheet,
+});
+```
+
+The library still appends built-in and configured rules onto that stylesheet during initialization.
+
+### How stylesheet seeding works
+
+The stylesheet seen by adapters is built from several sources:
+
+- built-in base rules
+- `tags.defaultStyles`
+- `stylesheetRules`
+- adapter-specific `adapters.defaultStyles`
+
+`tags.defaultStyles` are now added to the stylesheet as tag-based rules, not inlined into parsed `element.styles`.
+
+Adapters receive a `stylesheet` instance in their dependencies and can inspect:
+
+- matched selector styles with `getMatchedStyles(element)`
+- merged styles with `getComputedStyles(element, cascadedStyles)`
+- raw rule statements with `getStatements()` / `getAtRules(name)`
 
 ### Creating Your Own Adapter
 

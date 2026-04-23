@@ -234,9 +234,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: 'llo',
-              styles: {
-                fontWeight: 'bold',
-              },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
@@ -247,9 +245,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: 'or',
-              styles: {
-                fontWeight: 'bold',
-              },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
@@ -258,6 +254,107 @@ describe('Parser', () => {
               text: 'ld',
             },
           ],
+          styles: {},
+          attributes: {},
+          scope: 'block',
+        },
+      ]);
+    });
+
+    it('parses semantic inline formatting tags as text elements and address as a paragraph', () => {
+      let result = parser.parse(
+        '<p><b>B</b><i>I</i><s>S</s><del>D</del><ins>U</ins><mark>M</mark><cite>C</cite><dfn>Df</dfn><var>V</var><kbd>K</kbd><samp>Sa</samp></p><address>Addr</address>'
+      );
+      result = JSON.parse(JSON.stringify(result));
+      expect(result).toEqual([
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'B',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'I',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'S',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'D',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'U',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'M',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'C',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'Df',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'V',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'K',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+            {
+              type: 'text',
+              text: 'Sa',
+              styles: {},
+              attributes: {},
+              scope: 'inline',
+            },
+          ],
+          styles: {},
+          attributes: {},
+          scope: 'block',
+        },
+        {
+          type: 'paragraph',
+          text: 'Addr',
           styles: {},
           attributes: {},
           scope: 'block',
@@ -327,7 +424,6 @@ describe('Parser', () => {
           ],
           styles: {
             fontWeight: 'bold',
-            fontSize: '32px',
           },
           attributes: {
             'data-custom': 'x',
@@ -848,7 +944,6 @@ describe('Parser', () => {
                     },
                   ],
                   styles: {
-                    textAlign: 'center',
                     color: 'red',
                   },
                   attributes: {},
@@ -868,9 +963,7 @@ describe('Parser', () => {
                       attributes: {},
                     },
                   ],
-                  styles: {
-                    textAlign: 'center',
-                  },
+                  styles: {},
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
@@ -924,7 +1017,7 @@ describe('Parser', () => {
                 {
                   type: 'table-cell',
                   content: [{ type: 'text', text: 'Head1' }],
-                  styles: { color: 'blue', textAlign: 'center' },
+                  styles: { color: 'blue' },
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
@@ -933,7 +1026,7 @@ describe('Parser', () => {
                 {
                   type: 'table-cell',
                   content: [{ type: 'text', text: 'Head2' }],
-                  styles: { textAlign: 'center' },
+                  styles: {},
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
@@ -1027,9 +1120,8 @@ describe('Parser', () => {
               {
                 text: 'Sales Report Q1',
                 styles: {
-                  fontStyle: 'italic',
-                  textAlign: 'center',
                   captionSide: 'bottom',
+                  fontStyle: 'italic',
                 },
                 attributes: {},
                 scope: 'inline',
@@ -1092,7 +1184,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: '2',
-              styles: { verticalAlign: 'sub' },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
@@ -1100,7 +1192,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: '2',
-              styles: { verticalAlign: 'super' },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },

@@ -14,14 +14,13 @@ export class LinkConverter implements IInlineConverter<DocumentElementType> {
   }
 
   async convertElement(
-    { converter, defaultStyles }: ElementConverterDependencies,
+    { converter, defaultStyles, stylesheet }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): Promise<ParagraphChild[]> {
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
-      ...element.styles,
+      ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
     const href = element.attributes.href;
     const children =

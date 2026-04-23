@@ -131,6 +131,32 @@ The `dependencies` object is fresh for each adapter registration, so changes mad
 - `options`: configuration for tags, middleware, adapters, DOM parser, and **styleInheritance**.
 - Returns a `Converter` instance.
 
+#### Stylesheet API
+
+Core now exposes a rule-based stylesheet model for adapter-time style resolution.
+
+```ts
+import { createStylesheet } from 'html-to-document-core';
+
+const stylesheet = createStylesheet();
+stylesheet.addStyleRule('p.note', { color: 'rebeccapurple' });
+stylesheet.addAtRule({
+  kind: 'at-rule',
+  name: 'page',
+  descriptors: { size: 'A4', margin: '1in' },
+});
+```
+
+Registered adapters receive a `stylesheet` instance through `IConverterDependencies`.
+
+Use:
+
+- `getMatchedStyles(element)` for stylesheet-only matches
+- `getComputedStyles(element, cascadedStyles)` for cascaded + stylesheet + inline styles
+- `getStatements()` / `getAtRules(name)` to inspect raw statements
+
+`adapters.defaultStyles` is seeded into each adapter's stylesheet as format-specific rules, and `tags.defaultStyles` is seeded into the converter stylesheet during `init()` rather than merged directly into `element.styles`; adapter authors should resolve tag defaults via the stylesheet/computed-style APIs instead of relying on `element.styles`.
+
 #### Customizing Style Inheritance
 
 You can override default inheritance rules (e.g., forcing table borders to inherit to children) using `styleInheritance`:

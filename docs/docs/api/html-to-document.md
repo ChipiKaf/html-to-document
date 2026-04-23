@@ -65,6 +65,7 @@ Explore further customization using the links below:
 - [Custom Tag Handlers](./tags)
 - [Middleware](./middleware)
 - [Style Mappings & Default Styles](./style-mappings)
+- [Stylesheet API](./stylesheet)
 - [Custom Converters](./converters)
 - [Types Reference](./types)
 

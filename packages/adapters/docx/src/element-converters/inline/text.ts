@@ -21,6 +21,7 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
       converter,
       styleMapper,
       defaultStyles,
+      stylesheet,
       styleMeta,
     }: ElementConverterDependencies,
     element: DocumentElementType,
@@ -29,8 +30,7 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
     const inherited = filterForScope(cascadedStyles, element.scope, styleMeta);
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...inherited,
-      ...element.styles,
+      ...stylesheet.getComputedStyles(element, inherited),
     };
 
     if (element.content && element.content.length > 0) {

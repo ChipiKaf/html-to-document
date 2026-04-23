@@ -18,6 +18,7 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
       styleMapper,
       converter,
       defaultStyles,
+      stylesheet,
       styleMeta,
     }: ElementConverterDependencies,
     element: ParagraphElement,
@@ -26,8 +27,7 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
     // Paragraph element must only have inline children or else it could corrupt the document structure.
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
-      ...element.styles,
+      ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
 
     const cascadingStyles = cascadeStyles(

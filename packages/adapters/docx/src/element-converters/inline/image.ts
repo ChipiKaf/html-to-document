@@ -34,7 +34,7 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
   }
 
   async convertElement(
-    { defaultStyles, styleMapper }: ElementConverterDependencies,
+    { defaultStyles, stylesheet, styleMapper }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): Promise<ParagraphChild[]> {
@@ -59,11 +59,15 @@ export class ImageConverter implements IInlineConverter<DocumentElementType> {
           }
         : {}),
     };
+    const computedStyles = stylesheet.getComputedStyles(
+      element,
+      cascadedStyles
+    );
     const mergedStyles = {
       ...defaultStyles?.[element.type],
+      // Attribute size only applies if css styles have not been set
       ...attributeSizeToStyle,
-      ...cascadedStyles,
-      ...element.styles,
+      ...computedStyles,
     };
     const mappedStyles = styleMapper.mapStyles(mergedStyles, element);
 

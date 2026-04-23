@@ -1,14 +1,28 @@
-import { IConverterDependencies } from 'html-to-document-core';
+import { IConverterDependencies, IStylesheet } from 'html-to-document-core';
 import { ElementConverter } from './converter';
 import { FileChild, ParagraphChild } from 'docx';
 import { DocumentElement, Styles } from 'html-to-document-core';
 import { Object } from 'ts-toolbelt';
 import { DocxStyleMapper } from '../docx-style-mapper';
 
+export type ElementStylesheet = {
+  /**
+   * Returns only the styles resolved from stylesheet rules that match the element.
+   * Does not merge in the element's own inline/document styles.
+   */
+  getMatchedStyles: IStylesheet['getMatchedStyles'];
+  /**
+   * Returns the final merged styles for the element.
+   * Starts with stylesheet-resolved styles, then applies the element's own styles.
+   */
+  getComputedStyles: IStylesheet['getComputedStyles'];
+};
+
 export type ElementConverterDependencies = {
   styleMapper: DocxStyleMapper;
   converter: ElementConverter;
   defaultStyles: IConverterDependencies['defaultStyles'];
+  stylesheet: ElementStylesheet;
   styleMeta: IConverterDependencies['styleMeta'];
 };
 

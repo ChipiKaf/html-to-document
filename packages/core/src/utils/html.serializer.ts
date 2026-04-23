@@ -8,6 +8,10 @@ import {
   ListElement,
   IConverterDependencies,
 } from '../types';
+import type { IStylesheet } from '../styles/interfaces';
+import { createBaseStylesheet } from '../styles/stylesheet-seeding';
+
+type HtmlSerializationStyles = IConverterDependencies['defaultStyles'];
 
 /**
  * Serialize an array of DocumentElement back into an HTML string.
@@ -17,7 +21,8 @@ import {
  */
 export function toHtml(
   elements: DocumentElement[],
-  defaultStyles: IConverterDependencies['defaultStyles'] = {}
+  defaultStyles: HtmlSerializationStyles = {},
+  stylesheet: IStylesheet = createBaseStylesheet()
 ): string {
   // If parser attached the original HTML, return it directly for exact round-trip
   // const original = (elements as any).__originalHtml;
@@ -25,7 +30,7 @@ export function toHtml(
   //   return original;
   // }
   const html = elements
-    .map((el) => elementToHtml(el, defaultStyles))
+    .map((el) => elementToHtml(el, defaultStyles, stylesheet))
     .join('\n');
   return `<div>\n${html}\n</div>`;
 }
@@ -37,17 +42,27 @@ export function toHtml(
  *  should NOT be re‑emitted when serialising back to raw HTML.  */
 const defaultTagStyles: Record<string, Record<string, string | number>> = {
   strong: { fontWeight: 'bold' },
+  b: { fontWeight: 'bold' },
   em: { fontStyle: 'italic' },
+  i: { fontStyle: 'italic' },
+  cite: { fontStyle: 'italic' },
+  dfn: { fontStyle: 'italic' },
+  var: { fontStyle: 'italic' },
+  small: { fontSize: '8px' },
   u: { textDecoration: 'underline' },
+  ins: { textDecoration: 'underline' },
   sup: { verticalAlign: 'super' },
   sub: { verticalAlign: 'sub' },
   h1: { fontSize: '32px', fontWeight: 'bold' },
   h2: { fontSize: '24px', fontWeight: 'bold' },
-  h3: { fontWeight: 'bold' },
-  h4: { fontWeight: 'bold' },
-  h5: { fontWeight: 'bold' },
-  h6: { fontWeight: 'bold' },
-  code: { backgroundColor: 'lightGray' },
+  h3: { fontSize: '18.72px', fontWeight: 'bold' },
+  h4: { fontSize: '16px', fontWeight: 'bold' },
+  h5: { fontSize: '13.28px', fontWeight: 'bold' },
+  h6: { fontSize: '10.72px', fontWeight: 'bold' },
+  pre: { fontFamily: 'monospace', whiteSpace: 'pre-wrap' },
+  code: { fontFamily: 'monospace', backgroundColor: 'lightGray' },
+  kbd: { fontFamily: 'monospace' },
+  samp: { fontFamily: 'monospace' },
   blockquote: {
     borderLeftColor: 'lightGray',
     borderLeftStyle: 'solid',
@@ -55,6 +70,14 @@ const defaultTagStyles: Record<string, Record<string, string | number>> = {
     paddingLeft: '16px',
     marginLeft: '24px',
   },
+  address: { fontStyle: 'italic' },
+  mark: { backgroundColor: 'yellow' },
+  figcaption: { fontStyle: 'italic', textAlign: 'center' },
+  caption: { fontStyle: 'italic', textAlign: 'center' },
+  dt: { fontWeight: 'bold' },
+  dd: { marginLeft: '40px' },
+  s: { textDecoration: 'line-through' },
+  del: { textDecoration: 'line-through' },
   th: { textAlign: 'center' },
 };
 
@@ -105,7 +128,8 @@ const voidTags = new Set([
 
 function elementToHtml(
   el: DocumentElement,
-  defaults: IConverterDependencies['defaultStyles'] = {}
+  defaults: HtmlSerializationStyles = {},
+  stylesheet: IStylesheet = createBaseStylesheet()
 ): string {
   // -----------------------------------------------------------------------
   // Resolve tag name
@@ -194,9 +218,9 @@ function elementToHtml(
 
   // 4. style attribute – merge defaults and filter out semantic defaults first
   const mergedStyles = {
-    ...(defaults?.[el.type] || {}),
-    ...(el.styles || {}),
-  } as Record<string, string | number>;
+    ...defaults?.[el.type],
+    ...stylesheet.getComputedStyles(el, undefined),
+  };
   if (Object.keys(mergedStyles).length) {
     const filtered = filterStyles(tagName, mergedStyles);
     const styleEntries = Object.entries(filtered).map(([k, v]) => {
@@ -240,13 +264,27 @@ function elementToHtml(
     const theadRows: string[] = [];
     const tbodyRows: string[] = [];
 
+    const tfootRows: string[] = [];
+
     (table.rows ?? []).forEach((row: TableRowElement) => {
-      const isHeader = row.cells.every((c) => c.styles?.textAlign === 'center');
+      const rowSection = row.metadata?.tagName;
+      const isHeader =
+        rowSection === 'thead' ||
+        row.cells.every((c) => {
+          return c.metadata?.tagName === 'th';
+        });
       const cellsHtml = row.cells
-        .map((c) => cellToHtml(c, defaults))
+        .map((c) => cellToHtml(c, defaults, stylesheet))
         .join('\n');
       const rowHtml = `<tr>\n${cellsHtml}\n</tr>`;
-      (isHeader ? theadRows : tbodyRows).push(rowHtml);
+
+      if (rowSection === 'tfoot') {
+        tfootRows.push(rowHtml);
+      } else if (isHeader) {
+        theadRows.push(rowHtml);
+      } else {
+        tbodyRows.push(rowHtml);
+      }
     });
 
     if (theadRows.length) {
@@ -255,14 +293,19 @@ function elementToHtml(
     if (tbodyRows.length) {
       inner += `\n<tbody>\n${tbodyRows.join('\n')}\n</tbody>`;
     }
+    if (tfootRows.length) {
+      inner += `\n<tfoot>\n${tfootRows.join('\n')}\n</tfoot>`;
+    }
     if (el.content && el.content.length) {
       inner += `\n${(el.content as DocumentElement[])
-        .map((c) => elementToHtml(c, defaults))
+        .map((c) => elementToHtml(c, defaults, stylesheet))
         .join('\n')}`;
     }
     inner += '\n';
   } else if (Array.isArray(el.content) && el.content.length) {
-    inner = el.content.map((c) => elementToHtml(c, defaults)).join('');
+    inner = el.content
+      .map((c) => elementToHtml(c, defaults, stylesheet))
+      .join('');
   } else if (typeof el.text === 'string') {
     inner = encodeText(el.text);
   }
@@ -275,9 +318,10 @@ function elementToHtml(
  * ----------------------------------------------------------- */
 function cellToHtml(
   cell: TableCellElement,
-  defaults: IConverterDependencies['defaultStyles'] = {}
+  defaults: HtmlSerializationStyles = {},
+  stylesheet: IStylesheet = createBaseStylesheet()
 ): string {
-  const tag = cell.styles?.textAlign === 'center' ? 'th' : 'td';
+  const tag = cell.metadata?.tagName === 'th' ? 'th' : 'td';
   // basic attrs
   const attrs: string[] = [];
   if (typeof cell.colspan === 'number' && cell.colspan > 1)
@@ -285,9 +329,9 @@ function cellToHtml(
   if (typeof cell.rowspan === 'number' && cell.rowspan > 1)
     attrs.push(`rowspan="${cell.rowspan}"`);
   const merged = {
-    ...(defaults?.['table-cell'] || {}),
-    ...(cell.styles || {}),
-  } as Record<string, string | number>;
+    ...defaults[cell.type],
+    ...stylesheet.getComputedStyles(cell, undefined),
+  };
   if (Object.keys(merged).length) {
     const styleEntries = Object.entries(filterStyles(tag, merged)).map(
       ([k, v]) => `${camelToKebab(k)}: ${v}`
@@ -299,7 +343,7 @@ function cellToHtml(
   const attrString = attrs.length ? ' ' + attrs.join(' ') : '';
   const inner =
     Array.isArray(cell.content) && cell.content.length
-      ? cell.content.map((c) => elementToHtml(c, defaults)).join('')
+      ? cell.content.map((c) => elementToHtml(c, defaults, stylesheet)).join('')
       : typeof cell.text === 'string'
         ? encodeText(cell.text)
         : '';
