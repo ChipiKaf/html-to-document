@@ -118,6 +118,120 @@ describe('Converter initialization', () => {
       expect(parsed[0].text).toBe('bar');
     });
 
+    it('should apply plugin transformHtml hooks in registration order after deprecated middleware', async () => {
+      class DummyAdapter implements IDocumentConverter {
+        public parsed?: any;
+        async convert(parsed: any): Promise<Buffer> {
+          this.parsed = parsed;
+          return Buffer.from('dummy-result');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [{ format: 'dummy', adapter: DummyAdapter }] },
+        middleware: [async (html) => html.replace('foo', 'bar')],
+        plugins: [
+          {
+            name: 'append-baz',
+            transformHtml: (html) => html.replace('bar', 'bar baz'),
+          },
+        ],
+      });
+
+      const parsed = await converter.parse('<p>foo</p>');
+      expect(parsed[0].text).toBe('bar baz');
+    });
+
+    it('should apply plugin transformDocument hooks after parsing', async () => {
+      class DummyAdapter implements IDocumentConverter {
+        public parsed?: any;
+        async convert(parsed: any): Promise<Buffer> {
+          this.parsed = parsed;
+          return Buffer.from('dummy-result');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [{ format: 'dummy', adapter: DummyAdapter }] },
+        plugins: [
+          {
+            name: 'annotate-document',
+            transformDocument: (elements) =>
+              elements.map((element) =>
+                element.type === 'paragraph'
+                  ? {
+                      ...element,
+                      text: `${element.text ?? ''}!`,
+                      metadata: {
+                        ...(element.metadata ?? {}),
+                        pluginApplied: true,
+                      },
+                    }
+                  : element
+              ),
+          },
+        ],
+      });
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0]).toMatchObject({
+        type: 'paragraph',
+        text: 'Hello!',
+        metadata: { pluginApplied: true },
+      });
+    });
+
+    it('should ignore undefined plugin hooks', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [{ name: 'no-op' }],
+      });
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0].text).toBe('Hello');
+    });
+
+    it('should wrap transformHtml plugin failures with plugin context', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            name: 'broken-html',
+            transformHtml: () => {
+              throw new Error('boom');
+            },
+          },
+        ],
+      });
+
+      await expect(converter.parse('<p>Hello</p>')).rejects.toThrow(
+        'Plugin "broken-html" failed in transformHtml: boom'
+      );
+    });
+
+    it('should wrap transformDocument plugin failures with plugin context', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            name: 'broken-document',
+            transformDocument: () => {
+              throw new Error('boom');
+            },
+          },
+        ],
+      });
+
+      await expect(converter.parse('<p>Hello</p>')).rejects.toThrow(
+        'Plugin "broken-document" failed in transformDocument: boom'
+      );
+    });
+
     it('should add tags.defaultStyles to the stylesheet instead of inlining them', async () => {
       let receivedDependencies: any;
       let parsedElements: any[] = [];

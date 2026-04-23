@@ -12,10 +12,14 @@ import {
   DocumentElement,
   InitOptions,
   Middleware,
+  Plugin,
 } from './types';
 import { Parser } from './parser';
-import { MiddlewareManager } from './middleware/middleware.manager';
-import { minifyMiddleware } from './middleware/minify.middleware';
+import {
+  normalizePlugins,
+  runDocumentTransformPlugins,
+  runHtmlTransformPlugins,
+} from './plugins/plugin.pipeline';
 import { ConverterRegistry } from './registry';
 import { initStyleMeta } from './styles/style-inheritance';
 import {
@@ -27,14 +31,14 @@ import { createStylesheet } from './styles/sheet';
 import * as CSS from 'csstype';
 
 export class Converter {
-  private _middlewareManager: MiddlewareManager;
+  private _plugins: Plugin[];
   private _parser: Parser;
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
-    const { tags, domParser, registerAdapters } = options;
+    const { tags, domParser, registerAdapters, plugins } = options;
     this._registry = new ConverterRegistry();
-    this._middlewareManager = new MiddlewareManager();
+    this._plugins = [...(plugins ?? [])];
     this._parser = new Parser(
       tags?.tagHandlers,
       domParser,
@@ -50,7 +54,10 @@ export class Converter {
   }
 
   public useMiddleware(mw: Middleware) {
-    this._middlewareManager.use(mw);
+    this._plugins.push({
+      name: `runtime-middleware-${this._plugins.length + 1}`,
+      transformHtml: mw,
+    });
   }
 
   public registerConverter(format: string, converter: IDocumentConverter) {
@@ -95,8 +102,9 @@ export class Converter {
    * @returns A `Promise` that resolves to an array of `DocumentElement` objects representing the parsed content.
    */
   async parse(html: string): Promise<DocumentElement[]> {
-    const modifiedHtml = await this._middlewareManager.execute(html);
-    return this._parser.parse(modifiedHtml);
+    const modifiedHtml = await runHtmlTransformPlugins(html, this._plugins);
+    const parsed = this._parser.parse(modifiedHtml);
+    return runDocumentTransformPlugins(parsed, this._plugins);
   }
 }
 
@@ -146,6 +154,7 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
   options?: InitOptions<T>
 ) => {
   const {
+    plugins = [],
     middleware,
     tags,
     adapters,
@@ -222,19 +231,12 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     domParser,
     adapters,
     stylesheet,
+    plugins: normalizePlugins({
+      clearMiddleware,
+      middleware,
+      plugins,
+    }),
   });
-
-  // Default middleware
-  if (!clearMiddleware) {
-    converter.useMiddleware(minifyMiddleware);
-  }
-
-  // Incoming middleware
-  if (middleware && middleware.length > 0) {
-    middleware.forEach((mw) => {
-      converter.useMiddleware(mw);
-    });
-  }
 
   return converter;
 };

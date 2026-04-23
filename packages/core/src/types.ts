@@ -1,5 +1,10 @@
 import * as CSS from 'csstype';
-import { IStylesheet, StylesheetStatement } from './styles/interfaces';
+import type {
+  IMatchElementDecorator,
+  IStylesheet,
+  IStylesheetDecorator,
+  StylesheetStatement,
+} from './styles/interfaces';
 
 /**
  * Represents a style object, allowing both arbitrary keys and known CSS properties.
@@ -252,10 +257,37 @@ export interface GridCell {
   isMaster?: boolean; // indicates the starting (master) cell
 }
 
+export type Awaitable<T> = T | Promise<T>;
+
 /**
- * Middleware function type for processing HTML strings asynchronously.
+ * Middleware function type for processing HTML strings.
+ *
+ * @deprecated Use `Plugin['transformHtml']` instead.
  */
-export type Middleware = (html: string) => Promise<string>;
+export type Middleware = (html: string) => Awaitable<string>;
+
+export type HtmlTransformPluginHook = (html: string) => Awaitable<string>;
+
+export type DocumentTransformPluginHook = (
+  elements: DocumentElement[]
+) => Awaitable<DocumentElement[]>;
+
+export interface Plugin {
+  /** Optional human-readable plugin name for diagnostics. */
+  name?: string;
+  /** Optional HTML transform hook executed before parsing. */
+  transformHtml?: HtmlTransformPluginHook;
+  /** Optional document transform hook executed after parsing. */
+  transformDocument?: DocumentTransformPluginHook;
+  /** Optional stylesheet setup hook for adding rules/at-rules. */
+  setupStylesheet?: (sheet: IStylesheet) => void;
+  /** Optional stylesheet decorator hook for wrapping the public stylesheet API. */
+  createStylesheetDecorator?: (
+    sheet: IStylesheet
+  ) => IStylesheetDecorator | undefined;
+  /** Optional internal matcher decorator hook. */
+  createMatchElementDecorator?: () => IMatchElementDecorator | undefined;
+}
 /**
  * Options passed to tag handlers for parsing HTML elements.
  */
@@ -448,8 +480,12 @@ export type InitOptions<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     readonly AdapterProvider<any>[] = AdapterProvider<any>[],
 > = {
-  /** Optional middleware functions to apply */
+  /** Optional plugins that participate in HTML, document, and stylesheet stages. */
+  plugins?: readonly Plugin[];
+  /** @deprecated Use `plugins[].transformHtml` instead. */
   middleware?: readonly Middleware[];
+  /** @deprecated Disables the built-in HTML minify plugin. */
+  clearMiddleware?: boolean;
   /**
    * Optional custom style inheritance rules.
    * Allows overriding default inheritance behavior for specific CSS properties.
@@ -486,8 +522,6 @@ export type InitOptions<
    * You can include extra style rules in this stylesheet, but all other style rules will still be appended.
    * */
   stylesheet?: IStylesheet;
-  /** Whether to clear default middleware */
-  clearMiddleware?: boolean;
   /**
    * Optional adapters configuration for supported formats.
    *
@@ -560,6 +594,7 @@ export type ConverterOptions = Omit<
   InitOptions,
   'clearMiddleware' | 'middleware'
 > & {
+  plugins?: readonly Plugin[];
   registerAdapters?: {
     format: Formats;
     adapter: IDocumentConverter;
