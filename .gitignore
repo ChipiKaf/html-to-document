@@ -7,3 +7,7 @@ _index.ts
 tsconfig.tsbuildinfo
 
 .turbo
+
+docs/.workflows/
+docs/superpowers/
+.worktrees/
