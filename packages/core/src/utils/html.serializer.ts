@@ -42,9 +42,15 @@ export function toHtml(
  *  should NOT be re‑emitted when serialising back to raw HTML.  */
 const defaultTagStyles: Record<string, Record<string, string | number>> = {
   strong: { fontWeight: 'bold' },
+  b: { fontWeight: 'bold' },
   em: { fontStyle: 'italic' },
+  i: { fontStyle: 'italic' },
+  cite: { fontStyle: 'italic' },
+  dfn: { fontStyle: 'italic' },
+  var: { fontStyle: 'italic' },
   small: { fontSize: '8px' },
   u: { textDecoration: 'underline' },
+  ins: { textDecoration: 'underline' },
   sup: { verticalAlign: 'super' },
   sub: { verticalAlign: 'sub' },
   h1: { fontSize: '32px', fontWeight: 'bold' },
@@ -54,7 +60,9 @@ const defaultTagStyles: Record<string, Record<string, string | number>> = {
   h5: { fontWeight: 'bold' },
   h6: { fontWeight: 'bold' },
   pre: { fontFamily: 'monospace', whiteSpace: 'pre-wrap' },
-  code: { backgroundColor: 'lightGray' },
+  code: { fontFamily: 'monospace', backgroundColor: 'lightGray' },
+  kbd: { fontFamily: 'monospace' },
+  samp: { fontFamily: 'monospace' },
   blockquote: {
     borderLeftColor: 'lightGray',
     borderLeftStyle: 'solid',
@@ -62,9 +70,14 @@ const defaultTagStyles: Record<string, Record<string, string | number>> = {
     paddingLeft: '16px',
     marginLeft: '24px',
   },
+  address: { fontStyle: 'italic' },
+  mark: { backgroundColor: 'yellow' },
   figcaption: { fontStyle: 'italic', textAlign: 'center' },
   caption: { fontStyle: 'italic', textAlign: 'center' },
+  dt: { fontWeight: 'bold' },
   dd: { marginLeft: '40px' },
+  s: { textDecoration: 'line-through' },
+  del: { textDecoration: 'line-through' },
   th: { textAlign: 'center' },
 };
 

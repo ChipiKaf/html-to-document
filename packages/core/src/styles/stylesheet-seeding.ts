@@ -26,7 +26,37 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
     },
   },
   {
+    key: 'b',
+    styles: {
+      fontWeight: 'bold',
+    },
+  },
+  {
     key: 'em',
+    styles: {
+      fontStyle: 'italic',
+    },
+  },
+  {
+    key: 'i',
+    styles: {
+      fontStyle: 'italic',
+    },
+  },
+  {
+    key: 'cite',
+    styles: {
+      fontStyle: 'italic',
+    },
+  },
+  {
+    key: 'dfn',
+    styles: {
+      fontStyle: 'italic',
+    },
+  },
+  {
+    key: 'var',
     styles: {
       fontStyle: 'italic',
     },
@@ -39,6 +69,12 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
   },
   {
     key: 'u',
+    styles: {
+      textDecoration: 'underline',
+    },
+  },
+  {
+    key: 'ins',
     styles: {
       textDecoration: 'underline',
     },
@@ -65,7 +101,20 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
   {
     key: 'code',
     styles: {
+      fontFamily: 'monospace',
       backgroundColor: 'lightGray',
+    },
+  },
+  {
+    key: 'kbd',
+    styles: {
+      fontFamily: 'monospace',
+    },
+  },
+  {
+    key: 'samp',
+    styles: {
+      fontFamily: 'monospace',
     },
   },
   {
@@ -76,6 +125,18 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
       borderLeftWidth: 2,
       paddingLeft: '16px',
       marginLeft: '24px',
+    },
+  },
+  {
+    key: 'address',
+    styles: {
+      fontStyle: 'italic',
+    },
+  },
+  {
+    key: 'mark',
+    styles: {
+      backgroundColor: 'yellow',
     },
   },
   {
@@ -93,9 +154,27 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
     },
   },
   {
+    key: 'dt',
+    styles: {
+      fontWeight: 'bold',
+    },
+  },
+  {
     key: 'dd',
     styles: {
       marginLeft: '40px',
+    },
+  },
+  {
+    key: 's',
+    styles: {
+      textDecoration: 'line-through',
+    },
+  },
+  {
+    key: 'del',
+    styles: {
+      textDecoration: 'line-through',
     },
   },
 ] as const;

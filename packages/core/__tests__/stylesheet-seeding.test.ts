@@ -76,11 +76,84 @@ describe('stylesheet seeding', () => {
 
     expect(
       stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'code' },
+      })
+    ).toEqual({
+      fontFamily: 'monospace',
+      backgroundColor: 'lightGray',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'paragraph',
+        metadata: { tagName: 'dt' },
+      })
+    ).toEqual({
+      fontWeight: 'bold',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
         type: 'paragraph',
         metadata: { tagName: 'dd' },
       })
     ).toEqual({
       marginLeft: '40px',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'b' },
+      })
+    ).toEqual({
+      fontWeight: 'bold',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'i' },
+      })
+    ).toEqual({
+      fontStyle: 'italic',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'mark' },
+      })
+    ).toEqual({
+      backgroundColor: 'yellow',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'kbd' },
+      })
+    ).toEqual({
+      fontFamily: 'monospace',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'del' },
+      })
+    ).toEqual({
+      textDecoration: 'line-through',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'paragraph',
+        metadata: { tagName: 'address' },
+      })
+    ).toEqual({
+      fontStyle: 'italic',
     });
   });
 

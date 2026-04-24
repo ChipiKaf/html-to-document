@@ -261,6 +261,41 @@ describe('Parser', () => {
       ]);
     });
 
+    it('parses semantic inline formatting tags as text elements and address as a paragraph', () => {
+      let result = parser.parse(
+        '<p><b>B</b><i>I</i><s>S</s><del>D</del><ins>U</ins><mark>M</mark><cite>C</cite><dfn>Df</dfn><var>V</var><kbd>K</kbd><samp>Sa</samp></p><address>Addr</address>'
+      );
+      result = JSON.parse(JSON.stringify(result));
+      expect(result).toEqual([
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'B', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'I', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'S', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'D', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'U', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'M', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'C', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'Df', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'V', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'K', styles: {}, attributes: {}, scope: 'inline' },
+            { type: 'text', text: 'Sa', styles: {}, attributes: {}, scope: 'inline' },
+          ],
+          styles: {},
+          attributes: {},
+          scope: 'block',
+        },
+        {
+          type: 'paragraph',
+          text: 'Addr',
+          styles: {},
+          attributes: {},
+          scope: 'block',
+        },
+      ]);
+    });
+
     it('parses a single paragraph element with children content when no handler is registered', () => {
       let result = parser.parse(
         '<p style="font-weight:bold" data-custom="x"><span style="color: red;">Hello</span>World</p>'

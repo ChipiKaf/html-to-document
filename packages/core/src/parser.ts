@@ -373,6 +373,7 @@ export class Parser {
       case 'div':
         return { type: 'fragment', text, content: children, ...options };
       case 'strong':
+      case 'b':
         return {
           type: 'text',
           text,
@@ -397,6 +398,10 @@ export class Parser {
           ...options,
         };
       case 'em':
+      case 'i':
+      case 'cite':
+      case 'dfn':
+      case 'var':
         return {
           type: 'text',
           text,
@@ -414,6 +419,7 @@ export class Parser {
         };
 
       case 'u':
+      case 'ins':
         return {
           type: 'text',
           text,
@@ -471,6 +477,15 @@ export class Parser {
       case 'header':
         return { type: 'header', text, content: children, ...options };
 
+      case 'address':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
+
       case 'footer':
         return { type: 'footer', text, content: children, ...options };
 
@@ -485,6 +500,11 @@ export class Parser {
 
       case 'span':
       case 'a':
+      case 'mark':
+      case 'kbd':
+      case 'samp':
+      case 's':
+      case 'del':
         return {
           type: 'text',
           text,
