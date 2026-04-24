@@ -9,10 +9,10 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
 }[] = [
   { key: 'h1', styles: { fontSize: '32px', fontWeight: 'bold' } },
   { key: 'h2', styles: { fontSize: '24px', fontWeight: 'bold' } },
-  { key: 'h3', styles: { fontWeight: 'bold' } },
-  { key: 'h4', styles: { fontWeight: 'bold' } },
-  { key: 'h5', styles: { fontWeight: 'bold' } },
-  { key: 'h6', styles: { fontWeight: 'bold' } },
+  { key: 'h3', styles: { fontSize: '18.72px', fontWeight: 'bold' } },
+  { key: 'h4', styles: { fontSize: '16px', fontWeight: 'bold' } },
+  { key: 'h5', styles: { fontSize: '13.28px', fontWeight: 'bold' } },
+  { key: 'h6', styles: { fontSize: '10.72px', fontWeight: 'bold' } },
   {
     key: 'th',
     styles: {

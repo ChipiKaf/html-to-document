@@ -35,10 +35,44 @@ describe('stylesheet seeding', () => {
     expect(
       stylesheet.getMatchedStyles({
         type: 'heading',
+        level: 3,
+        metadata: { tagName: 'h3' },
+      })
+    ).toEqual({
+      fontSize: '18.72px',
+      fontWeight: 'bold',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'heading',
+        level: 4,
+        metadata: { tagName: 'h4' },
+      })
+    ).toEqual({
+      fontSize: '16px',
+      fontWeight: 'bold',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'heading',
+        level: 5,
+        metadata: { tagName: 'h5' },
+      })
+    ).toEqual({
+      fontSize: '13.28px',
+      fontWeight: 'bold',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'heading',
         level: 6,
         metadata: { tagName: 'h6' },
       })
     ).toEqual({
+      fontSize: '10.72px',
       fontWeight: 'bold',
     });
 
