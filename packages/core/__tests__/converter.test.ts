@@ -118,33 +118,42 @@ describe('Converter initialization', () => {
       expect(parsed[0].text).toBe('bar');
     });
 
-    it('should use defaultStyles and defaultAttributes via tags', async () => {
-      const tagHandler = {
-        key: 'p',
-        handler: (element: any, options: any) => ({
-          type: 'paragraph',
-          text: element.textContent,
-          styles: options.styles,
-          attributes: options.attributes,
-        }),
-      };
+    it('should add tags.defaultStyles to the stylesheet instead of inlining them', async () => {
+      let receivedDependencies: any;
+      let parsedElements: any[] = [];
+
+      class StyleAdapter implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependencies = deps;
+        }
+        async convert(parsed: any): Promise<Buffer> {
+          parsedElements = parsed;
+          return Buffer.from('style-ok');
+        }
+      }
+
       const converter = init({
         tags: {
-          tagHandlers: [tagHandler],
           defaultStyles: [
             { key: 'p', styles: { color: 'red', fontWeight: 'bold' } },
           ],
           defaultAttributes: [{ key: 'p', attributes: { 'data-test': 'yes' } }],
         },
         domParser: new JSDOMParser(),
-        adapters: { register: [] },
+        adapters: { register: [{ format: 'style', adapter: StyleAdapter }] },
       });
+
       const parsed = await converter.parse('<p>Styled</p>');
-      expect(parsed[0].styles).toMatchObject({
+      expect(parsed[0].styles ?? {}).toEqual({});
+      expect(parsed[0].attributes).toMatchObject({ 'data-test': 'yes' });
+
+      await converter.convert('<p>Styled</p>', 'style');
+      expect(
+        receivedDependencies.stylesheet.getMatchedStyles(parsedElements[0])
+      ).toMatchObject({
         color: 'red',
         fontWeight: 'bold',
       });
-      expect(parsed[0].attributes).toMatchObject({ 'data-test': 'yes' });
     });
 
     it('should register and convert with multiple adapters', async () => {
@@ -299,12 +308,62 @@ describe('Converter initialization', () => {
 
       await converter.convert('<h1>hi</h1>', 'style');
 
-      expect(receivedDependencies.stylesheet.getMatchedStyles(parsedElements[0]))
-        .toMatchObject({
-          fontSize: '32px',
-          fontWeight: 'bold',
-        });
+      expect(
+        receivedDependencies.stylesheet.getMatchedStyles(parsedElements[0])
+      ).toMatchObject({
+        fontSize: '32px',
+        fontWeight: 'bold',
+      });
       expect(parsedElements[0].styles ?? {}).toEqual({});
+    });
+
+    it('should seed stylesheet rules provided directly to init', async () => {
+      let receivedDependencies: any;
+      let parsedElements: any[] = [];
+
+      class StyleAdapter implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependencies = deps;
+        }
+        async convert(parsed: any): Promise<Buffer> {
+          parsedElements = parsed;
+          return Buffer.from('style-ok');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        stylesheetRules: [
+          {
+            kind: 'style',
+            selectors: ['p.note'],
+            declarations: { color: 'green' },
+          },
+          {
+            kind: 'at-rule',
+            name: 'page',
+            descriptors: { size: 'A4' },
+          },
+        ],
+        adapters: {
+          register: [{ format: 'style', adapter: StyleAdapter }],
+        },
+      });
+
+      await converter.convert('<p class="note">hi</p>', 'style');
+
+      expect(
+        receivedDependencies.stylesheet.getMatchedStyles(parsedElements[0])
+      ).toMatchObject({ color: 'green' });
+      expect(receivedDependencies.stylesheet.getAtRules('page')).toEqual([
+        {
+          kind: 'at-rule',
+          name: 'page',
+          descriptors: { size: 'A4' },
+          prelude: undefined,
+          children: undefined,
+        },
+      ]);
     });
 
     it('should give each adapter its own stylesheet instance', () => {

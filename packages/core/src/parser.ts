@@ -13,7 +13,6 @@ import {
   TagHandlerOptions,
   ListItemElement,
 } from './types';
-import * as CSS from 'csstype';
 
 class NativeParser implements IDOMParser {
   parse(html: string): Document {
@@ -40,10 +39,6 @@ const getListLevel = (tagName: string, options: TagHandlerOptions) => {
 export class Parser {
   private _tagHandlers: Map<string, TagHandler>;
   private _domParser: IDOMParser;
-  private _defaultStyles: Map<
-    keyof HTMLElementTagNameMap,
-    Partial<Record<keyof CSS.Properties, string | number>>
-  >;
   private _defaultAttributes: Map<
     keyof HTMLElementTagNameMap,
     Record<string, string | number>
@@ -52,10 +47,6 @@ export class Parser {
   constructor(
     tagHandlers?: readonly TagHandlerObject[],
     domParser?: IDOMParser,
-    defaultStyles: readonly {
-      key: keyof HTMLElementTagNameMap;
-      styles: Partial<Record<keyof CSS.Properties, string | number>>;
-    }[] = [],
     defaultAttributes: readonly {
       key: keyof HTMLElementTagNameMap;
       attributes: Record<string, string | number>;
@@ -63,7 +54,6 @@ export class Parser {
   ) {
     this._domParser = domParser || new NativeParser();
     this._tagHandlers = new Map();
-    this._defaultStyles = new Map();
     this._defaultAttributes = new Map();
     // Add default handlers
     this._tagHandlers.set('table', this._parseTable.bind(this));
@@ -76,10 +66,6 @@ export class Parser {
       });
     }
 
-    // Apply any user-provided defaultStyles (override built-in headings)
-    defaultStyles.forEach((style) => {
-      this._defaultStyles.set(style.key, style.styles);
-    });
     defaultAttributes.forEach((attribute) => {
       this._defaultAttributes.set(attribute.key, attribute.attributes);
     });
@@ -102,14 +88,6 @@ export class Parser {
       });
     } catch {}
     return tree;
-  }
-
-  private _getDefaultStylesForTag(
-    tagName: keyof HTMLElementTagNameMap
-  ): Partial<Record<keyof CSS.Properties, string | number>> {
-    return {
-      ...(this._defaultStyles.get(tagName) ?? {}),
-    };
   }
 
   private _parseRow(
@@ -139,9 +117,6 @@ export class Parser {
 
         const cs = parseStyles(cell);
         const ca = parseAttributes(cell);
-        const ds = this._getDefaultStylesForTag(
-          cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
-        );
         const da =
           this._defaultAttributes.get(
             cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
@@ -156,9 +131,7 @@ export class Parser {
         cells.push({
           type: 'table-cell',
           content,
-          styles: isHeader
-            ? { textAlign: 'center', ...ds, ...cs }
-            : { ...ds, ...cs },
+          styles: isHeader ? { textAlign: 'center', ...cs } : { ...cs },
           attributes: { ...da, ...ca },
           colspan,
           rowspan,
@@ -201,13 +174,7 @@ export class Parser {
       ...attributes,
     };
 
-    // Add default styles
     styles = {
-      ...this._getDefaultStylesForTag(
-        (
-          element as HTMLElement
-        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
-      ),
       ...options.styles,
       ...styles,
     };
@@ -300,11 +267,6 @@ export class Parser {
     const content: DocumentElement[] = [];
 
     // Fetch defaults
-    const defaultTableStyles = this._getDefaultStylesForTag(
-      (
-        element as HTMLElement
-      ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
-    );
     const defaultTableAttrs =
       this._defaultAttributes.get(
         (
@@ -344,7 +306,6 @@ export class Parser {
       rows,
       content: content.length > 0 ? content : undefined,
       styles: {
-        ...defaultTableStyles,
         ...options.styles,
       },
       metadata: {

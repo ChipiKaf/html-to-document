@@ -3,6 +3,7 @@ import {
   createBaseStylesheet,
   createStylesheet,
   defaultStylesToStylesheetRules,
+  tagDefaultStylesToStylesheetRules,
 } from '../src';
 
 describe('stylesheet seeding', () => {
@@ -70,5 +71,28 @@ describe('stylesheet seeding', () => {
         text: 'Hello world',
       })
     ).toEqual({ fontFamily: 'Aptos' });
+  });
+
+  it('converts tag defaultStyles into stylesheet tag rules', () => {
+    const stylesheet = createStylesheet(
+      tagDefaultStylesToStylesheetRules([
+        { key: 'p', styles: { color: 'red' } },
+        { key: 'table', styles: { borderStyle: 'solid' } },
+      ])
+    );
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'paragraph',
+        metadata: { tagName: 'p' },
+      })
+    ).toEqual({ color: 'red' });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'table',
+        metadata: { tagName: 'table' },
+      })
+    ).toEqual({ borderStyle: 'solid' });
   });
 });

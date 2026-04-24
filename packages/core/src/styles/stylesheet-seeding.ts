@@ -46,3 +46,24 @@ export function defaultStylesToStylesheetRules(
     }
   );
 }
+
+export function tagDefaultStylesToStylesheetRules(
+  defaultStyles: readonly {
+    key: keyof HTMLElementTagNameMap;
+    styles: Styles;
+  }[] = []
+): StyleRule[] {
+  return defaultStyles.flatMap(({ key, styles }) => {
+    if (!styles || Object.keys(styles).length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        kind: 'style' as const,
+        selectors: [key],
+        declarations: { ...styles },
+      },
+    ];
+  });
+}

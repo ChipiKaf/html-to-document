@@ -96,6 +96,32 @@ const docxBuffer = await converter.convert(elements, 'docx');
 - `options`: configuration for tags, middleware, adapters, DOM parser, and **styleInheritance**.
 - Returns a `Converter` instance.
 
+#### Stylesheet API
+
+Core now exposes a rule-based stylesheet model for adapter-time style resolution.
+
+```ts
+import { createStylesheet } from 'html-to-document-core';
+
+const stylesheet = createStylesheet();
+stylesheet.addStyleRule('p.note', { color: 'rebeccapurple' });
+stylesheet.addAtRule({
+  kind: 'at-rule',
+  name: 'page',
+  descriptors: { size: 'A4', margin: '1in' },
+});
+```
+
+Registered adapters receive a `stylesheet` instance through `IConverterDependencies`.
+
+Use:
+
+- `getMatchedStyles(element)` for stylesheet-only matches
+- `getComputedStyles(element, cascadedStyles)` for cascaded + stylesheet + inline styles
+- `getStatements()` / `getAtRules(name)` to inspect raw statements
+
+`adapters.defaultStyles` is now seeded into each adapter's stylesheet as format-specific rules, while `tags.defaultStyles` remains parser-time behavior and is merged directly into `element.styles`.
+
 #### Customizing Style Inheritance
 
 You can override default inheritance rules (e.g., forcing table borders to inherit to children) using `styleInheritance`:

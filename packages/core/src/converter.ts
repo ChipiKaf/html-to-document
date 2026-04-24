@@ -17,6 +17,7 @@ import { initStyleMeta } from './styles/style-inheritance';
 import {
   createBaseStylesheet,
   defaultStylesToStylesheetRules,
+  tagDefaultStylesToStylesheetRules,
 } from './styles/stylesheet-seeding';
 import { createStylesheet } from './styles/sheet';
 import * as CSS from 'csstype';
@@ -33,7 +34,6 @@ export class Converter {
     this._parser = new Parser(
       tags?.tagHandlers,
       domParser,
-      tags?.defaultStyles,
       tags?.defaultAttributes
     );
 
@@ -120,6 +120,8 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     domParser,
     clearMiddleware = false,
     styleInheritance,
+    stylesheetRules = [],
+    stylesheet = createBaseStylesheet(),
   } = options ?? {};
 
   // Initialize style meta
@@ -136,7 +138,13 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     }
   }
 
-  const baseStylesheet = createBaseStylesheet();
+  for (const rule of tagDefaultStylesToStylesheetRules(tags?.defaultStyles)) {
+    stylesheet.add(rule);
+  }
+
+  for (const rule of stylesheetRules) {
+    stylesheet.add(rule);
+  }
 
   // Initialize registered adapters
   const registerAdapters = adapters?.register?.map(
@@ -145,10 +153,8 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
         adapters?.defaultStyles?.find(
           ({ format: nFormat }) => nFormat === format
         )?.styles || {};
-      // REFACTOR: consider plugin stylesheet decoration
-      const adapterStylesheet = createStylesheet(
-        baseStylesheet.getStatements()
-      );
+      // FIXME: consider plugin stylesheet decoration and using custom implementation
+      const adapterStylesheet = createStylesheet(stylesheet.getStatements());
 
       for (const rule of defaultStylesToStylesheetRules(defaultStyles)) {
         adapterStylesheet.add(rule);
@@ -171,7 +177,7 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     registerAdapters,
     domParser,
     adapters,
-    stylesheet: baseStylesheet,
+    stylesheet,
   });
 
   // Default middleware

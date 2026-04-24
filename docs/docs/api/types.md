@@ -20,8 +20,13 @@ sidebar_position: 7
 | `IDOMParser`         | Interface for custom DOM parser with `parse(html: string): Document`.    |
 | `IDocumentConverter` | Adapter interface (`convert(elements): Promise<Buffer \| Blob>`).        |
 | `AdapterProvider`    | Constructor type `(new(deps) => IDocumentConverter)`.                    |
+| `IStylesheet`        | Rule-based stylesheet interface passed to adapters.                      |
+| `StyleRule`          | A selector rule with declarations.                                       |
+| `AtRule`             | A top-level or nested at-rule statement like `@page`.                    |
 
 DOCX-specific mapping helpers such as `DocxStyleMapping` and `DocxStyleMapper` now live in `html-to-document-adapter-docx`, not in core.
+
+For the stylesheet model and helpers, see [Stylesheet API](./stylesheet).
 
 For full definitions, refer to the TypeScript source in `src/core/types.ts`.
 
