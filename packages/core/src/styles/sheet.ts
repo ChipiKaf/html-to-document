@@ -395,6 +395,9 @@ export class Stylesheet implements IStylesheet {
         kind: 'style',
         selectors: [...statement.selectors],
         declarations: { ...statement.declarations },
+        children: statement.children
+          ?.map((child) => this.cloneStatement(child))
+          .filter((child) => child.kind === 'at-rule'),
       };
     }
 
@@ -422,6 +425,9 @@ export class Stylesheet implements IStylesheet {
       kind: 'style',
       selectors,
       declarations: { ...statement.declarations },
+      children: statement.children
+        ?.map((child) => this.normalizeAtRule(child))
+        .filter((child) => child.kind === 'at-rule'),
     };
   }
 

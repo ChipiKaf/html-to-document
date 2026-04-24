@@ -200,6 +200,8 @@ const converter = init({
 
 This is the simplest way to seed stylesheet statements without manually creating a stylesheet instance.
 
+Style rules can also carry nested at-rules for forward-compatible rule trees. Those nested at-rules are preserved by the API, even though the current matcher does not evaluate them yet.
+
 ### Custom stylesheet instances in `init()`
 
 If you want full control, you can provide a stylesheet instance too.

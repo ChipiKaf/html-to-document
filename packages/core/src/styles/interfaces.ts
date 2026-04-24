@@ -23,6 +23,14 @@ export interface StyleRule {
   kind: 'style';
   selectors: readonly string[];
   declarations: Styles;
+
+  /**
+   * Reserved for future nested rule support.
+   * At-rules may be attached to a style rule and will be preserved,
+   * even though the current style matcher only evaluates the style
+   * rule's own selectors + declarations.
+   */
+  children?: readonly AtRule[];
 }
 
 export interface AtRule<Name extends string = string> {

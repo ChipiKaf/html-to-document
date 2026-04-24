@@ -179,6 +179,13 @@ describe('stylesheet', () => {
           kind: 'style',
           selectors: ['p'],
           declarations: { color: 'black' },
+          children: [
+            {
+              kind: 'at-rule',
+              name: 'supports',
+              prelude: '(color: red)',
+            },
+          ],
         },
       ],
     });
@@ -192,13 +199,15 @@ describe('stylesheet', () => {
       !firstStatement ||
       firstStatement.kind !== 'at-rule' ||
       !firstStatement.children ||
-      firstStatement.children[0]?.kind !== 'style'
+      firstStatement.children[0]?.kind !== 'style' ||
+      !firstStatement.children[0].children
     ) {
       throw new Error('expected stylesheet contents to exist');
     }
 
     (firstAtRule.descriptors as Record<string, string | number>).size = 'Legal';
     firstStatement.children[0].declarations.color = 'red';
+    firstStatement.children[0].children[0]!.prelude = '(color: blue)';
 
     expect(sheet.getAtRules('page')).toEqual([
       {
@@ -211,6 +220,66 @@ describe('stylesheet', () => {
             kind: 'style',
             selectors: ['p'],
             declarations: { color: 'black' },
+            children: [
+              {
+                kind: 'at-rule',
+                name: 'supports',
+                prelude: '(color: red)',
+                descriptors: undefined,
+                children: undefined,
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('preserves at-rules nested directly inside style rules', () => {
+    const sheet = new Stylesheet([
+      {
+        kind: 'style',
+        selectors: ['p.note'],
+        declarations: { color: 'purple' },
+        children: [
+          {
+            kind: 'at-rule',
+            name: 'container',
+            prelude: 'card (min-width: 20rem)',
+            children: [
+              {
+                kind: 'style',
+                selectors: ['&'],
+                declarations: { color: 'blue' },
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    expect(sheet.getComputedStylesBySelector('p.note')).toEqual({
+      color: 'purple',
+    });
+    expect(sheet.getStatements()).toEqual([
+      {
+        kind: 'style',
+        selectors: ['p.note'],
+        declarations: { color: 'purple' },
+        children: [
+          {
+            kind: 'at-rule',
+            name: 'container',
+            prelude: 'card (min-width: 20rem)',
+            descriptors: undefined,
+            children: [
+              {
+                kind: 'style',
+                selectors: ['&'],
+                declarations: { color: 'blue' },
+                children: undefined,
+              },
+            ],
           },
         ],
       },

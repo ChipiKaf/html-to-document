@@ -141,7 +141,7 @@ That behaves like this conceptually:
     selectors: ['table'],
     declarations: { borderStyle: 'solid' },
   },
-]
+];
 ```
 
 This means tag defaults remain selector-driven and can be resolved consistently by adapters.
@@ -186,6 +186,32 @@ const rule = {
 } as const;
 ```
 
+Style rules may also contain nested at-rules.
+
+```ts
+const rule = {
+  kind: 'style',
+  selectors: ['.card'],
+  declarations: { padding: '12px' },
+  children: [
+    {
+      kind: 'at-rule',
+      name: 'container',
+      prelude: 'card (min-width: 20rem)',
+      children: [
+        {
+          kind: 'style',
+          selectors: ['&'],
+          declarations: { padding: '16px' },
+        },
+      ],
+    },
+  ],
+} as const;
+```
+
+These nested at-rules are currently preserved for consumers and future compatibility, but they are not evaluated by the current matcher.
+
 ### At-rule
 
 ```ts
@@ -200,7 +226,7 @@ const rule = {
 } as const;
 ```
 
-Nested children are also supported for block at-rules.
+Nested children are also supported for block at-rules. Style rules may also preserve nested at-rules for future use.
 
 ## Selector support
 
