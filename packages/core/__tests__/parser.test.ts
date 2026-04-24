@@ -327,7 +327,6 @@ describe('Parser', () => {
           ],
           styles: {
             fontWeight: 'bold',
-            fontSize: '32px',
           },
           attributes: {
             'data-custom': 'x',

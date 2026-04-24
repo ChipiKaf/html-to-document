@@ -48,6 +48,7 @@ export class Parser {
     keyof HTMLElementTagNameMap,
     Record<string, string | number>
   >;
+
   constructor(
     tagHandlers?: readonly TagHandlerObject[],
     domParser?: IDOMParser,
@@ -74,20 +75,7 @@ export class Parser {
         this._tagHandlers.set(tHandler.key, tHandler.handler);
       });
     }
-    // Built-in default styles for headings (lowest priority, user overrides by defaultStyles param or inline styles)
-    [
-      ['h1', { fontSize: '32px', fontWeight: 'bold' }],
-      ['h2', { fontSize: '24px', fontWeight: 'bold' }],
-      ['h3', { fontWeight: 'bold' }],
-      ['h4', { fontWeight: 'bold' }],
-      ['h5', { fontWeight: 'bold' }],
-      ['h6', { fontWeight: 'bold' }],
-    ].forEach(([tag, styles]) => {
-      this._defaultStyles.set(
-        tag as keyof HTMLElementTagNameMap,
-        styles as Record<keyof CSS.Properties, string | number>
-      );
-    });
+
     // Apply any user-provided defaultStyles (override built-in headings)
     defaultStyles.forEach((style) => {
       this._defaultStyles.set(style.key, style.styles);
@@ -114,6 +102,14 @@ export class Parser {
       });
     } catch {}
     return tree;
+  }
+
+  private _getDefaultStylesForTag(
+    tagName: keyof HTMLElementTagNameMap
+  ): Partial<Record<keyof CSS.Properties, string | number>> {
+    return {
+      ...(this._defaultStyles.get(tagName) ?? {}),
+    };
   }
 
   private _parseRow(
@@ -143,10 +139,9 @@ export class Parser {
 
         const cs = parseStyles(cell);
         const ca = parseAttributes(cell);
-        const ds =
-          this._defaultStyles.get(
-            cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
-          ) || {};
+        const ds = this._getDefaultStylesForTag(
+          cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
+        );
         const da =
           this._defaultAttributes.get(
             cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
@@ -208,11 +203,11 @@ export class Parser {
 
     // Add default styles
     styles = {
-      ...(this._defaultStyles.get(
+      ...this._getDefaultStylesForTag(
         (
           element as HTMLElement
         ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
-      ) ?? {}),
+      ),
       ...options.styles,
       ...styles,
     };
@@ -305,12 +300,11 @@ export class Parser {
     const content: DocumentElement[] = [];
 
     // Fetch defaults
-    const defaultTableStyles =
-      this._defaultStyles.get(
-        (
-          element as HTMLElement
-        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
-      ) || {};
+    const defaultTableStyles = this._getDefaultStylesForTag(
+      (
+        element as HTMLElement
+      ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+    );
     const defaultTableAttrs =
       this._defaultAttributes.get(
         (

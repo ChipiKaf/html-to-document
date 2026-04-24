@@ -1,6 +1,7 @@
 import Specificity from '@bramus/specificity';
 import selectorParser from 'postcss-selector-parser';
 import { DocumentElement, Styles } from '../types';
+import { LEGACY_ELEMENT_TYPE_SELECTOR_ATTRIBUTE } from './constants';
 import type {
   SelectorTarget,
   StylesheetStatement,
@@ -107,9 +108,14 @@ export class Stylesheet implements IStylesheet {
     return this.resolveStylesForTargets(targets);
   }
 
-  getComputedStyles(element: DocumentElement): Styles {
+  getMatchedStyles(element: DocumentElement): Styles {
+    return this.resolveStylesForTargets([this.toTargetFromElement(element)]);
+  }
+
+  getComputedStyles(element: DocumentElement, cascadedStyles?: Styles): Styles {
     return {
-      ...this.resolveStylesForTargets([this.toTargetFromElement(element)]),
+      ...cascadedStyles,
+      ...this.getMatchedStyles(element),
       ...(element.styles ?? {}),
     };
   }
@@ -133,32 +139,33 @@ export class Stylesheet implements IStylesheet {
   }
 
   private normalizeAttributes(
-    attributes: DocumentElement['attributes'] | undefined,
-    metadata: DocumentElement['metadata'] | undefined
+    element: DocumentElement
   ): Record<string, string> {
     const normalized: Record<string, string> = {};
 
-    for (const [key, value] of Object.entries(attributes ?? {})) {
+    for (const [key, value] of Object.entries(element.attributes ?? {})) {
       normalized[key.toLowerCase()] = String(value);
     }
 
-    const metadataId = metadata?.id;
+    const metadataId = element.metadata?.id;
     if (typeof metadataId === 'string' && normalized.id === undefined) {
       normalized.id = metadataId;
     }
 
-    const metadataClass = metadata?.class;
+    const metadataClass = element.metadata?.class;
     if (typeof metadataClass === 'string' && normalized.class === undefined) {
       normalized.class = metadataClass;
     }
 
-    const metadataClassName = metadata?.className;
+    const metadataClassName = element.metadata?.className;
     if (
       typeof metadataClassName === 'string' &&
       normalized.class === undefined
     ) {
       normalized.class = metadataClassName;
     }
+
+    normalized[LEGACY_ELEMENT_TYPE_SELECTOR_ATTRIBUTE] = element.type;
 
     return normalized;
   }
@@ -187,10 +194,7 @@ export class Stylesheet implements IStylesheet {
   }
 
   private toTargetFromElement(element: DocumentElement): SelectorTarget {
-    const attributes = this.normalizeAttributes(
-      element.attributes,
-      element.metadata
-    );
+    const attributes = this.normalizeAttributes(element);
     const classes = new Set(
       (attributes.class ?? '')
         .split(/\s+/)

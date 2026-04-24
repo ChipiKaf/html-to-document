@@ -29,16 +29,22 @@ function isHtml2PdfBuilder(obj: unknown): obj is Html2PdfBuilder {
 export class PDFAdapter implements IDocumentConverter {
   private docxAdapter: DocxAdapter;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
+  private _stylesheet: IConverterDependencies['stylesheet'];
 
   constructor(dependencies: IConverterDependencies, config?: PDFAdapterConfig) {
     this.docxAdapter = new DocxAdapter(dependencies, config?.docx);
     this._defaultStyles = { ...(dependencies.defaultStyles ?? {}) };
+    this._stylesheet = dependencies.stylesheet;
   }
 
   async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
     try {
       // Step 1: Convert to DOCX using the existing DocxAdapter
-      const htmlString = toHtml(elements, this._defaultStyles);
+      const htmlString = toHtml(
+        elements,
+        this._stylesheet,
+        this._defaultStyles
+      );
       if (typeof window !== 'undefined') {
         // Browser: feed HTML straight to html2pdf
         return await this.convertHtmlInBrowser(htmlString);

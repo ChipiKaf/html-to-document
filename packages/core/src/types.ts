@@ -1,4 +1,5 @@
 import * as CSS from 'csstype';
+import { IStylesheet } from './styles/interfaces';
 
 /**
  * Represents a style object, allowing both arbitrary keys and known CSS properties.
@@ -354,14 +355,14 @@ export type TagHandlerObject = {
    */
   handler: TagHandler;
 };
-/**
- * Dependencies required by a document converter, such as default styles and style inheritance metadata.
- */
+
 export interface IConverterDependencies {
   /** Optional default styles for each element type */
   defaultStyles?: Partial<
     Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
   >;
+  /** Optional stylesheet carrying seeded parser defaults and adapter rules */
+  stylesheet: IStylesheet;
   /** The inheritance rules for styles */
   styleMeta?: Partial<Record<keyof CSS.Properties, StyleMeta>>;
   [key: string]: unknown;
@@ -533,6 +534,7 @@ export type ConverterOptions = Omit<
     format: Formats;
     adapter: IDocumentConverter;
   }[];
+  stylesheet?: IStylesheet;
 };
 
 export interface IDocumentConverter {

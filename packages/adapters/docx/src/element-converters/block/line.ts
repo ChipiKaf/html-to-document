@@ -8,14 +8,18 @@ export class LineConverter implements IBlockConverter<LineElement> {
   }
 
   async convertElement(
-    { converter, styleMapper, defaultStyles }: ElementConverterDependencies,
+    {
+      converter,
+      defaultStyles,
+      styleMapper,
+      stylesheet,
+    }: ElementConverterDependencies,
     element: LineElement,
     cascadedStyles: Styles = {}
   ): Promise<FileChild[]> {
     const mergedStyles = {
       ...defaultStyles?.[element.type],
-      ...cascadedStyles,
-      ...element.styles,
+      ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
 
     const children = converter.runFallthroughWrapConvertedChildren(

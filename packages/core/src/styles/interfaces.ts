@@ -1,6 +1,6 @@
 import Specificity from '@bramus/specificity';
 import selectorParser from 'postcss-selector-parser';
-import { Styles, DocumentElement } from '../types';
+import { DocumentElement, Styles } from '../types';
 
 export type StylesheetValue = string | number;
 
@@ -93,5 +93,19 @@ export interface IStylesheet {
   ): readonly AtRule<Name>[];
 
   getComputedStylesBySelector(selector: string): Styles;
-  getComputedStyles(element: DocumentElement): Styles;
+
+  /**
+   * Returns only the styles resolved from stylesheet rules that match the element.
+   * Does not merge in the element's own inline/document styles.
+   */
+  getMatchedStyles(element: DocumentElement): Styles;
+
+  /**
+   * Returns the final merged styles for the element.
+   * Starts with stylesheet-resolved styles, then applies the element's own styles.
+   */
+  getComputedStyles(
+    element: DocumentElement,
+    cascadedStyles: Styles | undefined
+  ): Styles;
 }

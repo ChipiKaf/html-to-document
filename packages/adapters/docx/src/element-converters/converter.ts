@@ -27,6 +27,13 @@ import { ImageConverter } from './inline/image';
 import { ImageBlockConverter } from './block/image';
 import { promiseAllFlat } from '../docx.util';
 
+type ElementConverterInitDependencies = {
+  styleMapper: DocxStyleMapper;
+  defaultStyles?: IConverterDependencies['defaultStyles'];
+  stylesheet: ElementConverterDependencies['stylesheet'];
+  styleMeta?: IConverterDependencies['styleMeta'];
+};
+
 export class ElementConverter {
   private readonly blockConverters: IBlockConverter[];
   private readonly inlineConverters: IInlineConverter[];
@@ -34,6 +41,7 @@ export class ElementConverter {
   private readonly textConverter: IInlineConverter<DocumentElement>;
   private readonly styleMapper: DocxStyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
+  private readonly stylesheet: ElementConverterDependencies['stylesheet'];
   private readonly styleMeta: IConverterDependencies['styleMeta'];
 
   private readonly elementConverterDependencies: ElementConverterDependencies;
@@ -42,10 +50,9 @@ export class ElementConverter {
     {
       styleMapper,
       defaultStyles,
+      stylesheet,
       styleMeta = initStyleMeta(),
-    }: IConverterDependencies & {
-      styleMapper: DocxStyleMapper;
-    },
+    }: ElementConverterInitDependencies,
     config?: DocxAdapterConfig
   ) {
     const {
@@ -75,12 +82,14 @@ export class ElementConverter {
     ];
     this.styleMapper = styleMapper;
     this.defaultStyles = defaultStyles;
+    this.stylesheet = stylesheet;
     this.styleMeta = styleMeta;
 
     this.elementConverterDependencies = {
       styleMapper: this.styleMapper,
       converter: this,
       defaultStyles: this.defaultStyles,
+      stylesheet: this.stylesheet,
       styleMeta: this.styleMeta,
     } as const;
   }

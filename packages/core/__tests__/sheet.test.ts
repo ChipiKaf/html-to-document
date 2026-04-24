@@ -27,6 +27,9 @@ describe('stylesheet', () => {
       level: 1,
       attributes: { class: 'hero' },
       styles: { marginBottom: '12px' },
+      metadata: {
+        tagName: 'h1',
+      },
     });
 
     expect(styles).toEqual({

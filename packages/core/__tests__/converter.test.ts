@@ -201,6 +201,7 @@ describe('Converter initialization', () => {
       expect(result.toString()).toBe('style-test');
       expect(receivedDependencies).toEqual({
         defaultStyles: {},
+        stylesheet: expect.any(Object),
         styleMeta: expect.any(Object),
       });
     });
@@ -273,6 +274,87 @@ describe('Converter initialization', () => {
       });
       await converter.convert('<h1>hi</h1>', 'style');
       expect(receivedStyles).toMatchObject({ heading: { color: 'blue' } });
+    });
+
+    it('should seed parser built-ins into adapter stylesheets without embedding them in parsed styles', async () => {
+      let receivedDependencies: any;
+      let parsedElements: any[] = [];
+
+      class StyleAdapter implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependencies = deps;
+        }
+        async convert(parsed: any): Promise<Buffer> {
+          parsedElements = parsed;
+          return Buffer.from('style-ok');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: {
+          register: [{ format: 'style', adapter: StyleAdapter }],
+        },
+      });
+
+      await converter.convert('<h1>hi</h1>', 'style');
+
+      expect(receivedDependencies.stylesheet.getMatchedStyles(parsedElements[0]))
+        .toMatchObject({
+          fontSize: '32px',
+          fontWeight: 'bold',
+        });
+      expect(parsedElements[0].styles ?? {}).toEqual({});
+    });
+
+    it('should give each adapter its own stylesheet instance', () => {
+      const receivedDependenciesByFormat: Record<string, any> = {};
+
+      class AdapterA implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependenciesByFormat.a = deps;
+        }
+        async convert(): Promise<Buffer> {
+          return Buffer.from('a');
+        }
+      }
+
+      class AdapterB implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependenciesByFormat.b = deps;
+        }
+        async convert(): Promise<Buffer> {
+          return Buffer.from('b');
+        }
+      }
+
+      init({
+        domParser: new JSDOMParser(),
+        adapters: {
+          register: [
+            { format: 'a', adapter: AdapterA },
+            { format: 'b', adapter: AdapterB },
+          ],
+          defaultStyles: [
+            { format: 'a', styles: { paragraph: { color: 'red' } } },
+            { format: 'b', styles: { paragraph: { color: 'blue' } } },
+          ],
+        },
+      });
+
+      expect(receivedDependenciesByFormat.a.stylesheet).not.toBe(
+        receivedDependenciesByFormat.b.stylesheet
+      );
+      expect(
+        receivedDependenciesByFormat.a.stylesheet.getMatchedStyles({
+          type: 'paragraph',
+        })
+      ).toMatchObject({ color: 'red' });
+      expect(
+        receivedDependenciesByFormat.b.stylesheet.getMatchedStyles({
+          type: 'paragraph',
+        })
+      ).toMatchObject({ color: 'blue' });
     });
 
     it('should allow tagHandlers to override default behavior', async () => {

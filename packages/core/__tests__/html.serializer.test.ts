@@ -302,7 +302,7 @@ describe('html.serializer', () => {
       { type: 'paragraph', text: 'Hello', styles: {}, attributes: {} },
     ];
 
-    const html = toHtml(elements, {
+    const html = toHtml(elements, undefined, {
       paragraph: { color: 'red', fontSize: '12px' },
     });
 

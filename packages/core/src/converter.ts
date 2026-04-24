@@ -14,6 +14,11 @@ import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
 import { initStyleMeta } from './styles/style-inheritance';
+import {
+  createBaseStylesheet,
+  defaultStylesToStylesheetRules,
+} from './styles/stylesheet-seeding';
+import { createStylesheet } from './styles/sheet';
 import * as CSS from 'csstype';
 
 export class Converter {
@@ -131,15 +136,28 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     }
   }
 
+  const baseStylesheet = createBaseStylesheet();
+
   // Initialize registered adapters
   const registerAdapters = adapters?.register?.map(
     ({ format, adapter: Adapter, config }) => {
+      const defaultStyles =
+        adapters?.defaultStyles?.find(
+          ({ format: nFormat }) => nFormat === format
+        )?.styles || {};
+      // REFACTOR: consider plugin stylesheet decoration
+      const adapterStylesheet = createStylesheet(
+        baseStylesheet.getStatements()
+      );
+
+      for (const rule of defaultStylesToStylesheetRules(defaultStyles)) {
+        adapterStylesheet.add(rule);
+      }
+
       const adapter = new Adapter(
         {
-          defaultStyles:
-            adapters?.defaultStyles?.find(
-              ({ format: nFormat }) => nFormat === format
-            )?.styles || {},
+          defaultStyles,
+          stylesheet: adapterStylesheet,
           styleMeta,
         },
         config
@@ -153,6 +171,7 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     registerAdapters,
     domParser,
     adapters,
+    stylesheet: baseStylesheet,
   });
 
   // Default middleware

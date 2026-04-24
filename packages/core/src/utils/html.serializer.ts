@@ -8,6 +8,10 @@ import {
   ListElement,
   IConverterDependencies,
 } from '../types';
+import type { IStylesheet } from '../styles/interfaces';
+import { createBaseStylesheet } from '../styles/stylesheet-seeding';
+
+type HtmlSerializationStyles = IConverterDependencies['defaultStyles'];
 
 /**
  * Serialize an array of DocumentElement back into an HTML string.
@@ -17,7 +21,8 @@ import {
  */
 export function toHtml(
   elements: DocumentElement[],
-  defaultStyles: IConverterDependencies['defaultStyles'] = {}
+  stylesheet: IStylesheet = createBaseStylesheet(),
+  defaultStyles: HtmlSerializationStyles = {}
 ): string {
   // If parser attached the original HTML, return it directly for exact round-trip
   // const original = (elements as any).__originalHtml;
@@ -25,7 +30,7 @@ export function toHtml(
   //   return original;
   // }
   const html = elements
-    .map((el) => elementToHtml(el, defaultStyles))
+    .map((el) => elementToHtml(el, stylesheet, defaultStyles))
     .join('\n');
   return `<div>\n${html}\n</div>`;
 }
@@ -105,7 +110,8 @@ const voidTags = new Set([
 
 function elementToHtml(
   el: DocumentElement,
-  defaults: IConverterDependencies['defaultStyles'] = {}
+  stylesheet: IStylesheet,
+  defaults: HtmlSerializationStyles = {}
 ): string {
   // -----------------------------------------------------------------------
   // Resolve tag name
@@ -194,9 +200,9 @@ function elementToHtml(
 
   // 4. style attribute – merge defaults and filter out semantic defaults first
   const mergedStyles = {
-    ...(defaults?.[el.type] || {}),
-    ...(el.styles || {}),
-  } as Record<string, string | number>;
+    ...defaults?.[el.type],
+    ...stylesheet.getComputedStyles(el, undefined),
+  };
   if (Object.keys(mergedStyles).length) {
     const filtered = filterStyles(tagName, mergedStyles);
     const styleEntries = Object.entries(filtered).map(([k, v]) => {
@@ -243,7 +249,7 @@ function elementToHtml(
     (table.rows ?? []).forEach((row: TableRowElement) => {
       const isHeader = row.cells.every((c) => c.styles?.textAlign === 'center');
       const cellsHtml = row.cells
-        .map((c) => cellToHtml(c, defaults))
+        .map((c) => cellToHtml(c, stylesheet, defaults))
         .join('\n');
       const rowHtml = `<tr>\n${cellsHtml}\n</tr>`;
       (isHeader ? theadRows : tbodyRows).push(rowHtml);
@@ -257,12 +263,14 @@ function elementToHtml(
     }
     if (el.content && el.content.length) {
       inner += `\n${(el.content as DocumentElement[])
-        .map((c) => elementToHtml(c, defaults))
+        .map((c) => elementToHtml(c, stylesheet, defaults))
         .join('\n')}`;
     }
     inner += '\n';
   } else if (Array.isArray(el.content) && el.content.length) {
-    inner = el.content.map((c) => elementToHtml(c, defaults)).join('');
+    inner = el.content
+      .map((c) => elementToHtml(c, stylesheet, defaults))
+      .join('');
   } else if (typeof el.text === 'string') {
     inner = encodeText(el.text);
   }
@@ -275,7 +283,8 @@ function elementToHtml(
  * ----------------------------------------------------------- */
 function cellToHtml(
   cell: TableCellElement,
-  defaults: IConverterDependencies['defaultStyles'] = {}
+  stylesheet: IStylesheet,
+  defaults: HtmlSerializationStyles = {}
 ): string {
   const tag = cell.styles?.textAlign === 'center' ? 'th' : 'td';
   // basic attrs
@@ -285,9 +294,9 @@ function cellToHtml(
   if (typeof cell.rowspan === 'number' && cell.rowspan > 1)
     attrs.push(`rowspan="${cell.rowspan}"`);
   const merged = {
-    ...(defaults?.['table-cell'] || {}),
-    ...(cell.styles || {}),
-  } as Record<string, string | number>;
+    ...defaults[cell.type],
+    ...stylesheet.getComputedStyles(cell, undefined),
+  };
   if (Object.keys(merged).length) {
     const styleEntries = Object.entries(filterStyles(tag, merged)).map(
       ([k, v]) => `${camelToKebab(k)}: ${v}`
@@ -299,7 +308,7 @@ function cellToHtml(
   const attrString = attrs.length ? ' ' + attrs.join(' ') : '';
   const inner =
     Array.isArray(cell.content) && cell.content.length
-      ? cell.content.map((c) => elementToHtml(c, defaults)).join('')
+      ? cell.content.map((c) => elementToHtml(c, stylesheet, defaults)).join('')
       : typeof cell.text === 'string'
         ? encodeText(cell.text)
         : '';
