@@ -264,13 +264,27 @@ function elementToHtml(
     const theadRows: string[] = [];
     const tbodyRows: string[] = [];
 
+    const tfootRows: string[] = [];
+
     (table.rows ?? []).forEach((row: TableRowElement) => {
-      const isHeader = row.cells.every((c) => c.styles?.textAlign === 'center');
+      const rowSection = row.metadata?.tagName;
+      const isHeader =
+        rowSection === 'thead' ||
+        row.cells.every((c) => {
+          return c.metadata?.tagName === 'th';
+        });
       const cellsHtml = row.cells
         .map((c) => cellToHtml(c, stylesheet, defaults))
         .join('\n');
       const rowHtml = `<tr>\n${cellsHtml}\n</tr>`;
-      (isHeader ? theadRows : tbodyRows).push(rowHtml);
+
+      if (rowSection === 'tfoot') {
+        tfootRows.push(rowHtml);
+      } else if (isHeader) {
+        theadRows.push(rowHtml);
+      } else {
+        tbodyRows.push(rowHtml);
+      }
     });
 
     if (theadRows.length) {
@@ -278,6 +292,9 @@ function elementToHtml(
     }
     if (tbodyRows.length) {
       inner += `\n<tbody>\n${tbodyRows.join('\n')}\n</tbody>`;
+    }
+    if (tfootRows.length) {
+      inner += `\n<tfoot>\n${tfootRows.join('\n')}\n</tfoot>`;
     }
     if (el.content && el.content.length) {
       inner += `\n${(el.content as DocumentElement[])
@@ -304,7 +321,7 @@ function cellToHtml(
   stylesheet: IStylesheet,
   defaults: HtmlSerializationStyles = {}
 ): string {
-  const tag = cell.styles?.textAlign === 'center' ? 'th' : 'td';
+  const tag = cell.metadata?.tagName === 'th' ? 'th' : 'td';
   // basic attrs
   const attrs: string[] = [];
   if (typeof cell.colspan === 'number' && cell.colspan > 1)

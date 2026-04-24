@@ -133,6 +133,9 @@ export class Parser {
           content,
           styles: cs,
           attributes: { ...da, ...ca },
+          metadata: {
+            tagName: isHeader ? 'th' : 'td',
+          },
           colspan,
           rowspan,
           scope: 'tableCell',
@@ -145,6 +148,9 @@ export class Parser {
       styles: rowStyles,
       attributes: rowAttrs,
       scope: 'tableRow',
+      metadata: {
+        tagName: 'tr',
+      },
     };
   }
 
