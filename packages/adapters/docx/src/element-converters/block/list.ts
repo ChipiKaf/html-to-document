@@ -22,10 +22,13 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): FileChild[] | Promise<FileChild[]> {
-    const { stylesheet } = dependencies;
+    const { defaultStyles, stylesheet } = dependencies;
     const inherited = filterForScope(cascadedStyles, element.scope);
     // Paragraph element must only have inline children or else it could corrupt the document structure.
-    const mergedStyles = stylesheet.getComputedStyles(element, inherited);
+    const mergedStyles = {
+      ...defaultStyles?.[element.type],
+      ...stylesheet.getComputedStyles(element, inherited),
+    };
 
     return promiseAllFlat(
       element.content.map((child) => {

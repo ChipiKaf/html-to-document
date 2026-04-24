@@ -197,11 +197,6 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           const colSpan = originalCell?.colspan ? originalCell.colspan : 1;
           const rowSpan = originalCell?.rowspan ? originalCell.rowspan : 1;
           const verticalMerge = rowSpan > 1 ? 'restart' : undefined;
-          // const originalCellMatchedStyles = originalCell
-          //   ? (stylesheet?.getMatchedStyles(originalCell) ?? {
-          //       ...(defaultStyles?.[originalCell.type] || {}),
-          //     })
-          //   : {};
           const originalCellMatchedStyles = originalCell
             ? {
                 ...defaultStyles?.[originalCell.type],
