@@ -7,7 +7,7 @@ import {
 } from '../src';
 
 describe('stylesheet seeding', () => {
-  it('seeds parser built-in heading defaults into a base stylesheet', () => {
+  it('seeds parser built-in tag defaults into a base stylesheet', () => {
     const stylesheet = createBaseStylesheet();
 
     expect(
@@ -40,6 +40,47 @@ describe('stylesheet seeding', () => {
       })
     ).toEqual({
       fontWeight: 'bold',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'text',
+        metadata: { tagName: 'sup' },
+      })
+    ).toEqual({
+      verticalAlign: 'super',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'paragraph',
+        metadata: { tagName: 'pre' },
+      })
+    ).toEqual({
+      fontFamily: 'monospace',
+      whiteSpace: 'pre-wrap',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'paragraph',
+        metadata: { tagName: 'blockquote' },
+      })
+    ).toEqual({
+      borderLeftColor: 'lightGray',
+      borderLeftStyle: 'solid',
+      borderLeftWidth: 2,
+      paddingLeft: '16px',
+      marginLeft: '24px',
+    });
+
+    expect(
+      stylesheet.getMatchedStyles({
+        type: 'paragraph',
+        metadata: { tagName: 'dd' },
+      })
+    ).toEqual({
+      marginLeft: '40px',
     });
   });
 

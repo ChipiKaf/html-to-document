@@ -131,7 +131,7 @@ export class Parser {
         cells.push({
           type: 'table-cell',
           content,
-          styles: isHeader ? { textAlign: 'center', ...cs } : { ...cs },
+          styles: cs,
           attributes: { ...da, ...ca },
           colspan,
           rowspan,
@@ -378,7 +378,6 @@ export class Parser {
           text,
           content: children,
           ...options,
-          styles: { ...(options.styles || {}), fontWeight: 'bold' },
           scope: 'inline',
         };
       case 'colgroup':
@@ -404,7 +403,6 @@ export class Parser {
           content: children,
           scope: 'inline',
           ...options,
-          styles: { ...(options.styles || {}), fontStyle: 'italic' },
         };
       case 'small':
         return {
@@ -413,7 +411,6 @@ export class Parser {
           content: children,
           scope: 'inline',
           ...options,
-          styles: { ...(options.styles || {}), fontSize: '8px' },
         };
 
       case 'u':
@@ -423,7 +420,6 @@ export class Parser {
           content: children,
           scope: 'inline',
           ...options,
-          styles: { ...(options.styles || {}), textDecoration: 'underline' },
         };
 
       case 'hr':
@@ -504,7 +500,6 @@ export class Parser {
           content: children,
           scope: 'inline',
           ...options,
-          styles: { verticalAlign: 'super', ...(options.styles || {}) },
         };
 
       case 'sub':
@@ -513,7 +508,6 @@ export class Parser {
           text,
           content: children,
           ...options,
-          styles: { verticalAlign: 'sub', ...(options.styles || {}) },
           scope: 'inline',
         };
 
@@ -541,7 +535,6 @@ export class Parser {
           content: children,
           scope: 'inline',
           ...options,
-          styles: { backgroundColor: 'lightGray', ...(options.styles || {}) },
         };
 
       case 'br':
@@ -560,14 +553,6 @@ export class Parser {
           content: children,
           scope: 'block',
           ...options,
-          styles: {
-            borderLeftColor: 'lightGray',
-            borderLeftStyle: 'solid',
-            borderLeftWidth: 2,
-            paddingLeft: '16px',
-            marginLeft: '24px',
-            ...(options.styles || {}),
-          },
         };
 
       // FIGURE and CAPTION now as paragraphs
@@ -587,11 +572,6 @@ export class Parser {
           content: children,
           scope: 'block',
           ...options,
-          styles: {
-            fontStyle: 'italic',
-            textAlign: 'center',
-            ...(options.styles || {}),
-          },
         };
       case 'caption':
         return {
@@ -601,11 +581,6 @@ export class Parser {
           content: children,
           scope: 'inline',
           ...options,
-          styles: {
-            fontStyle: 'italic',
-            textAlign: 'center',
-            ...(options.styles || {}),
-          },
         };
       // Description list container
       case 'dl':
@@ -629,8 +604,6 @@ export class Parser {
           content: children,
           scope: 'block',
           ...options,
-          // default indent for definitions
-          styles: { marginLeft: '40px', ...(options.styles || {}) },
         };
 
       default:

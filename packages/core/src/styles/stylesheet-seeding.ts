@@ -13,6 +13,91 @@ export const BUILT_IN_DEFAULT_STYLES: readonly {
   { key: 'h4', styles: { fontWeight: 'bold' } },
   { key: 'h5', styles: { fontWeight: 'bold' } },
   { key: 'h6', styles: { fontWeight: 'bold' } },
+  {
+    key: 'th',
+    styles: {
+      textAlign: 'center',
+    },
+  },
+  {
+    key: 'strong',
+    styles: {
+      fontWeight: 'bold',
+    },
+  },
+  {
+    key: 'em',
+    styles: {
+      fontStyle: 'italic',
+    },
+  },
+  {
+    key: 'small',
+    styles: {
+      fontSize: '8px',
+    },
+  },
+  {
+    key: 'u',
+    styles: {
+      textDecoration: 'underline',
+    },
+  },
+  {
+    key: 'sup',
+    styles: {
+      verticalAlign: 'super',
+    },
+  },
+  {
+    key: 'sub',
+    styles: {
+      verticalAlign: 'sub',
+    },
+  },
+  {
+    key: 'pre',
+    styles: {
+      fontFamily: 'monospace',
+      whiteSpace: 'pre-wrap',
+    },
+  },
+  {
+    key: 'code',
+    styles: {
+      backgroundColor: 'lightGray',
+    },
+  },
+  {
+    key: 'blockquote',
+    styles: {
+      borderLeftColor: 'lightGray',
+      borderLeftStyle: 'solid',
+      borderLeftWidth: 2,
+      paddingLeft: '16px',
+      marginLeft: '24px',
+    },
+  },
+  {
+    key: 'figcaption',
+    styles: {
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+  },
+  {
+    key: 'caption',
+    styles: {
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+  },
+  {
+    key: 'dd',
+    styles: {
+      marginLeft: '40px',
+    },
+  },
 ] as const;
 
 export function createBaseStylesheet(): IStylesheet {

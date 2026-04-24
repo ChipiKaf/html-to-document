@@ -43,6 +43,7 @@ export function toHtml(
 const defaultTagStyles: Record<string, Record<string, string | number>> = {
   strong: { fontWeight: 'bold' },
   em: { fontStyle: 'italic' },
+  small: { fontSize: '8px' },
   u: { textDecoration: 'underline' },
   sup: { verticalAlign: 'super' },
   sub: { verticalAlign: 'sub' },
@@ -52,6 +53,7 @@ const defaultTagStyles: Record<string, Record<string, string | number>> = {
   h4: { fontWeight: 'bold' },
   h5: { fontWeight: 'bold' },
   h6: { fontWeight: 'bold' },
+  pre: { fontFamily: 'monospace', whiteSpace: 'pre-wrap' },
   code: { backgroundColor: 'lightGray' },
   blockquote: {
     borderLeftColor: 'lightGray',
@@ -60,6 +62,9 @@ const defaultTagStyles: Record<string, Record<string, string | number>> = {
     paddingLeft: '16px',
     marginLeft: '24px',
   },
+  figcaption: { fontStyle: 'italic', textAlign: 'center' },
+  caption: { fontStyle: 'italic', textAlign: 'center' },
+  dd: { marginLeft: '40px' },
   th: { textAlign: 'center' },
 };
 

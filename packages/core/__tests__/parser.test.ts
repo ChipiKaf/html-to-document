@@ -234,9 +234,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: 'llo',
-              styles: {
-                fontWeight: 'bold',
-              },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
@@ -247,9 +245,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: 'or',
-              styles: {
-                fontWeight: 'bold',
-              },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
@@ -847,7 +843,6 @@ describe('Parser', () => {
                     },
                   ],
                   styles: {
-                    textAlign: 'center',
                     color: 'red',
                   },
                   attributes: {},
@@ -867,9 +862,7 @@ describe('Parser', () => {
                       attributes: {},
                     },
                   ],
-                  styles: {
-                    textAlign: 'center',
-                  },
+                  styles: {},
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
@@ -923,7 +916,7 @@ describe('Parser', () => {
                 {
                   type: 'table-cell',
                   content: [{ type: 'text', text: 'Head1' }],
-                  styles: { color: 'blue', textAlign: 'center' },
+                  styles: { color: 'blue' },
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
@@ -932,7 +925,7 @@ describe('Parser', () => {
                 {
                   type: 'table-cell',
                   content: [{ type: 'text', text: 'Head2' }],
-                  styles: { textAlign: 'center' },
+                  styles: {},
                   attributes: {},
                   colspan: 1,
                   rowspan: 1,
@@ -1026,9 +1019,8 @@ describe('Parser', () => {
               {
                 text: 'Sales Report Q1',
                 styles: {
-                  fontStyle: 'italic',
-                  textAlign: 'center',
                   captionSide: 'bottom',
+                  fontStyle: 'italic',
                 },
                 attributes: {},
                 scope: 'inline',
@@ -1091,7 +1083,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: '2',
-              styles: { verticalAlign: 'sub' },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
@@ -1099,7 +1091,7 @@ describe('Parser', () => {
             {
               type: 'text',
               text: '2',
-              styles: { verticalAlign: 'super' },
+              styles: {},
               attributes: {},
               scope: 'inline',
             },
