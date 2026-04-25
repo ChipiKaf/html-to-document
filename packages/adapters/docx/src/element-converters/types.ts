@@ -6,6 +6,8 @@ import { Object } from 'ts-toolbelt';
 import { DocxStyleMapper } from '../docx-style-mapper';
 
 export type ElementStylesheet = {
+  getStatements: IStylesheet['getStatements'];
+  getComputedStylesBySelector: IStylesheet['getComputedStylesBySelector'];
   /**
    * Returns only the styles resolved from stylesheet rules that match the element.
    * Does not merge in the element's own inline/document styles.

@@ -39,6 +39,39 @@ describe('stylesheet', () => {
     });
   });
 
+  describe('subtractStylesBySelector', () => {
+    it('subtracts styles matched by a selector while preserving other selectors', () => {
+      const sheet = new Stylesheet();
+
+      sheet.addStyleRule('h1, h2', { fontWeight: 'bold' });
+      sheet.addStyleRule('h1', { fontSize: '60px' });
+
+      const subtracted = sheet.subtractStylesBySelector('h1');
+
+      expect(subtracted.getComputedStylesBySelector('h1')).toEqual({});
+      expect(subtracted.getComputedStylesBySelector('h2')).toEqual({
+        fontWeight: 'bold',
+      });
+    });
+
+    it('subtracts only selected style keys matched by a selector', () => {
+      const sheet = new Stylesheet();
+
+      sheet.addStyleRule('h1, h2', { fontWeight: 'bold' });
+      sheet.addStyleRule('h1', { fontSize: '60px', color: 'blue' });
+
+      const subtracted = sheet.subtractStylesBySelector('h1', ['fontSize']);
+
+      expect(subtracted.getComputedStylesBySelector('h1')).toEqual({
+        fontWeight: 'bold',
+        color: 'blue',
+      });
+      expect(subtracted.getComputedStylesBySelector('h2')).toEqual({
+        fontWeight: 'bold',
+      });
+    });
+  });
+
   it('stores top-level at-rules separately from style resolution', () => {
     const sheet = new Stylesheet();
 
@@ -301,5 +334,32 @@ describe('stylesheet', () => {
       color: 'white',
       backgroundColor: 'blue',
     });
+  });
+
+  it('preserves declaration metadata in exposed statements', () => {
+    const sheet = new Stylesheet([
+      {
+        kind: 'style',
+        selectors: ['.note'],
+        declarations: { color: 'purple' },
+        declarationMeta: {
+          origin: 'docx-default',
+          data: { source: 'user-rule', priority: 1 },
+        },
+      },
+    ]);
+
+    expect(sheet.getStatements()).toEqual([
+      {
+        kind: 'style',
+        selectors: ['.note'],
+        declarations: { color: 'purple' },
+        declarationMeta: {
+          origin: 'docx-default',
+          data: { source: 'user-rule', priority: 1 },
+        },
+        children: undefined,
+      },
+    ]);
   });
 });

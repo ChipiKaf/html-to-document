@@ -450,6 +450,12 @@ export type CreateAdapter<
   AdapterType extends AdapterProvider = AdapterProvider,
 > = (args: CreateAdapterArgs<AdapterType>) => IDocumentConverter;
 
+export type ExcludeDefaultStylesOption =
+  | boolean
+  | {
+      excludedTagNames?: readonly string[];
+    };
+
 // export type ConverterOptions = {
 //   /** Optional tag handlers to use */
 //   tagHandlers?: TagHandlerObject[];
@@ -542,6 +548,7 @@ export type InitOptions<
       attributes: Record<string, string | number>;
     }[];
   };
+  excludeDefaultStyles?: ExcludeDefaultStylesOption;
   /** Optional stylesheet rules to seed directly into init without constructing a stylesheet instance first. */
   stylesheetRules?: readonly StylesheetStatement[];
   /**

@@ -1,7 +1,11 @@
 import { DocxAdapter } from 'html-to-document-adapter-docx';
 import { init } from 'html-to-document-core';
 import { cssParserPlugin } from 'html-to-document';
-import { JSDOMParser, parseDocxDocument } from '../utils/parser.helper';
+import {
+  JSDOMParser,
+  parseDocxDocument,
+  parseDocxXml,
+} from '../utils/parser.helper';
 import { describe, it, expect } from 'vitest';
 
 function getTextContent(node: any): string {
@@ -55,6 +59,38 @@ function findParagraphByText(node: any, targetText: string): any {
 
   return undefined;
 }
+
+const toArray = <T>(value: T | T[] | undefined): T[] => {
+  if (value === undefined) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+};
+
+const findStyleById = (
+  stylesDocument: Record<string, unknown>,
+  styleId: string
+) => {
+  const stylesRoot = stylesDocument['w:styles'];
+  if (!stylesRoot || typeof stylesRoot !== 'object') {
+    return undefined;
+  }
+
+  const styles = toArray(
+    (stylesRoot as Record<string, unknown>)['w:style'] as
+      | Record<string, unknown>
+      | Record<string, unknown>[]
+      | undefined
+  );
+
+  return styles.find(
+    (style) =>
+      typeof style === 'object' &&
+      style !== null &&
+      style['@_w:styleId'] === styleId
+  );
+};
 
 describe('e2e tests using the docx adapter', () => {
   const converter = init({
@@ -158,7 +194,7 @@ describe('e2e tests using the docx adapter', () => {
     // expect(docx).toContain('Hello World'); // Simplified check
   });
 
-  it('applies adapter defaultStyles after they are seeded into the stylesheet', async () => {
+  it('applies adapter defaultStyles to headings', async () => {
     const styledConverter = init({
       domParser: new JSDOMParser(),
       adapters: {
@@ -172,9 +208,10 @@ describe('e2e tests using the docx adapter', () => {
           {
             format: 'docx',
             styles: {
-              paragraph: {
+              heading: {
                 fontWeight: 'bold',
                 color: '#3366FF',
+                textAlign: 'center',
               },
             },
           },
@@ -183,18 +220,23 @@ describe('e2e tests using the docx adapter', () => {
     });
 
     const docx = await styledConverter.convert(
-      '<p>Seeded paragraph</p>',
+      '<h1>Seeded heading</h1>',
       'docx'
     );
     const jsonDocument = await parseDocxDocument(docx);
-    const paragraph = jsonDocument['w:document']['w:body']['w:p'];
-    const runProps = paragraph['w:r']['w:rPr'];
+    const stylesDocument = await parseDocxXml(docx, 'word/styles.xml');
+    const heading = jsonDocument['w:document']['w:body']['w:p'];
+    const headingStyle = findStyleById(
+      stylesDocument as Record<string, unknown>,
+      'Heading1'
+    ) as Record<string, unknown> | undefined;
 
-    // TODO: this may fail once moved to docx default document styles
-    expect(paragraph['w:r']['w:t']['#text']).toBe('Seeded paragraph');
-    expect(runProps).toHaveProperty('w:b');
-    expect(runProps).toHaveProperty('w:bCs');
-    expect(runProps['w:color']['@_w:val']).toBe('3366FF');
+    expect(heading['w:r']['w:t']['#text']).toBe('Seeded heading');
+    expect(headingStyle).toBeDefined();
+    expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading1');
+    expect(heading['w:r']['w:rPr']['w:b']).toBeDefined();
+    expect(heading['w:r']['w:rPr']['w:bCs']).toBeDefined();
+    expect(heading['w:r']['w:rPr']['w:color']['@_w:val']).toBe('3366FF');
   });
 
   it('does not inherit table borders onto paragraphs inside cells', async () => {

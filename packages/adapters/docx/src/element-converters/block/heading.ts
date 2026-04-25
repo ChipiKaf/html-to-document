@@ -16,17 +16,13 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     {
       styleMapper,
       converter,
-      defaultStyles,
       stylesheet,
       styleMeta,
     }: ElementConverterDependencies,
     element: HeadingElement,
     cascadedStyles: Styles = {}
   ): Promise<FileChild[]> {
-    const mergedStyles = {
-      ...defaultStyles?.[element.type],
-      ...stylesheet.getComputedStyles(element, cascadedStyles),
-    };
+    const mergedStyles = stylesheet.getComputedStyles(element, cascadedStyles);
     const cascadingStyles = cascadeStyles(
       mergedStyles,
       element.scope,

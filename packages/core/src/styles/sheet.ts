@@ -32,10 +32,10 @@ const DEFAULT_TAG_BY_TYPE: Partial<Record<DocumentElement['type'], string>> = {
 };
 
 export class Stylesheet implements IStylesheet {
-  private readonly statements: StylesheetStatement[] = [];
-  private readonly compiledStyleRules: CompiledStyleRule[] = [];
-  private readonly selectorProcessor: ReturnType<typeof selectorParser>;
-  private nextOrder = 0;
+  protected readonly statements: StylesheetStatement[] = [];
+  protected readonly compiledStyleRules: CompiledStyleRule[] = [];
+  protected readonly selectorProcessor: ReturnType<typeof selectorParser>;
+  protected nextOrder = 0;
 
   constructor(statements: readonly StylesheetStatement[] = []) {
     this.selectorProcessor = selectorParser();
@@ -48,21 +48,37 @@ export class Stylesheet implements IStylesheet {
       this.statements.push(normalized);
 
       for (const selector of normalized.selectors) {
-        this.compiledStyleRules.push({
-          selector,
-          declarations: { ...normalized.declarations },
-          specificity:
-            Specificity.calculate(selector)[0] ||
-            new Specificity({ a: 0, b: 0, c: 0 }),
-          order: this.nextOrder++,
-          ast: this.parseSingleSelector(selector),
-        });
+        this.compiledStyleRules.push(
+          this.compileStyleRule(normalized, selector)
+        );
       }
 
       return;
     }
 
     this.statements.push(this.normalizeAtRule(statement));
+  }
+
+  // REFACTOR: this is currently implemented by re-adding all statements, which is not very efficient. We should optimize this by directly manipulating the internal arrays instead.
+  prepend(statements: StylesheetStatement | StylesheetStatement[]): void {
+    const incomingStatements = Array.isArray(statements)
+      ? statements
+      : [statements];
+
+    if (incomingStatements.length === 0) {
+      return;
+    }
+
+    const nextStatements = [
+      ...incomingStatements,
+      ...this.getStatements(),
+    ] satisfies StylesheetStatement[];
+
+    this.statements.length = 0;
+    this.compiledStyleRules.length = 0;
+    this.nextOrder = 0;
+
+    nextStatements.forEach((statement) => this.add(statement));
   }
 
   addStyleRule(
@@ -120,14 +136,107 @@ export class Stylesheet implements IStylesheet {
     };
   }
 
-  private splitSelectorList(input: string): string[] {
+  subtractStylesBySelector(
+    selector: string,
+    styleKeys?: readonly (keyof Styles)[]
+  ): IStylesheet {
+    const targets = this.splitSelectorList(selector)
+      .map((entry) => this.toTargetFromSelector(entry))
+      .filter((target): target is SelectorTarget => target !== undefined);
+
+    if (targets.length === 0) {
+      return this.createDerivedStylesheet(this.getStatements());
+    }
+
+    const selectedKeys = styleKeys ? new Set(styleKeys) : undefined;
+    const nextStatements = this.getStatements().reduce<StylesheetStatement[]>(
+      (statements, statement) => {
+        if (statement.kind !== 'style') {
+          statements.push(statement);
+          return statements;
+        }
+
+        const matchingSelectors = statement.selectors.filter((ruleSelector) => {
+          const parsedSelector = this.parseSingleSelector(ruleSelector);
+          return targets.some((target) =>
+            this.matchesSelector(parsedSelector, target)
+          );
+        });
+
+        if (matchingSelectors.length === 0) {
+          statements.push(statement);
+          return statements;
+        }
+
+        const remainingSelectors = statement.selectors.filter(
+          (ruleSelector) => !matchingSelectors.includes(ruleSelector)
+        );
+
+        const remainingDeclarations = Object.entries(
+          statement.declarations
+        ).reduce<Styles>((declarations, [key, value]) => {
+          if (selectedKeys && !selectedKeys.has(key as keyof Styles)) {
+            declarations[key as keyof Styles] = value;
+          }
+
+          return declarations;
+        }, {});
+
+        if (remainingSelectors.length > 0) {
+          statements.push({
+            ...statement,
+            selectors: remainingSelectors,
+          });
+        }
+
+        if (Object.keys(remainingDeclarations).length > 0) {
+          statements.push({
+            ...statement,
+            selectors: matchingSelectors,
+            declarations: remainingDeclarations,
+          });
+        }
+
+        return statements;
+      },
+      []
+    );
+
+    return this.createDerivedStylesheet(nextStatements);
+  }
+
+  protected createDerivedStylesheet(
+    statements: readonly StylesheetStatement[]
+  ): IStylesheet {
+    return new Stylesheet(statements);
+  }
+
+  protected compileStyleRule(
+    statement: StyleRule,
+    selector: string
+  ): CompiledStyleRule {
+    return {
+      selector,
+      declarations: { ...statement.declarations },
+      declarationMeta: statement.declarationMeta
+        ? { ...statement.declarationMeta }
+        : undefined,
+      specificity:
+        Specificity.calculate(selector)[0] ||
+        new Specificity({ a: 0, b: 0, c: 0 }),
+      order: this.nextOrder++,
+      ast: this.parseSingleSelector(selector),
+    };
+  }
+
+  protected splitSelectorList(input: string): string[] {
     return this.selectorProcessor
       .astSync(input)
       .nodes.map((node) => node.toString().trim())
       .filter((selector) => selector.length > 0);
   }
 
-  private parseSingleSelector(selector: string): selectorParser.Selector {
+  protected parseSingleSelector(selector: string): selectorParser.Selector {
     const root = this.selectorProcessor.astSync(selector);
     const [parsed] = root.nodes;
 
@@ -138,7 +247,7 @@ export class Stylesheet implements IStylesheet {
     return parsed;
   }
 
-  private normalizeAttributes(
+  protected normalizeAttributes(
     element: DocumentElement
   ): Record<string, string> {
     const normalized: Record<string, string> = {};
@@ -170,7 +279,7 @@ export class Stylesheet implements IStylesheet {
     return normalized;
   }
 
-  private inferTagName(element: DocumentElement): string | undefined {
+  protected inferTagName(element: DocumentElement): string | undefined {
     const metadataTagName = element.metadata?.tagName;
     if (typeof metadataTagName === 'string' && metadataTagName.length > 0) {
       return metadataTagName.toLowerCase();
@@ -193,7 +302,7 @@ export class Stylesheet implements IStylesheet {
     return DEFAULT_TAG_BY_TYPE[element.type]?.toLowerCase();
   }
 
-  private toTargetFromElement(element: DocumentElement): SelectorTarget {
+  protected toTargetFromElement(element: DocumentElement): SelectorTarget {
     const attributes = this.normalizeAttributes(element);
     const classes = new Set(
       (attributes.class ?? '')
@@ -210,7 +319,7 @@ export class Stylesheet implements IStylesheet {
     };
   }
 
-  private toTargetFromSelector(selector: string): SelectorTarget | undefined {
+  protected toTargetFromSelector(selector: string): SelectorTarget | undefined {
     const parsed = this.parseSingleSelector(selector);
     const attributes: Record<string, string> = {};
     const classes = new Set<string>();
@@ -276,7 +385,7 @@ export class Stylesheet implements IStylesheet {
     };
   }
 
-  private compareAttributeValues(
+  protected compareAttributeValues(
     actualValue: string,
     expectedValue: string,
     insensitive: boolean | undefined,
@@ -289,7 +398,7 @@ export class Stylesheet implements IStylesheet {
     return matcher(actualValue.toLowerCase(), expectedValue.toLowerCase());
   }
 
-  private matchesAttribute(
+  protected matchesAttribute(
     node: selectorParser.Attribute,
     target: SelectorTarget
   ): boolean {
@@ -354,7 +463,7 @@ export class Stylesheet implements IStylesheet {
     }
   }
 
-  private matchesSelector(
+  protected matchesSelector(
     selector: selectorParser.Selector,
     target: SelectorTarget
   ): boolean {
@@ -389,12 +498,17 @@ export class Stylesheet implements IStylesheet {
     return true;
   }
 
-  private cloneStatement(statement: StylesheetStatement): StylesheetStatement {
+  protected cloneStatement(
+    statement: StylesheetStatement
+  ): StylesheetStatement {
     if (statement.kind === 'style') {
       return {
         kind: 'style',
         selectors: [...statement.selectors],
         declarations: { ...statement.declarations },
+        declarationMeta: statement.declarationMeta
+          ? { ...statement.declarationMeta }
+          : undefined,
         children: statement.children
           ?.map((child) => this.cloneStatement(child))
           .filter((child) => child.kind === 'at-rule'),
@@ -412,7 +526,7 @@ export class Stylesheet implements IStylesheet {
     };
   }
 
-  private normalizeStyleStatement(statement: StyleRule): StyleRule {
+  protected normalizeStyleStatement(statement: StyleRule): StyleRule {
     const selectorSource = Array.isArray(statement.selectors)
       ? statement.selectors
       : [statement.selectors];
@@ -425,13 +539,16 @@ export class Stylesheet implements IStylesheet {
       kind: 'style',
       selectors,
       declarations: { ...statement.declarations },
+      declarationMeta: statement.declarationMeta
+        ? { ...statement.declarationMeta }
+        : undefined,
       children: statement.children
         ?.map((child) => this.normalizeAtRule(child))
         .filter((child) => child.kind === 'at-rule'),
     };
   }
 
-  private normalizeAtRule<Name extends string = string>(
+  protected normalizeAtRule<Name extends string = string>(
     rule: AtRule<Name>
   ): AtRule<Name> {
     return {
@@ -443,12 +560,10 @@ export class Stylesheet implements IStylesheet {
     };
   }
 
-  private resolveStylesForTargets(targets: readonly SelectorTarget[]): Styles {
-    if (targets.length === 0) {
-      return {};
-    }
-
-    const matchingRules = this.compiledStyleRules
+  protected resolveMatchingRules(
+    targets: readonly SelectorTarget[]
+  ): CompiledStyleRule[] {
+    return this.compiledStyleRules
       .filter((rule) =>
         targets.some((target) => this.matchesSelector(rule.ast, target))
       )
@@ -464,11 +579,49 @@ export class Stylesheet implements IStylesheet {
 
         return left.order - right.order;
       });
+  }
 
-    return matchingRules.reduce<Styles>(
-      (resolved, rule) => ({ ...resolved, ...rule.declarations }),
-      {}
-    );
+  protected mergeResolvedStyles(rules: readonly CompiledStyleRule[]): Styles {
+    return rules.reduce<Styles>((resolved, rule) => {
+      for (const [key, value] of Object.entries(rule.declarations)) {
+        resolved[key as keyof Styles] = value;
+      }
+
+      return resolved;
+    }, {});
+  }
+
+  protected shouldExcludeDeclarations(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _rule: CompiledStyleRule
+  ): boolean {
+    return false;
+  }
+
+  protected resolveStylesForTargets(
+    targets: readonly SelectorTarget[]
+  ): Styles {
+    if (targets.length === 0) {
+      return {};
+    }
+
+    const resolved: Styles = {};
+
+    for (const rule of this.resolveMatchingRules(targets)) {
+      if (this.shouldExcludeDeclarations(rule)) {
+        for (const key of Object.keys(rule.declarations)) {
+          delete resolved[key as keyof Styles];
+        }
+
+        continue;
+      }
+
+      for (const [key, value] of Object.entries(rule.declarations)) {
+        resolved[key as keyof Styles] = value;
+      }
+    }
+
+    return resolved;
   }
 }
 

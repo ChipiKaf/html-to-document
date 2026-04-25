@@ -1,6 +1,10 @@
 import { DocxAdapter } from '../src/docx.adapter';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
-import { createStylesheet, DocumentElement } from 'html-to-document-core';
+import {
+  createBaseStylesheet,
+  createStylesheet,
+  DocumentElement,
+} from 'html-to-document-core';
 import { minifyMiddleware } from 'html-to-document-core';
 import { Parser } from 'html-to-document-core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -21,6 +25,38 @@ const findDrawingInObject = (obj: any): boolean => {
     return true;
   }
   return Object.values(obj).some((value) => findDrawingInObject(value));
+};
+
+const toArray = <T>(value: T | T[] | undefined): T[] => {
+  if (value === undefined) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+};
+
+const findStyleById = (
+  stylesDocument: Record<string, unknown>,
+  styleId: string
+) => {
+  const stylesRoot = stylesDocument['w:styles'];
+  if (!stylesRoot || typeof stylesRoot !== 'object') {
+    return undefined;
+  }
+
+  const styles = toArray(
+    (stylesRoot as Record<string, unknown>)['w:style'] as
+      | Record<string, unknown>
+      | Record<string, unknown>[]
+      | undefined
+  );
+
+  return styles.find(
+    (style) =>
+      typeof style === 'object' &&
+      style !== null &&
+      style['@_w:styleId'] === styleId
+  );
 };
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
@@ -552,6 +588,79 @@ describe('Docx.adapter.convert', () => {
       );
       expect(headingParagraphs[2]['w:r']['w:t']['#text']).toBe('Heading 3');
     });
+
+    it('h1 stylesheet rules will not be inlined while generating heading document styles', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('h1', {
+        color: '#3366FF',
+        fontWeight: 'bold',
+        textAlign: 'center',
+      });
+
+      const elements = parser.parse('<h1>Styled Heading</h1>');
+      const styledAdapter = new DocxAdapter({
+        stylesheet,
+      });
+
+      const buffer = await styledAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const stylesDocument = await parseDocxXml(buffer, 'word/styles.xml');
+      const heading = jsonDocument['w:document']['w:body']['w:p'];
+      const headingStyle = findStyleById(
+        stylesDocument as Record<string, unknown>,
+        'Heading1'
+      ) as Record<string, unknown> | undefined;
+
+      expect(headingStyle).toBeDefined();
+      expect(heading['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading1');
+      expect(headingStyle?.['w:pPr']?.['w:jc']['@_w:val']).toBe('center');
+      expect(headingStyle?.['w:rPr']?.['w:b']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:bCs']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:color']['@_w:val']).toBe('3366FF');
+    });
+
+    it('deep merges generated heading defaults with custom document style defaults', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('h1', {
+        color: '#3366FF',
+        fontWeight: 'bold',
+      });
+
+      const elements = parser.parse('<h1>Merged Heading</h1>');
+      const styledAdapter = new DocxAdapter(
+        {
+          stylesheet,
+        },
+        {
+          documentOptions: {
+            styles: {
+              default: {
+                heading1: {
+                  run: {
+                    italics: true,
+                  },
+                },
+              },
+            },
+          },
+        }
+      );
+
+      const buffer = await styledAdapter.convert(elements);
+      const stylesDocument = await parseDocxXml(buffer, 'word/styles.xml');
+      const headingStyle = findStyleById(
+        stylesDocument as Record<string, unknown>,
+        'Heading1'
+      ) as Record<string, unknown> | undefined;
+
+      expect(headingStyle).toBeDefined();
+      expect(headingStyle['w:rPr']['w:i']).toBeDefined();
+      expect(headingStyle['w:rPr']['w:iCs']).toBeDefined();
+      expect(headingStyle['w:rPr']['w:b']).toBeDefined();
+      expect(headingStyle['w:rPr']['w:bCs']).toBeDefined();
+      expect(headingStyle['w:rPr']['w:color']['@_w:val']).toBe('3366FF');
+    });
+
     it('should render a heading with extra bold and italic styling', async () => {
       const elements: DocumentElement[] = [
         {
@@ -2545,6 +2654,35 @@ describe('Docx.adapter.convert', () => {
 
       expect(defaultRunPropsAgain['w:color']['@_w:val']).toBe('3366FF');
       expect(defaultRunPropsAgain).not.toHaveProperty('w:b');
+    });
+
+    it('does not inline docx default heading declarations, but still inlines other tagged declarations', async () => {
+      const customAdapter = new DocxAdapter({
+        stylesheet: createStylesheet([
+          {
+            kind: 'style',
+            selectors: ['h1'],
+            declarations: { fontSize: '50px' },
+          },
+          {
+            kind: 'style',
+            selectors: ['.cool-heading'],
+            declarations: { color: '#FF0000' },
+            declarationMeta: { origin: 'docx-default' },
+          },
+        ]),
+      });
+      const elements = parser.parse('<h1 class="cool-heading">Styled</h1>');
+
+      const buffer = await customAdapter.convert(elements);
+      const paragraph = (await parseDocxDocument(buffer))['w:document'][
+        'w:body'
+      ]['w:p'];
+
+      expect(paragraph['w:pPr']['w:pStyle']['@_w:val']).toBe('Heading1');
+      // expect(paragraph['w:r']['w:rPr']['w:sz']['@_w:val']).
+      expect(paragraph['w:r']['w:rPr']['w:sz']).toBeUndefined();
+      expect(paragraph['w:r']['w:rPr']['w:color']['@_w:val']).toBe('FF0000');
     });
   });
 
