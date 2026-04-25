@@ -24,6 +24,7 @@ import { ConverterRegistry } from './registry';
 import { initStyleMeta } from './styles/style-inheritance';
 import {
   defaultStylesToStylesheetRules,
+  SEEDED_DEFAULT_DECLARATION_ORIGIN,
   seedStylesheetBuiltInDefaults,
   tagDefaultStylesToStylesheetRules,
 } from './styles/stylesheet-seeding';
@@ -298,6 +299,7 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     styleInheritance,
     stylesheetRules = [],
     stylesheet = createStylesheet(),
+    excludeDefaultStyles = false,
   } = options ?? {};
 
   // Initialize style meta
@@ -341,9 +343,14 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
       // FIXME: consider plugin stylesheet decoration and using custom implementation
       const adapterStylesheet = createStylesheet(stylesheet.getStatements());
 
-      for (const rule of defaultStylesToStylesheetRules(defaultStyles)) {
-        adapterStylesheet.add(rule);
-      }
+      const defaultStyleRules = defaultStylesToStylesheetRules(
+        defaultStyles,
+        {
+          origin: SEEDED_DEFAULT_DECLARATION_ORIGIN,
+        },
+        excludeDefaultStyles
+      );
+      adapterStylesheet.prepend(defaultStyleRules);
 
       const dependencies = {
         defaultStyles,

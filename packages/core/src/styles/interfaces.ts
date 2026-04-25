@@ -14,15 +14,22 @@ export interface SelectorTarget {
 export interface CompiledStyleRule {
   selector: string;
   declarations: Styles;
+  declarationMeta?: StyleDeclarationMeta;
   specificity: Specificity;
   order: number;
   ast: selectorParser.Selector;
+}
+
+export interface StyleDeclarationMeta {
+  origin?: string;
+  data?: Record<string, unknown>;
 }
 
 export interface StyleRule {
   kind: 'style';
   selectors: readonly string[];
   declarations: Styles;
+  declarationMeta?: StyleDeclarationMeta;
 
   /**
    * Reserved for future nested rule support.
@@ -63,6 +70,10 @@ export interface AtRule<Name extends string = string> {
 export type StylesheetStatement = StyleRule | AtRule;
 
 export interface IStylesheet {
+  /**
+   * Generic prepend API. New statement will be evaluated before existing statements.
+   */
+  prepend(statements: StylesheetStatement | StylesheetStatement[]): void;
   /**
    * Generic append API.
    */
@@ -116,4 +127,9 @@ export interface IStylesheet {
     element: DocumentElement,
     cascadedStyles: Styles | undefined
   ): Styles;
+
+  subtractStylesBySelector(
+    selector: string,
+    styleKeys?: readonly (keyof Styles)[]
+  ): IStylesheet;
 }

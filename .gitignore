@@ -11,3 +11,4 @@ tsconfig.tsbuildinfo
 docs/.workflows/
 docs/superpowers/
 .worktrees/
+.tmp

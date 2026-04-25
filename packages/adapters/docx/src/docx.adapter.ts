@@ -7,9 +7,11 @@ import {
   ISectionOptions,
   Table,
   INumberingOptions,
+  IStylesOptions,
+  IParagraphStylePropertiesOptions,
+  IRunStylePropertiesOptions,
 } from 'docx';
 import {
-  createStylesheet,
   createBaseStylesheet,
   DocumentElement,
   IConverterDependencies,
@@ -20,15 +22,21 @@ import {
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { DocxStyleMapper } from './docx-style-mapper';
+import {
+  createBaseHeadingElement,
+  DOCX_DEFAULT_STYLE_SELECTORS,
+  DocxStylesheet,
+  hasStyles,
+} from './docx-stylesheet';
 import { ElementConverter } from './element-converters/converter';
 import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
-import { pipe } from 'remeda';
+import { mergeDeep, pipe } from 'remeda';
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: DocxStyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
-  private _stylesheet: IStylesheet;
+  private _stylesheet: DocxStylesheet;
   private _docxElementConverter: ElementConverter;
   private readonly documentOptions: NonNullable<
     DocxAdapterConfig['documentOptions']
@@ -54,7 +62,7 @@ export class DocxAdapter implements IDocumentConverter {
       this._mapper.addMapping(config.styleMappings);
     }
     this._defaultStyles = { ...defaultStyles };
-    this._stylesheet = stylesheet;
+    this._stylesheet = this.createAdapterStylesheet(stylesheet);
 
     const docxElementConverter = new ElementConverter(
       {
@@ -162,10 +170,13 @@ export class DocxAdapter implements IDocumentConverter {
         },
       };
     };
+
     const addDefaultOptions = (
       options: OptionalDocumentOptions
     ): OptionalDocumentOptions => {
-      return pipe(options, addDefaultNumberingConfig);
+      return pipe(options, addDefaultNumberingConfig, (config) =>
+        this.addAdapterDocumentStyles(config, effectiveStylesheet)
+      );
     };
 
     const documentOptions: OptionalDocumentOptions =
@@ -190,6 +201,72 @@ export class DocxAdapter implements IDocumentConverter {
     return Packer.toBlob(doc);
   }
 
+  private createAdapterStylesheet(stylesheet: IStylesheet): DocxStylesheet {
+    return new DocxStylesheet(stylesheet.getStatements());
+  }
+
+  private addAdapterDocumentStyles(
+    options: OptionalDocumentOptions,
+    stylesheet: IStylesheet = this._stylesheet
+  ): OptionalDocumentOptions {
+    const defaults = this.buildDefaultStyles(stylesheet);
+
+    return {
+      ...options,
+      styles: {
+        ...options.styles,
+        default: mergeDeep(defaults, options.styles?.default ?? {}),
+        // Intentionally not adding 'p' styles to normal, as a wrapper could have been something other than 'p', but then the 'p' styles would be added to that as well.
+      },
+    };
+  }
+
+  private buildDefaultStyles(
+    stylesheet: IStylesheet = this._stylesheet
+  ): NonNullable<IStylesOptions['default']> {
+    type IDefaultStyleOptions = NonNullable<
+      OptionalDocumentOptions['styles']
+    >['default'];
+    const headingDefaults = DOCX_DEFAULT_STYLE_SELECTORS.reduce<
+      NonNullable<IStylesOptions['default']>
+    >((defaults, selector) => {
+      const level = Number(selector.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6;
+      const styles = stylesheet.getComputedStylesBySelector(selector);
+
+      if (!hasStyles(styles)) {
+        return defaults;
+      }
+
+      const element = createBaseHeadingElement(level);
+
+      return {
+        ...defaults,
+        [`heading${level}`]: this.buildDocxStyleDefinition(styles, element),
+      } satisfies IDefaultStyleOptions;
+    }, {});
+
+    // TODO: add hyperlink
+
+    return {
+      ...headingDefaults,
+    };
+  }
+
+  private buildDocxStyleDefinition(
+    styles: Record<string, string | number>,
+    element: DocumentElement
+  ): {
+    paragraph: IParagraphStylePropertiesOptions;
+    run: IRunStylePropertiesOptions;
+  } {
+    const mappedStyles = this._mapper.mapStyles(styles, element);
+
+    return {
+      paragraph: mappedStyles as IParagraphStylePropertiesOptions,
+      run: mappedStyles as IRunStylePropertiesOptions,
+    };
+  }
+
   /**
    * Converts a DocumentElement (or an array of them) into an array of docx elements.
    */
@@ -200,12 +277,12 @@ export class DocxAdapter implements IDocumentConverter {
     return this._docxElementConverter.convertBlock(el, stylesheet);
   }
 
-  private mergeStylesheet(stylesheet?: IStylesheet): IStylesheet {
+  private mergeStylesheet(stylesheet?: IStylesheet): DocxStylesheet {
     if (!stylesheet) {
       return this._stylesheet;
     }
 
-    return createStylesheet([
+    return new DocxStylesheet([
       ...this._stylesheet.getStatements(),
       ...stylesheet.getStatements(),
     ]);

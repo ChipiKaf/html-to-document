@@ -3,6 +3,7 @@ import {
   createBaseStylesheet,
   createStylesheet,
   defaultStylesToStylesheetRules,
+  subtractStyles,
   tagDefaultStylesToStylesheetRules,
 } from '../src';
 
@@ -242,5 +243,23 @@ describe('stylesheet seeding', () => {
         metadata: { tagName: 'table' },
       })
     ).toEqual({ borderStyle: 'solid' });
+  });
+
+  it('subtracts stylesheet base styles from computed styles', () => {
+    expect(
+      subtractStyles(
+        {
+          color: '3366FF',
+          fontWeight: 'bold',
+          fontStyle: 'italic',
+        },
+        {
+          color: '3366FF',
+          fontWeight: 'bold',
+        }
+      )
+    ).toEqual({
+      fontStyle: 'italic',
+    });
   });
 });

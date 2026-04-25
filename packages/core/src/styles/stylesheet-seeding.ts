@@ -1,7 +1,13 @@
-import { IConverterDependencies, Styles } from '../types';
+import {
+  ExcludeDefaultStylesOption,
+  IConverterDependencies,
+  Styles,
+} from '../types';
 import { LEGACY_ELEMENT_TYPE_SELECTOR_ATTRIBUTE } from './constants';
-import { StyleRule, IStylesheet } from './interfaces';
+import { StyleDeclarationMeta, StyleRule, IStylesheet } from './interfaces';
 import { createStylesheet } from './sheet';
+
+export const SEEDED_DEFAULT_DECLARATION_ORIGIN = 'seeded-default';
 
 export const BUILT_IN_DEFAULT_STYLES: readonly {
   key: keyof HTMLElementTagNameMap;
@@ -186,17 +192,33 @@ export function createBaseStylesheet(): IStylesheet {
 
 export function seedStylesheetBuiltInDefaults(stylesheet: IStylesheet) {
   for (const { key, styles } of BUILT_IN_DEFAULT_STYLES) {
-    stylesheet.addStyleRule(key, styles);
+    stylesheet.add({
+      kind: 'style',
+      selectors: [key],
+      declarations: styles,
+      declarationMeta: { origin: SEEDED_DEFAULT_DECLARATION_ORIGIN },
+    });
   }
 
   return stylesheet;
 }
 
 export function defaultStylesToStylesheetRules(
-  defaultStyles: IConverterDependencies['defaultStyles'] = {}
+  defaultStyles: IConverterDependencies['defaultStyles'] = {},
+  declarationMeta?: StyleDeclarationMeta,
+  excludeOptions?: ExcludeDefaultStylesOption
 ): StyleRule[] {
+  if (excludeOptions === true) {
+    return [];
+  }
   return Object.entries(defaultStyles).flatMap(
     ([elementType, elementStyles]) => {
+      if (
+        excludeOptions !== false &&
+        excludeOptions?.excludedTagNames?.includes(elementType)
+      ) {
+        return [];
+      }
       if (!elementStyles || Object.keys(elementStyles).length === 0) {
         return [];
       }
@@ -208,6 +230,7 @@ export function defaultStylesToStylesheetRules(
             `[${LEGACY_ELEMENT_TYPE_SELECTOR_ATTRIBUTE}="${elementType}"]`,
           ],
           declarations: { ...elementStyles },
+          declarationMeta: declarationMeta ? { ...declarationMeta } : undefined,
         },
       ];
     }
@@ -230,7 +253,20 @@ export function tagDefaultStylesToStylesheetRules(
         kind: 'style' as const,
         selectors: [key],
         declarations: { ...styles },
+        declarationMeta: { origin: SEEDED_DEFAULT_DECLARATION_ORIGIN },
       },
     ];
   });
+}
+
+export function subtractStyles(styles: Styles, baseStyles: Styles): Styles {
+  const residualStyles: Styles = {};
+
+  for (const [key, value] of Object.entries(styles)) {
+    if (value !== baseStyles[key as keyof Styles]) {
+      residualStyles[key as keyof Styles] = value;
+    }
+  }
+
+  return residualStyles;
 }

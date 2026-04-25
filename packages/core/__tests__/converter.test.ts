@@ -572,6 +572,78 @@ describe('Converter initialization', () => {
       expect(receivedStyles).toMatchObject({ heading: { color: 'blue' } });
     });
 
+    it('should exclude adapter defaultStyles from seeded stylesheet rules when excludeDefaultStyles is true', async () => {
+      let receivedDependencies: any;
+      let parsedElements: any[] = [];
+
+      class StyleAdapter implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependencies = deps;
+        }
+        async convert(parsed: any): Promise<Buffer> {
+          parsedElements = parsed;
+          return Buffer.from('style-ok');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        excludeDefaultStyles: true,
+        adapters: {
+          register: [{ format: 'style', adapter: StyleAdapter }],
+          defaultStyles: [
+            { format: 'style', styles: { paragraph: { color: 'blue' } } },
+          ],
+        },
+      });
+
+      await converter.convert('<p>hi</p>', 'style');
+
+      expect(receivedDependencies.defaultStyles).toMatchObject({
+        paragraph: { color: 'blue' },
+      });
+      expect(
+        receivedDependencies.stylesheet.getMatchedStyles(parsedElements[0])
+      ).toEqual({});
+    });
+
+    it('should exclude only selected adapter defaultStyles from seeded stylesheet rules', async () => {
+      let receivedDependencies: any;
+
+      class StyleAdapter implements IDocumentConverter {
+        constructor(deps: any) {
+          receivedDependencies = deps;
+        }
+        async convert(): Promise<Buffer> {
+          return Buffer.from('style-ok');
+        }
+      }
+
+      init({
+        domParser: new JSDOMParser(),
+        excludeDefaultStyles: { excludedTagNames: ['paragraph'] },
+        adapters: {
+          register: [{ format: 'style', adapter: StyleAdapter }],
+          defaultStyles: [
+            {
+              format: 'style',
+              styles: {
+                heading: { color: 'green' },
+                paragraph: { color: 'blue' },
+              },
+            },
+          ],
+        },
+      });
+
+      expect(
+        receivedDependencies.stylesheet.getMatchedStyles({ type: 'heading' })
+      ).toMatchObject({ color: 'green' });
+      expect(
+        receivedDependencies.stylesheet.getMatchedStyles({ type: 'paragraph' })
+      ).toEqual({});
+    });
+
     it('should seed parser built-ins into adapter stylesheets without embedding them in parsed styles', async () => {
       let receivedDependencies: any;
       let parsedElements: any[] = [];
