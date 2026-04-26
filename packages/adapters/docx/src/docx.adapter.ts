@@ -18,6 +18,7 @@ import {
   IDocumentConverter,
   IStylesheet,
   initStyleMeta,
+  AtRule,
 } from 'html-to-document-core';
 
 import { NumberFormat, AlignmentType } from 'docx';
@@ -32,6 +33,16 @@ import { ElementConverter } from './element-converters/converter';
 import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
 import { mergeDeep, pipe } from 'remeda';
+import { lengthToTwips } from './utils/parse';
+
+type NormalizedPageRule = {
+  marginTop?: string;
+  marginRight?: string;
+  marginBottom?: string;
+  marginLeft?: string;
+  size?: string[];
+  orientation?: 'landscape' | 'portrait';
+};
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: DocxStyleMapper;
@@ -95,6 +106,17 @@ export class DocxAdapter implements IDocumentConverter {
       ? await this.convertFooter(globalFooter, effectiveStylesheet)
       : undefined;
 
+    const stylesheetPageRules = this._stylesheet.getAtRules('page');
+    const defaultPageRules = stylesheetPageRules.filter((r) => !r.prelude);
+
+    const validatedPageRules = this.normalizePageRules(defaultPageRules);
+
+    // TODO: consider first page rules
+    // const firstPageRules = stylesheetPageRules.filter(
+    //   (r) => r.prelude === ':first'
+    // );
+    // const firstPageValidatedRules = this.normalizePageRules(firstPageRules);
+
     const docSections: ISectionOptions[] = [];
     const sectionList = sections.length ? sections : [{ children: [] }];
     for (const sec of sectionList) {
@@ -110,6 +132,32 @@ export class DocxAdapter implements IDocumentConverter {
         : globalFooterDocx;
       const options: ISectionOptions = {
         ...this.defaultSectionOptions,
+        properties: {
+          ...this.defaultSectionOptions?.properties,
+          page: {
+            ...this.defaultSectionOptions?.properties?.page,
+            margin: {
+              ...this.defaultSectionOptions?.properties?.page?.margin,
+              // TODO: consider supporting unitless numbers
+              top: validatedPageRules.marginTop
+                ? lengthToTwips(validatedPageRules.marginTop.toString())
+                : this.defaultSectionOptions?.properties?.page?.margin?.top,
+              right: validatedPageRules.marginRight
+                ? lengthToTwips(validatedPageRules.marginRight.toString())
+                : this.defaultSectionOptions?.properties?.page?.margin?.right,
+              bottom: validatedPageRules.marginBottom
+                ? lengthToTwips(validatedPageRules.marginBottom.toString())
+                : this.defaultSectionOptions?.properties?.page?.margin?.bottom,
+              left: validatedPageRules.marginLeft
+                ? lengthToTwips(validatedPageRules.marginLeft.toString())
+                : this.defaultSectionOptions?.properties?.page?.margin?.left,
+            },
+            size: {
+              ...this.defaultSectionOptions?.properties?.page?.size,
+              // TODO: add supprot for size values like "A4", "Letter", etc. and also numbers with units
+            },
+          },
+        },
         children,
         ...(header ? { headers: { default: header } } : {}),
         ...(footer ? { footers: { default: footer } } : {}),
@@ -265,6 +313,66 @@ export class DocxAdapter implements IDocumentConverter {
       paragraph: mappedStyles as IParagraphStylePropertiesOptions,
       run: mappedStyles as IRunStylePropertiesOptions,
     };
+  }
+
+  private normalizePageRules(
+    atRules: readonly AtRule<'page'>[]
+  ): NormalizedPageRule {
+    const merged = atRules.reduce(
+      (acc, r) => {
+        return {
+          ...acc,
+          ...r.descriptors,
+        };
+      },
+      {} as NonNullable<(typeof atRules)[number]['descriptors']>
+    );
+
+    const normalized: NormalizedPageRule = {};
+    if (merged.margin) {
+      // expand margin shorthand into individual sides, since docx library requires them separately
+      // margin examples "1in" "1in 2cm" "1in 2cm 3mm" "1in 2cm 3mm 4px"
+      const marginValueRegex = /(\d+(\.\d+)?)(\w*)/g;
+      const matches = merged.margin.toString().matchAll(marginValueRegex);
+      const margins: string[] = [];
+      for (const match of matches) {
+        if (match[1] && match[3]) {
+          margins.push(match[0]);
+        }
+      }
+      if (margins.length === 1) {
+        normalized.marginTop = margins[0];
+        normalized.marginRight = margins[0];
+        normalized.marginBottom = margins[0];
+        normalized.marginLeft = margins[0];
+      } else if (margins.length === 2) {
+        normalized.marginTop = margins[0];
+        normalized.marginBottom = margins[0];
+        normalized.marginRight = margins[1];
+        normalized.marginLeft = margins[1];
+      } else if (margins.length === 3) {
+        normalized.marginTop = margins[0];
+        normalized.marginRight = margins[1];
+        normalized.marginLeft = margins[1];
+        normalized.marginBottom = margins[2];
+      } else if (margins.length >= 4) {
+        normalized.marginTop = margins[0];
+        normalized.marginRight = margins[1];
+        normalized.marginBottom = margins[2];
+        normalized.marginLeft = margins[3];
+      }
+    }
+
+    if (merged.marginTop) normalized.marginTop = merged.marginTop.toString();
+    if (merged.marginRight)
+      normalized.marginRight = merged.marginRight.toString();
+    if (merged.marginBottom)
+      normalized.marginBottom = merged.marginBottom.toString();
+    if (merged.marginLeft) normalized.marginLeft = merged.marginLeft.toString();
+
+    // TODO: add support for size values like "A4", "Letter", etc. and also numbers with units
+
+    return normalized;
   }
 
   /**
