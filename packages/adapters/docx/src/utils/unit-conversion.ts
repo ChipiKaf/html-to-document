@@ -3,8 +3,8 @@ export const TWIPS_PER_PIXEL = 15; // 1 pixel = 15 twips
 export const TWIPS_PER_PT = 20;
 export const TWIPS_PER_PC = 240;
 export const TWIPS_PER_INCH = 1440; // 1 inch = 1440 twips
-export const TWIPS_PER_CM = 567; // 1 cm = 567 twips
-export const TWIPS_PER_MM = 56.7;
+export const TWIPS_PER_CM = 566.929133858;
+export const TWIPS_PER_MM = 56.6929133858;
 export const CM_PER_INCH = 2.54;
 export const EMUS_PER_TWIP = 635;
 

@@ -17,6 +17,7 @@ import {
 import JSZip from 'jszip';
 import { AlignmentType, NumberFormat } from 'docx';
 import type { ISectionOptions } from 'docx';
+import { TWIPS_PER_INCH, TWIPS_PER_MM } from '../src/utils/unit-conversion';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
@@ -2677,22 +2678,32 @@ describe('Docx.adapter.convert', () => {
       expect(sectPr['w:pgMar']['@_w:left']).toBe('5760');
     });
 
-    it('should apply global @page size', async () => {
-      const stylesheet = createStylesheetWithPageRules([
-        { descriptors: { size: 'A4' } },
-      ]);
-      const customAdapter = new DocxAdapter({ stylesheet });
+    it.each([
+      // Use non calculated values here to avoid discrepancies due to rounding
+      ['A3', '16838', '23811'],
+      ['A4', '11906', '16838'],
+      ['A5', '8391', '11906'],
+      ['letter', '12240', '15840'],
+      ['legal', '12240', '20160'],
+    ])(
+      'should apply global @page size for %s',
+      async (size, expectedWidth, expectedHeight) => {
+        const stylesheet = createStylesheetWithPageRules([
+          { descriptors: { size } },
+        ]);
+        const customAdapter = new DocxAdapter({ stylesheet });
 
-      const html = '<p>Test</p>';
-      const elements = parser.parse(html);
-      const buffer = await customAdapter.convert(elements);
-      const parsed = await parseDocxXml(buffer, 'word/document.xml');
-      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+        const html = '<p>Test</p>';
+        const elements = parser.parse(html);
+        const buffer = await customAdapter.convert(elements);
+        const parsed = await parseDocxXml(buffer, 'word/document.xml');
+        const sectPr = parsed['w:document']['w:body']['w:sectPr'];
 
-      expect(sectPr['w:pgSz']).toBeDefined();
-      expect(sectPr['w:pgSz']['@_w:w']).toBe('11906');
-      expect(sectPr['w:pgSz']['@_w:h']).toBe('16838');
-    });
+        expect(sectPr['w:pgSz']).toBeDefined();
+        expect(sectPr['w:pgSz']['@_w:w']).toBe(expectedWidth.toString());
+        expect(sectPr['w:pgSz']['@_w:h']).toBe(expectedHeight.toString());
+      }
+    );
 
     it('should let global @page override defaultSectionOptions page fields', async () => {
       const stylesheet = createStylesheetWithPageRules([
@@ -2757,7 +2768,7 @@ describe('Docx.adapter.convert', () => {
     //   expect(sectPrs[1]).toContain('w:left="1440"');
     // });
 
-    it('should preserve unspecified default section page fields', async () => {
+    it('should preserve default page size when @page sets only margins', async () => {
       const stylesheet = createStylesheetWithPageRules([
         { descriptors: { margin: '1in' } },
       ]);
@@ -2797,6 +2808,47 @@ describe('Docx.adapter.convert', () => {
       expect(sectPr['w:pgMar']['@_w:left']).toBe('1440');
       expect(sectPr['w:pgSz']['@_w:w']).toBe('12240');
       expect(sectPr['w:pgSz']['@_w:h']).toBe('15840');
+    });
+
+    it('should preserve default page margin sides when @page sets only some margins', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        {
+          descriptors: {
+            marginTop: '1in',
+            marginLeft: '2in',
+          },
+        },
+      ]);
+      const customAdapter = new DocxAdapter(
+        {
+          stylesheet,
+        },
+        {
+          defaultSectionOptions: {
+            properties: {
+              page: {
+                margin: {
+                  top: 1234,
+                  right: 1235,
+                  bottom: 1236,
+                  left: 1237,
+                },
+              },
+            },
+          },
+        }
+      );
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('1235');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('1236');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('2880');
     });
   });
 

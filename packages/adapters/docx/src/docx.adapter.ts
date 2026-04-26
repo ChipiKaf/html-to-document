@@ -10,6 +10,7 @@ import {
   IStylesOptions,
   IParagraphStylePropertiesOptions,
   IRunStylePropertiesOptions,
+  IPageSizeAttributes,
 } from 'docx';
 import {
   createBaseStylesheet,
@@ -34,15 +35,76 @@ import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
 import { mergeDeep, pipe } from 'remeda';
 import { lengthToTwips } from './utils/parse';
+import { TWIPS_PER_INCH, TWIPS_PER_MM } from './utils/unit-conversion';
 
 type NormalizedPageRule = {
-  marginTop?: string;
-  marginRight?: string;
-  marginBottom?: string;
-  marginLeft?: string;
-  size?: string[];
+  /** as twips number */
+  marginTop?: number;
+  /** as twips number */
+  marginRight?: number;
+  /** as twips number */
+  marginBottom?: number;
+  /** as twips number */
+  marginLeft?: number;
+  size?:
+    | {
+        kind: 'code';
+        code: number;
+      }
+    | {
+        kind: 'explicit';
+        /** as twips number */
+        width: number;
+        /** as twips number */
+        height: number;
+      };
+  /** Is not set if explicit size is provided, otherwise can be set based on orientation or size code */
   orientation?: 'landscape' | 'portrait';
 };
+
+const docxSizeCodeMap: Record<string, number> = {
+  letter: 1,
+  ledger: 3,
+  legal: 5,
+  A3: 8,
+  A4: 9,
+  A5: 11,
+  'JIS-B4': 12,
+  'JIS-B5': 13,
+  B4: 34,
+  B5: 35,
+} as const;
+
+const docxCodeSizesMap: Record<
+  /** docx code */
+  number,
+  {
+    /** as twips number */
+    width: number;
+    /** as twips number */
+    height: number;
+  }
+> = {
+  1: { width: 8.5 * TWIPS_PER_INCH, height: 11 * TWIPS_PER_INCH },
+  3: { width: 11 * TWIPS_PER_INCH, height: 17 * TWIPS_PER_INCH },
+  5: { width: 8.5 * TWIPS_PER_INCH, height: 14 * TWIPS_PER_INCH },
+  8: {
+    width: Math.round(297 * TWIPS_PER_MM),
+    height: Math.round(420 * TWIPS_PER_MM),
+  },
+  9: {
+    width: Math.round(210 * TWIPS_PER_MM),
+    height: Math.round(297 * TWIPS_PER_MM),
+  },
+  11: {
+    width: Math.round(148 * TWIPS_PER_MM),
+    height: Math.round(210 * TWIPS_PER_MM),
+  },
+  12: { width: 257 * TWIPS_PER_MM, height: 364 * TWIPS_PER_MM },
+  13: { width: 182 * TWIPS_PER_MM, height: 257 * TWIPS_PER_MM },
+  34: { width: 257 * TWIPS_PER_MM, height: 364 * TWIPS_PER_MM },
+  35: { width: 182 * TWIPS_PER_MM, height: 257 * TWIPS_PER_MM },
+} as const;
 
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: DocxStyleMapper;
@@ -111,6 +173,21 @@ export class DocxAdapter implements IDocumentConverter {
 
     const validatedPageRules = this.normalizePageRules(defaultPageRules);
 
+    const pageSize: Partial<IPageSizeAttributes> | undefined =
+      validatedPageRules.size?.kind === 'code'
+        ? {
+            code: validatedPageRules.size.code,
+            orientation: validatedPageRules.orientation,
+            width: docxCodeSizesMap[validatedPageRules.size.code]?.width,
+            height: docxCodeSizesMap[validatedPageRules.size.code]?.height,
+          }
+        : validatedPageRules.size?.kind === 'explicit'
+          ? {
+              width: validatedPageRules.size.width,
+              height: validatedPageRules.size.height,
+            }
+          : undefined;
+
     // TODO: consider first page rules
     // const firstPageRules = stylesheetPageRules.filter(
     //   (r) => r.prelude === ':first'
@@ -140,21 +217,22 @@ export class DocxAdapter implements IDocumentConverter {
               ...this.defaultSectionOptions?.properties?.page?.margin,
               // TODO: consider supporting unitless numbers
               top: validatedPageRules.marginTop
-                ? lengthToTwips(validatedPageRules.marginTop.toString())
+                ? validatedPageRules.marginTop
                 : this.defaultSectionOptions?.properties?.page?.margin?.top,
               right: validatedPageRules.marginRight
-                ? lengthToTwips(validatedPageRules.marginRight.toString())
+                ? validatedPageRules.marginRight
                 : this.defaultSectionOptions?.properties?.page?.margin?.right,
               bottom: validatedPageRules.marginBottom
-                ? lengthToTwips(validatedPageRules.marginBottom.toString())
+                ? validatedPageRules.marginBottom
                 : this.defaultSectionOptions?.properties?.page?.margin?.bottom,
               left: validatedPageRules.marginLeft
-                ? lengthToTwips(validatedPageRules.marginLeft.toString())
+                ? validatedPageRules.marginLeft
                 : this.defaultSectionOptions?.properties?.page?.margin?.left,
             },
             size: {
               ...this.defaultSectionOptions?.properties?.page?.size,
               // TODO: add supprot for size values like "A4", "Letter", etc. and also numbers with units
+              ...pageSize,
             },
           },
         },
@@ -332,14 +410,15 @@ export class DocxAdapter implements IDocumentConverter {
     if (merged.margin) {
       // expand margin shorthand into individual sides, since docx library requires them separately
       // margin examples "1in" "1in 2cm" "1in 2cm 3mm" "1in 2cm 3mm 4px"
-      const marginValueRegex = /(\d+(\.\d+)?)(\w*)/g;
-      const matches = merged.margin.toString().matchAll(marginValueRegex);
-      const margins: string[] = [];
-      for (const match of matches) {
-        if (match[1] && match[3]) {
-          margins.push(match[0]);
-        }
-      }
+      const margins = merged.margin
+        .toString()
+        .trim()
+        .split(/\s+/)
+        .map((token) => {
+          if (!token) return undefined;
+          const twips = lengthToTwips(token);
+          return twips;
+        });
       if (margins.length === 1) {
         normalized.marginTop = margins[0];
         normalized.marginRight = margins[0];
@@ -363,14 +442,42 @@ export class DocxAdapter implements IDocumentConverter {
       }
     }
 
-    if (merged.marginTop) normalized.marginTop = merged.marginTop.toString();
+    if (merged.marginTop)
+      normalized.marginTop = lengthToTwips(merged.marginTop);
     if (merged.marginRight)
-      normalized.marginRight = merged.marginRight.toString();
+      normalized.marginRight = lengthToTwips(merged.marginRight);
     if (merged.marginBottom)
-      normalized.marginBottom = merged.marginBottom.toString();
-    if (merged.marginLeft) normalized.marginLeft = merged.marginLeft.toString();
+      normalized.marginBottom = lengthToTwips(merged.marginBottom);
+    if (merged.marginLeft)
+      normalized.marginLeft = lengthToTwips(merged.marginLeft);
 
-    // TODO: add support for size values like "A4", "Letter", etc. and also numbers with units
+    const sizeSplitted = merged.size?.toString().split(/\s+/);
+    // If last is "landscape" or "portrait", treat it as orientation, otherwise ignore
+    if (sizeSplitted) {
+      const sizeName = sizeSplitted[0];
+      const sizeCode = sizeName ? docxSizeCodeMap[sizeName] : undefined;
+
+      if (sizeCode) {
+        normalized.size = { kind: 'code', code: sizeCode };
+        const lastToken = sizeSplitted[sizeSplitted.length - 1]?.toLowerCase();
+        if (lastToken === 'landscape' || lastToken === 'portrait') {
+          normalized.orientation = lastToken;
+          sizeSplitted.pop();
+        }
+      } else {
+        const widthToken = sizeSplitted[0];
+        const heightToken = sizeSplitted[1] ?? sizeSplitted[0]; // if only one value is provided, use it for both width and height
+        const width = lengthToTwips(widthToken);
+        const height = lengthToTwips(heightToken);
+        if (width && height) {
+          normalized.size = {
+            kind: 'explicit',
+            width,
+            height,
+          };
+        }
+      }
+    }
 
     return normalized;
   }
