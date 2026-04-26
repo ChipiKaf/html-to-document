@@ -1,12 +1,13 @@
 import { DocxAdapter } from '../src/docx.adapter';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
 import {
-  createBaseStylesheet,
   createStylesheet,
+  createBaseStylesheet,
   DocumentElement,
+  minifyMiddleware,
+  Parser,
+  IStylesheet,
 } from 'html-to-document-core';
-import { minifyMiddleware } from 'html-to-document-core';
-import { Parser } from 'html-to-document-core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   JSDOMParser,
@@ -15,6 +16,7 @@ import {
 } from '../../../core/__tests__/utils/parser.helper';
 import JSZip from 'jszip';
 import { AlignmentType, NumberFormat } from 'docx';
+import type { ISectionOptions } from 'docx';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
@@ -58,6 +60,25 @@ const findStyleById = (
       style['@_w:styleId'] === styleId
   );
 };
+
+const createStylesheetWithPageRules = (
+  rules: Array<{
+    prelude?: string;
+    descriptors: Record<string, string | number>;
+  }>
+): IStylesheet => {
+  const stylesheet = createBaseStylesheet();
+  for (const rule of rules) {
+    stylesheet.addAtRule({
+      kind: 'at-rule',
+      name: 'page',
+      prelude: rule.prelude,
+      descriptors: rule.descriptors,
+    });
+  }
+  return stylesheet;
+};
+
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
   let parser: Parser;
@@ -2605,6 +2626,177 @@ describe('Docx.adapter.convert', () => {
       expect(sectPr['w:pgMar']['@_w:right']).toBe('1235');
       expect(sectPr['w:pgMar']['@_w:bottom']).toBe('1236');
       expect(sectPr['w:pgMar']['@_w:left']).toBe('1237');
+    });
+
+    it('should apply global @page margins to all sections', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { margin: '1in' } },
+      ]);
+      const customAdapter = new DocxAdapter({ stylesheet });
+
+      const html =
+        '<p>First</p><section class="page-break"></section><p>Second</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const zip = await JSZip.loadAsync(buffer);
+      const xml = await zip.file('word/document.xml')!.async('text');
+      const sectPrs = xml.match(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/g) ?? [];
+
+      expect(sectPrs).toHaveLength(2);
+      for (const sectPr of sectPrs) {
+        expect(sectPr).toContain('w:pgMar');
+        expect(sectPr).toContain('w:top="1440"');
+        expect(sectPr).toContain('w:right="1440"');
+        expect(sectPr).toContain('w:bottom="1440"');
+        expect(sectPr).toContain('w:left="1440"');
+      }
+    });
+
+    it('should apply per-side @page margins', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        {
+          descriptors: {
+            marginTop: '1in',
+            marginRight: '2in',
+            marginBottom: '3in',
+            marginLeft: '4in',
+          },
+        },
+      ]);
+      const customAdapter = new DocxAdapter({ stylesheet });
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('2880');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('4320');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('5760');
+    });
+
+    it('should apply global @page size', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { size: 'A4' } },
+      ]);
+      const customAdapter = new DocxAdapter({ stylesheet });
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgSz']).toBeDefined();
+      expect(sectPr['w:pgSz']['@_w:w']).toBe('11906');
+      expect(sectPr['w:pgSz']['@_w:h']).toBe('16838');
+    });
+
+    it('should let global @page override defaultSectionOptions page fields', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { margin: '1in' } },
+      ]);
+      const customAdapter = new DocxAdapter(
+        {
+          stylesheet,
+        },
+        {
+          defaultSectionOptions: {
+            properties: {
+              page: {
+                margin: {
+                  top: 1234,
+                  right: 1235,
+                  bottom: 1236,
+                  left: 1237,
+                },
+              },
+            },
+          },
+        }
+      );
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('1440');
+    });
+
+    // TODO: figure out if this is the right spec
+    // it('should let @page :first override only the first document section', async () => {
+    //   const stylesheet = createStylesheetWithPageRules([
+    //     { descriptors: { margin: '1in' } },
+    //     { prelude: ':first', descriptors: { margin: '2in' } },
+    //   ]);
+    //   const customAdapter = new DocxAdapter({ stylesheet });
+    //
+    //   const html =
+    //     '<p>First</p><section class="page-break"></section><p>Second</p>';
+    //   const elements = parser.parse(html);
+    //   const buffer = await customAdapter.convert(elements);
+    //   const zip = await JSZip.loadAsync(buffer);
+    //   const xml = await zip.file('word/document.xml')!.async('text');
+    //   const sectPrs = xml.match(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/g) ?? [];
+    //
+    //   expect(sectPrs).toHaveLength(2);
+    //   expect(sectPrs[0]).toContain('w:top="2880"');
+    //   expect(sectPrs[0]).toContain('w:right="2880"');
+    //   expect(sectPrs[0]).toContain('w:bottom="2880"');
+    //   expect(sectPrs[0]).toContain('w:left="2880"');
+    //   expect(sectPrs[1]).toContain('w:top="1440"');
+    //   expect(sectPrs[1]).toContain('w:right="1440"');
+    //   expect(sectPrs[1]).toContain('w:bottom="1440"');
+    //   expect(sectPrs[1]).toContain('w:left="1440"');
+    // });
+
+    it('should preserve unspecified default section page fields', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { margin: '1in' } },
+      ]);
+      const customAdapter = new DocxAdapter(
+        {
+          stylesheet,
+        },
+        {
+          defaultSectionOptions: {
+            properties: {
+              page: {
+                size: {
+                  width: 12240,
+                  height: 15840,
+                },
+                margin: {
+                  top: 1234,
+                  right: 1235,
+                  bottom: 1236,
+                  left: 1237,
+                },
+              },
+            },
+          } as Partial<ISectionOptions>,
+        }
+      );
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('1440');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('1440');
+      expect(sectPr['w:pgSz']['@_w:w']).toBe('12240');
+      expect(sectPr['w:pgSz']['@_w:h']).toBe('15840');
     });
   });
 

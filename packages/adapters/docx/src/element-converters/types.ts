@@ -18,6 +18,7 @@ export type ElementStylesheet = {
    * Starts with stylesheet-resolved styles, then applies the element's own styles.
    */
   getComputedStyles: IStylesheet['getComputedStyles'];
+  getAtRules: IStylesheet['getAtRules'];
 };
 
 export type ElementConverterDependencies = {
