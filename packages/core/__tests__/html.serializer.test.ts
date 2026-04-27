@@ -31,6 +31,16 @@ describe('html.serializer', () => {
     // );
   });
 
+  it('preserves semantic inline text tags during serialization', async () => {
+    const html = await minifyMiddleware(
+      '<p><strong>Bold</strong> <mark>Marked</mark> <kbd>Ctrl</kbd> plain</p>'
+    );
+
+    const elements = parser.parse(html);
+
+    expect(await minifyMiddleware(toHtml(elements))).toBe(`<div>${html}</div>`);
+  });
+
   it('round-trips attributes and styles', () => {
     const html = '<a href="https://example.com" title="Example">Link</a>';
     const elements = parser.parse(html);
