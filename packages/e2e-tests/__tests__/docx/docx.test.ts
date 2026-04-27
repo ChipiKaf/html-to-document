@@ -16,6 +16,88 @@ describe('e2e tests using the docx adapter', () => {
     },
   });
 
+  describe('inline tags', () => {
+    it('<b> produces a bold text run', async () => {
+      const docx = await converter.convert('<p>Hello <b>world</b></p>', 'docx');
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const boldRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(boldRun['w:rPr']).toHaveProperty('w:b');
+    });
+
+    it('<i> produces an italic text run', async () => {
+      const docx = await converter.convert('<p>Hello <i>world</i></p>', 'docx');
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const italicRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(italicRun['w:rPr']).toHaveProperty('w:i');
+    });
+
+    it('<strong> produces a bold text run', async () => {
+      const docx = await converter.convert(
+        '<p>Hello <strong>world</strong></p>',
+        'docx'
+      );
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const boldRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(boldRun['w:rPr']).toHaveProperty('w:b');
+    });
+
+    it('<em> produces an italic text run', async () => {
+      const docx = await converter.convert(
+        '<p>Hello <em>world</em></p>',
+        'docx'
+      );
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const italicRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(italicRun['w:rPr']).toHaveProperty('w:i');
+    });
+
+    it('<u> produces an underlined text run', async () => {
+      const docx = await converter.convert('<p>Hello <u>world</u></p>', 'docx');
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const underlineRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(underlineRun['w:rPr']['w:u']['@_w:val']).toBe('single');
+    });
+
+    it('<s> produces a strikethrough text run', async () => {
+      const docx = await converter.convert('<p>Hello <s>world</s></p>', 'docx');
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const strikeRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(strikeRun['w:rPr']).toHaveProperty('w:strike');
+    });
+
+    it('<b><i> nested tags produce both bold and italic run', async () => {
+      const docx = await converter.convert(
+        '<p>Hello <b><i>world</i></b></p>',
+        'docx'
+      );
+      const json = await parseDocxDocument(docx);
+      const runs = json['w:document']['w:body']['w:p']['w:r'];
+      const targetRun = Array.isArray(runs)
+        ? runs.find((r: any) => r['w:t']?.['#text'] === 'world')
+        : runs;
+      expect(targetRun['w:rPr']).toHaveProperty('w:b');
+      expect(targetRun['w:rPr']).toHaveProperty('w:i');
+    });
+  });
+
   it('should be able to convert a simple HTML to docx', async () => {
     const html = `<p>Hello <strong>World</strong></p>`;
     const docx = await converter.convert(html, 'docx');
