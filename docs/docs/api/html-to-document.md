@@ -51,7 +51,7 @@ Initialize a new [`Converter`](./types) instance.
 - **options**: [`InitOptions`](./types) (optional)
   - `middleware?: [`Middleware`](./types)[]` – custom middleware functions.
   - `tags?: { tagHandlers?: [`TagHandlerObject`](./types)[]; defaultStyles?: ...; defaultAttributes?: ... }` – custom tag handlers and default tag options.
-- `adapters?: { defaultStyles?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object }[] }` – register adapters and adapter-specific config.
+- `adapters?: { defaultStyles?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object; createAdapter?: ... }[] }` – register adapters, customize construction per adapter, and pass adapter-specific config.
   - `clearMiddleware?: boolean` – clear default middleware.
   - `domParser?: [`IDOMParser`](./types)` – custom DOM parser implementation.
 

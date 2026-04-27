@@ -210,6 +210,39 @@ const converter = init({
 });
 ```
 
+If you need full control over adapter construction, add a `createAdapter` factory to the adapter registration. It receives the computed `dependencies`, the adapter class, the target `format`, and the registration `config`:
+
+```ts
+const converter = init({
+  adapters: {
+    register: [
+      {
+        format: 'md',
+        adapter: MyAdapter,
+        createAdapter: ({ Adapter, dependencies, config, format }) => {
+          if (format === 'md') {
+            return new Adapter(
+              {
+                ...dependencies,
+                defaultStyles: {
+                  ...dependencies.defaultStyles,
+                  paragraph: { marginBottom: 8, lineHeight: 1.6 },
+                },
+              },
+              config
+            );
+          }
+
+          return new Adapter(dependencies, config);
+        },
+      },
+    ],
+  },
+});
+```
+
+`init()` creates a fresh dependency object for each adapter registration, so mutations inside one `createAdapter` call do not leak into other adapters.
+
 The `MyAdapter` class should implement:
 
 ```ts

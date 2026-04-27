@@ -275,6 +275,126 @@ describe('Converter initialization', () => {
       expect(receivedStyles).toMatchObject({ heading: { color: 'blue' } });
     });
 
+    it('should allow register.createAdapter to customize adapter construction', async () => {
+      let receivedDependencies: any;
+
+      class StyleAdapter implements IDocumentConverter {
+        constructor(dependencies: unknown, _config: unknown) {
+          receivedDependencies = dependencies;
+        }
+
+        async convert(): Promise<Buffer> {
+          return Buffer.from('style-ok');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: {
+          register: [
+            {
+              format: 'style',
+              adapter: StyleAdapter,
+              createAdapter: ({ Adapter, dependencies, config, format }) =>
+                new Adapter(
+                  {
+                    ...dependencies,
+                    defaultStyles: {
+                      ...dependencies.defaultStyles,
+                      heading: { color: format === 'style' ? 'red' : 'blue' },
+                    },
+                    styleMeta: {
+                      ...dependencies.styleMeta,
+                      color: {
+                        ...dependencies.styleMeta?.color,
+                        inherits: false,
+                      },
+                    },
+                  },
+                  config
+                ),
+            },
+          ],
+        },
+      });
+
+      await converter.convert('<h1>hi</h1>', 'style');
+
+      expect(receivedDependencies.defaultStyles).toMatchObject({
+        heading: { color: 'red' },
+      });
+      expect(receivedDependencies.styleMeta.color).toMatchObject({
+        inherits: false,
+      });
+    });
+
+    it('should provide fresh dependencies to each register.createAdapter call', async () => {
+      const receivedDependencies: any[] = [];
+
+      class AdapterA implements IDocumentConverter {
+        constructor(_dependencies: unknown, _config: unknown) {}
+        async convert(): Promise<Buffer> {
+          return Buffer.from('a');
+        }
+      }
+
+      class AdapterB implements IDocumentConverter {
+        constructor(_dependencies: unknown, _config: unknown) {}
+        async convert(): Promise<Buffer> {
+          return Buffer.from('b');
+        }
+      }
+
+      init({
+        domParser: new JSDOMParser(),
+        adapters: {
+          defaultStyles: [
+            { format: 'a', styles: { heading: { color: 'blue' } } },
+            { format: 'b', styles: { heading: { color: 'green' } } },
+          ],
+          register: [
+            {
+              format: 'a',
+              adapter: AdapterA,
+              createAdapter: ({ Adapter, dependencies, config }) => {
+                receivedDependencies.push(dependencies);
+                dependencies.defaultStyles!.heading!.color = 'mutated';
+                dependencies.styleMeta!.color!.inherits = false;
+                return new Adapter(dependencies, config);
+              },
+            },
+            {
+              format: 'b',
+              adapter: AdapterB,
+              createAdapter: ({ Adapter, dependencies, config }) => {
+                receivedDependencies.push(dependencies);
+                return new Adapter(dependencies, config);
+              },
+            },
+          ],
+        },
+      });
+
+      expect(receivedDependencies).toHaveLength(2);
+      expect(receivedDependencies[0]).not.toBe(receivedDependencies[1]);
+      expect(receivedDependencies[0].defaultStyles).not.toBe(
+        receivedDependencies[1].defaultStyles
+      );
+      expect(receivedDependencies[0].defaultStyles.heading).not.toBe(
+        receivedDependencies[1].defaultStyles.heading
+      );
+      expect(receivedDependencies[0].styleMeta).not.toBe(
+        receivedDependencies[1].styleMeta
+      );
+      expect(receivedDependencies[0].styleMeta.color).not.toBe(
+        receivedDependencies[1].styleMeta.color
+      );
+      expect(receivedDependencies[1].defaultStyles).toMatchObject({
+        heading: { color: 'green' },
+      });
+      expect(receivedDependencies[1].styleMeta.color.inherits).toBe(true);
+    });
+
     it('should allow tagHandlers to override default behavior', async () => {
       const tagHandler = {
         key: 'h1',

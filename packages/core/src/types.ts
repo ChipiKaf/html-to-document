@@ -375,6 +375,19 @@ export type AdapterProvider<ConfigType = unknown> = new (
   config?: ConfigType
 ) => IDocumentConverter;
 
+export type CreateAdapterArgs<
+  AdapterType extends AdapterProvider = AdapterProvider,
+> = {
+  format: Formats;
+  Adapter: AdapterType;
+  dependencies: IConverterDependencies;
+  config?: ConstructorParameters<AdapterType>[1];
+};
+
+export type CreateAdapter<
+  AdapterType extends AdapterProvider = AdapterProvider,
+> = (args: CreateAdapterArgs<AdapterType>) => IDocumentConverter;
+
 // export type ConverterOptions = {
 //   /** Optional tag handlers to use */
 //   tagHandlers?: TagHandlerObject[];
@@ -409,7 +422,12 @@ export type AdapterRegistration<
   /**
    * Custom configuration for the Adapter.
    */
-  config?: ConstructorParameters<AdapterType>[1];
+  config?: ConstructorParameters<NoInfer<AdapterType>>[1];
+
+  /**
+   * Optional factory hook for constructing this adapter registration.
+   */
+  createAdapter?: CreateAdapter<NoInfer<AdapterType>>;
 };
 
 /**
@@ -425,8 +443,9 @@ export type AdapterRegistration<
  */
 export type InitOptions<
   // it should be okay to use any in a generic context
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  T extends readonly AdapterProvider<any>[] = AdapterProvider<any>[],
+  AdapterProviders extends
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    readonly AdapterProvider<any>[] = AdapterProvider<any>[],
 > = {
   /** Optional middleware functions to apply */
   middleware?: readonly Middleware[];
@@ -507,7 +526,11 @@ export type InitOptions<
      *     { format: 'pdf', adapter: PdfAdapter }
      *   ]
      */
-    register?: { readonly [K in keyof T]: AdapterRegistration<T[K]> };
+    register?: {
+      readonly [AdapterProviderIndex in keyof AdapterProviders]: AdapterRegistration<
+        AdapterProviders[AdapterProviderIndex]
+      >;
+    };
   };
   /** Optional DOM parser to use */
   domParser?: IDOMParser;

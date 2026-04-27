@@ -147,7 +147,17 @@ Customize how HTML tags are parsed and styled before conversion.
 
 ```ts
 {
-  register?: { format: string; adapter: AdapterProvider; config?: object }[];
+  register?: {
+    format: string;
+    adapter: AdapterProvider;
+    config?: object;
+    createAdapter?: (args: {
+      format: string;
+      Adapter: AdapterProvider;
+      config?: object;
+      dependencies: IConverterDependencies;
+    }) => IDocumentConverter;
+  }[];
   defaultStyles?: { format: string; styles: Record<ElementType, Styles> }[];
 }
 ```
@@ -163,6 +173,46 @@ Controls which adapters are registered and which default styles they receive.
     },
   });
   ```
+- **register.createAdapter:** Per-registration factory hook for adapter construction. `init()` computes a fresh dependency object for each registration and passes it to this factory together with the adapter class and config. Use this when you want to customize `defaultStyles`, `styleMeta`, or wrap the adapter instance before registration:
+
+  ```ts
+  init({
+    adapters: {
+      register: [
+        {
+          format: 'docx',
+          adapter: DocxAdapter,
+          createAdapter: ({ Adapter, config, format, dependencies }) => {
+            if (format === 'docx') {
+              return new Adapter(
+                {
+                  ...dependencies,
+                  defaultStyles: {
+                    ...dependencies.defaultStyles,
+                    heading: { color: 'darkred' },
+                  },
+                  styleMeta: {
+                    ...dependencies.styleMeta,
+                    color: {
+                      ...dependencies.styleMeta?.color,
+                      inherits: false,
+                    },
+                  },
+                },
+                config
+              );
+            }
+
+            return new Adapter(dependencies, config);
+          },
+        },
+      ],
+    },
+  });
+  ```
+
+  Each `dependencies` object is isolated per adapter registration. Mutating one factory call does not affect the next adapter.
+
 - **defaultStyles:** Fallback styles per element type for each format:
   ```ts
   init({

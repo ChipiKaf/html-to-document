@@ -127,6 +127,41 @@ const converter = init({
 });
 ```
 
+### Customizing adapter creation
+
+Use `adapters.register[].createAdapter` to customize the dependencies passed to a specific adapter during `init()`:
+
+```ts
+const converter = init({
+  adapters: {
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        createAdapter: ({ Adapter, dependencies, config, format }) => {
+          if (format === 'docx') {
+            return new Adapter(
+              {
+                ...dependencies,
+                defaultStyles: {
+                  ...dependencies.defaultStyles,
+                  heading: { color: 'darkred' },
+                },
+              },
+              config
+            );
+          }
+
+          return new Adapter(dependencies, config);
+        },
+      },
+    ],
+  },
+});
+```
+
+Each adapter receives a fresh dependency object, so mutations inside the factory do not leak across registrations.
+
 > **Tip:** you can bundle multiple adapters:
 >
 > ```ts
