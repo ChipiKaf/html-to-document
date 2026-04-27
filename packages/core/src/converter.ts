@@ -1,7 +1,11 @@
 import {
   AdapterProvider,
   AdapterRegistration,
+  CreateAdapter,
   IDocumentConverter,
+  IConverterDependencies,
+  StyleMeta,
+  Styles,
 } from './types';
 import {
   ConverterOptions,
@@ -103,6 +107,34 @@ export const createRegistration = <T extends AdapterProvider<any>>(
   return registration;
 };
 
+const cloneDefaultStyles = (
+  defaultStyles: IConverterDependencies['defaultStyles'] = {}
+): IConverterDependencies['defaultStyles'] => {
+  const clonedDefaultStyles: Record<string, Styles> = {};
+
+  for (const [key, styles] of Object.entries(defaultStyles)) {
+    clonedDefaultStyles[key] = { ...(styles as Styles) };
+  }
+
+  return clonedDefaultStyles;
+};
+
+const cloneStyleMeta = (
+  styleMeta: NonNullable<IConverterDependencies['styleMeta']>
+): NonNullable<IConverterDependencies['styleMeta']> => {
+  const clonedStyleMeta: NonNullable<IConverterDependencies['styleMeta']> = {};
+
+  for (const [property, meta] of Object.entries(styleMeta)) {
+    clonedStyleMeta[property as keyof CSS.Properties] = {
+      ...(meta as StyleMeta),
+      scopes: [...(meta?.scopes ?? [])],
+      ...(meta?.cascadeTo ? { cascadeTo: [...meta.cascadeTo] } : {}),
+    };
+  }
+
+  return clonedStyleMeta;
+};
+
 // it should be okay to use any in a generic context
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const init = <const T extends readonly AdapterProvider<any>[]>(
@@ -131,19 +163,29 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     }
   }
 
+  const defaultCreateAdapter: CreateAdapter = ({
+    Adapter,
+    dependencies,
+    config,
+  }) => new Adapter(dependencies, config);
+
   // Initialize registered adapters
   const registerAdapters = adapters?.register?.map(
-    ({ format, adapter: Adapter, config }) => {
-      const adapter = new Adapter(
-        {
-          defaultStyles:
-            adapters?.defaultStyles?.find(
-              ({ format: nFormat }) => nFormat === format
-            )?.styles || {},
-          styleMeta,
-        },
-        config
-      );
+    ({ format, adapter: Adapter, config, createAdapter }) => {
+      const dependencies = {
+        defaultStyles: cloneDefaultStyles(
+          adapters?.defaultStyles?.find(
+            ({ format: nFormat }) => nFormat === format
+          )?.styles
+        ),
+        styleMeta: cloneStyleMeta(styleMeta),
+      };
+      const adapter = (createAdapter ?? defaultCreateAdapter)({
+        format,
+        Adapter,
+        dependencies,
+        config,
+      });
       return { format, adapter };
     }
   );

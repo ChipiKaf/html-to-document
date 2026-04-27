@@ -89,6 +89,41 @@ const elements = await converter.parse('<p>Hello</p>');
 const docxBuffer = await converter.convert(elements, 'docx');
 ```
 
+### Customizing adapter construction
+
+Use `adapters.register[].createAdapter` when you want to customize the dependencies passed into a specific adapter during `init()`.
+
+```ts
+const converter = init({
+  adapters: {
+    register: [
+      {
+        format: 'docx',
+        adapter: DocxAdapter,
+        createAdapter: ({ Adapter, dependencies, config, format }) => {
+          if (format === 'docx') {
+            return new Adapter(
+              {
+                ...dependencies,
+                defaultStyles: {
+                  ...dependencies.defaultStyles,
+                  heading: { color: 'darkred' },
+                },
+              },
+              config
+            );
+          }
+
+          return new Adapter(dependencies, config);
+        },
+      },
+    ],
+  },
+});
+```
+
+The `dependencies` object is fresh for each adapter registration, so changes made for one adapter do not affect the next one.
+
 ## API
 
 ### `init(options?: InitOptions): Converter`
