@@ -36,7 +36,7 @@ export class TextConverter implements IInlineConverter<DocumentElementType> {
     if (element.content && element.content.length > 0) {
       return promiseAllFlat(
         element.content.map((content) =>
-          converter.convertInline(content, mergedStyles)
+          converter.convertInline(content, stylesheet, mergedStyles)
         )
       );
     }

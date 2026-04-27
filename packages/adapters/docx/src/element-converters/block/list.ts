@@ -58,6 +58,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     };
 
     return converter.convertToBlocks({
+      stylesheet,
       cascadedStyles: mergedStyles,
       inlineParagraphs: true,
       element,
@@ -69,6 +70,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
         );
         const children = converter.runFallthroughWrapConvertedChildren(
           element,
+          stylesheet,
           inlines,
           cascadingStyles,
           i

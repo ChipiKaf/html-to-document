@@ -568,7 +568,10 @@ export type ConverterOptions = Omit<
 };
 
 export interface IDocumentConverter {
-  convert(elements: DocumentElement[]): Promise<Buffer | Blob>;
+  convert(
+    elements: DocumentElement[],
+    stylesheet?: IStylesheet
+  ): Promise<Buffer | Blob>;
 }
 
 export interface IDocumentDeconverter {

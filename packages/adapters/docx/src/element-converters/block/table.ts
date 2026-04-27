@@ -83,6 +83,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
               paragraph: new Paragraph({
                 children: await converter.convertInline(
                   c,
+                  stylesheet,
                   innerCascadingStyles
                 ),
                 ...styleMapper.mapStyles(innerMergedStyles, c),
@@ -206,6 +207,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           const cellContent = originalCell
             ? converter.convertToBlocks({
                 element: originalCell,
+                stylesheet,
                 cascadedStyles: computeInheritedStyles({
                   parentStyles: {
                     ...originalCellMatchedStyles,

@@ -23,7 +23,7 @@ export class ImageBlockConverter
   }
 
   async convertElement(
-    { converter }: ElementConverterDependencies,
+    { converter, stylesheet }: ElementConverterDependencies,
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): Promise<FileChild[]> {
@@ -32,6 +32,7 @@ export class ImageBlockConverter
         ...element,
         scope: 'block',
       },
+      stylesheet,
       cascadedStyles
     );
 

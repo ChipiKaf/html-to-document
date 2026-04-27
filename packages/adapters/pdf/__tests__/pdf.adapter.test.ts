@@ -1,5 +1,5 @@
 import { PDFAdapter } from '../src/pdf.adapter';
-import { DocumentElement } from 'html-to-document-core';
+import { createStylesheet, DocumentElement } from 'html-to-document-core';
 import { JSDOM } from 'jsdom';
 import {
   vi,
@@ -207,6 +207,32 @@ describe('PDFAdapter', () => {
 
       expect(result).toEqual(mockPdfBuffer);
       expect(isPdf(result as Buffer)).toBe(true);
+    });
+
+    it('forwards the conversion-time stylesheet to the internal DocxAdapter', async () => {
+      const elements: DocumentElement[] = [
+        { type: 'paragraph', text: 'Hello' },
+      ];
+      const stylesheet = createStylesheet([
+        {
+          kind: 'style',
+          selectors: ['p'],
+          declarations: { color: '#3366FF' },
+        },
+      ]);
+
+      mockDocxAdapter.convert.mockResolvedValue(Buffer.from('docx'));
+      mockLibreOfficeConvert.mockImplementation(
+        (_input, _format, _filter, callback) =>
+          callback?.(null, Buffer.from('%PDF-1.4'))
+      );
+
+      await adapter.convert(elements, stylesheet);
+
+      expect(mockDocxAdapter.convert).toHaveBeenCalledWith(
+        elements,
+        stylesheet
+      );
     });
   });
 

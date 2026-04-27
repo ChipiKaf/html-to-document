@@ -53,6 +53,7 @@ export class IdInlineConverter
           [convertingIdMetadataKey]: true, // Mark this element as being processed for ID conversion
         },
       },
+      dependencies.stylesheet,
       cascadedStyles
     );
 

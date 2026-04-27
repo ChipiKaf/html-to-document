@@ -34,11 +34,13 @@ export class HeadingConverter implements IBlockConverter<HeadingElement> {
     );
     let children: ParagraphChild[] = await converter.convertInlineTextOrContent(
       element,
+      stylesheet,
       cascadingStyles
     );
 
     children = converter.runFallthroughWrapConvertedChildren(
       element,
+      stylesheet,
       children,
       cascadingStyles
     );

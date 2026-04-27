@@ -1,7 +1,10 @@
 import {
+  createBaseStylesheet,
+  createStylesheet,
   DocumentElement,
   IConverterDependencies,
   IDocumentConverter,
+  IStylesheet,
   toHtml,
 } from 'html-to-document-core';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
@@ -34,23 +37,29 @@ export class PDFAdapter implements IDocumentConverter {
   constructor(dependencies: IConverterDependencies, config?: PDFAdapterConfig) {
     this.docxAdapter = new DocxAdapter(dependencies, config?.docx);
     this._defaultStyles = { ...(dependencies.defaultStyles ?? {}) };
-    this._stylesheet = dependencies.stylesheet;
+    this._stylesheet = dependencies.stylesheet ?? createBaseStylesheet();
   }
 
-  async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
+  async convert(
+    elements: DocumentElement[],
+    stylesheet?: IStylesheet
+  ): Promise<Buffer | Blob> {
     try {
+      const effectiveStylesheet = this.mergeStylesheet(stylesheet);
       // Step 1: Convert to DOCX using the existing DocxAdapter
       const htmlString = toHtml(
         elements,
         this._defaultStyles,
-        this._stylesheet
+        effectiveStylesheet
       );
       if (typeof window !== 'undefined') {
         // Browser: feed HTML straight to html2pdf
         return await this.convertHtmlInBrowser(htmlString);
       } else {
         // Node: fall back to DOCX ➜ PDF pathway (unchanged for now)
-        const docxResult = await this.docxAdapter.convert(elements);
+        const docxResult = stylesheet
+          ? await this.docxAdapter.convert(elements, stylesheet)
+          : await this.docxAdapter.convert(elements);
         return await this.convertInNode(docxResult as Buffer);
       }
     } catch (error) {
@@ -60,6 +69,17 @@ export class PDFAdapter implements IDocumentConverter {
         }`
       );
     }
+  }
+
+  private mergeStylesheet(stylesheet?: IStylesheet): IStylesheet {
+    if (!stylesheet) {
+      return this._stylesheet;
+    }
+
+    return createStylesheet([
+      ...this._stylesheet.getStatements(),
+      ...stylesheet.getStatements(),
+    ]);
   }
 
   private async convertInNode(docxBuffer: Buffer): Promise<Buffer> {
