@@ -24,7 +24,12 @@ export class LineConverter implements IBlockConverter<LineElement> {
 
     const children = converter.runFallthroughWrapConvertedChildren(
       element,
-      await converter.convertInlineTextOrContent(element, mergedStyles),
+      stylesheet,
+      await converter.convertInlineTextOrContent(
+        element,
+        stylesheet,
+        mergedStyles
+      ),
       mergedStyles
     );
 

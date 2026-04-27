@@ -1,6 +1,6 @@
 import { DocxAdapter } from '../src/docx.adapter';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
-import { DocumentElement } from 'html-to-document-core';
+import { createStylesheet, DocumentElement } from 'html-to-document-core';
 import { minifyMiddleware } from 'html-to-document-core';
 import { Parser } from 'html-to-document-core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -2496,6 +2496,55 @@ describe('Docx.adapter.convert', () => {
       expect(sectPr['w:pgMar']['@_w:right']).toBe('1235');
       expect(sectPr['w:pgMar']['@_w:bottom']).toBe('1236');
       expect(sectPr['w:pgMar']['@_w:left']).toBe('1237');
+    });
+  });
+
+  describe('conversion-time stylesheet overlays', () => {
+    it('merges the passed stylesheet on top of the adapter default without mutating later conversions', async () => {
+      const customAdapter = new DocxAdapter({
+        stylesheet: createStylesheet([
+          {
+            kind: 'style',
+            selectors: ['p'],
+            declarations: { color: '#3366FF' },
+          },
+        ]),
+      });
+      const overlayStylesheet = createStylesheet([
+        {
+          kind: 'style',
+          selectors: ['p'],
+          declarations: { color: '#FF0000', fontWeight: 'bold' },
+        },
+      ]);
+      const elements = parser.parse('<p>Styled</p>');
+
+      const defaultDocx = await customAdapter.convert(elements);
+      const overlaidDocx = await customAdapter.convert(
+        elements,
+        overlayStylesheet
+      );
+      const defaultDocxAgain = await customAdapter.convert(elements);
+
+      const defaultRunProps = (await parseDocxDocument(defaultDocx))[
+        'w:document'
+      ]['w:body']['w:p']['w:r']['w:rPr'];
+      const overlaidRunProps = (await parseDocxDocument(overlaidDocx))[
+        'w:document'
+      ]['w:body']['w:p']['w:r']['w:rPr'];
+      const defaultRunPropsAgain = (await parseDocxDocument(defaultDocxAgain))[
+        'w:document'
+      ]['w:body']['w:p']['w:r']['w:rPr'];
+
+      expect(defaultRunProps['w:color']['@_w:val']).toBe('3366FF');
+      expect(defaultRunProps).not.toHaveProperty('w:b');
+
+      expect(overlaidRunProps['w:color']['@_w:val']).toBe('FF0000');
+      expect(overlaidRunProps).toHaveProperty('w:b');
+      expect(overlaidRunProps).toHaveProperty('w:bCs');
+
+      expect(defaultRunPropsAgain['w:color']['@_w:val']).toBe('3366FF');
+      expect(defaultRunPropsAgain).not.toHaveProperty('w:b');
     });
   });
 });

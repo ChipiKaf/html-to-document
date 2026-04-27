@@ -30,7 +30,6 @@ import { promiseAllFlat } from '../docx.util';
 type ElementConverterInitDependencies = {
   styleMapper: DocxStyleMapper;
   defaultStyles?: IConverterDependencies['defaultStyles'];
-  stylesheet: ElementConverterDependencies['stylesheet'];
   styleMeta?: IConverterDependencies['styleMeta'];
 };
 
@@ -41,16 +40,12 @@ export class ElementConverter {
   private readonly textConverter: IInlineConverter<DocumentElement>;
   private readonly styleMapper: DocxStyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
-  private readonly stylesheet: ElementConverterDependencies['stylesheet'];
   private readonly styleMeta: IConverterDependencies['styleMeta'];
-
-  private readonly elementConverterDependencies: ElementConverterDependencies;
 
   constructor(
     {
       styleMapper,
       defaultStyles,
-      stylesheet,
       styleMeta = initStyleMeta(),
     }: ElementConverterInitDependencies,
     config?: DocxAdapterConfig
@@ -82,14 +77,17 @@ export class ElementConverter {
     ];
     this.styleMapper = styleMapper;
     this.defaultStyles = defaultStyles;
-    this.stylesheet = stylesheet;
     this.styleMeta = styleMeta;
+  }
 
-    this.elementConverterDependencies = {
+  private getDependencies(
+    stylesheet: ElementConverterDependencies['stylesheet']
+  ): ElementConverterDependencies {
+    return {
       styleMapper: this.styleMapper,
       converter: this,
       defaultStyles: this.defaultStyles,
-      stylesheet: this.stylesheet,
+      stylesheet,
       styleMeta: this.styleMeta,
     } as const;
   }
@@ -139,6 +137,7 @@ export class ElementConverter {
    */
   public convertBlock(
     element: DocumentElement,
+    stylesheet: ElementConverterDependencies['stylesheet'],
     cascadedStyles: Styles = {}
   ): FileChild[] | Promise<FileChild[]> {
     const converter = this.findBlockConverter(element);
@@ -147,7 +146,7 @@ export class ElementConverter {
     }
 
     return converter.convertElement(
-      this.elementConverterDependencies,
+      this.getDependencies(stylesheet),
       element,
       cascadedStyles
     );
@@ -158,6 +157,7 @@ export class ElementConverter {
    */
   public convertInline(
     element: DocumentElement,
+    stylesheet: ElementConverterDependencies['stylesheet'],
     cascadedStyles: Styles = {}
   ): ParagraphChild[] | Promise<ParagraphChild[]> {
     const converter = this.findInlineConverter(element);
@@ -166,7 +166,7 @@ export class ElementConverter {
     }
 
     return converter.convertElement(
-      this.elementConverterDependencies,
+      this.getDependencies(stylesheet),
       element,
       cascadedStyles
     );
@@ -177,10 +177,11 @@ export class ElementConverter {
    */
   public convertText(
     element: DocumentElement,
+    stylesheet: ElementConverterDependencies['stylesheet'],
     cascadedStyles: Styles = {}
   ): ParagraphChild[] | Promise<ParagraphChild[]> {
     return this.textConverter.convertElement(
-      this.elementConverterDependencies,
+      this.getDependencies(stylesheet),
       element,
       cascadedStyles
     );
@@ -192,6 +193,7 @@ export class ElementConverter {
    */
   public runFallthroughWrapConvertedChildren(
     element: DocumentElement,
+    stylesheet: ElementConverterDependencies['stylesheet'],
     inlineChildren: ParagraphChild[],
     cascadedStyles?: Styles,
     index: number = 0
@@ -201,7 +203,7 @@ export class ElementConverter {
 
     return fallthroughConverters.reduce((acc, converter) => {
       return converter.fallthroughWrapConvertedChildren(
-        this.elementConverterDependencies,
+        this.getDependencies(stylesheet),
         element,
         acc,
         cascadedStyles,
@@ -244,6 +246,7 @@ export class ElementConverter {
    */
   public async convertInlineTextOrContent(
     element: DocumentElement,
+    stylesheet: ElementConverterDependencies['stylesheet'],
     cascadedStyles: Styles = {}
   ): Promise<ParagraphChild[]> {
     let children: ParagraphChild[] | Promise<ParagraphChild[]> = [];
@@ -251,12 +254,12 @@ export class ElementConverter {
     if (element.content && element.content.length > 0) {
       const converted = await promiseAllFlat(
         element.content.map((child) =>
-          this.convertInline(child, cascadedStyles)
+          this.convertInline(child, stylesheet, cascadedStyles)
         )
       );
       children = converted;
     } else {
-      children = this.convertText(element, cascadedStyles);
+      children = this.convertText(element, stylesheet, cascadedStyles);
     }
 
     // children = this.runFallthroughWrapConvertedChildren(
@@ -279,6 +282,7 @@ export class ElementConverter {
      * The styles that will be passed to inline elements and convert block function
      */
     cascadedStyles?: Styles;
+    stylesheet: ElementConverterDependencies['stylesheet'];
     /**
      * Whether nested paragraphs should be inline with newlines around it
      * @default false
@@ -299,16 +303,21 @@ export class ElementConverter {
   }): Promise<FileChild[]> {
     const {
       element,
+      stylesheet,
       cascadedStyles = {},
       wrapInlineElements,
       inlineParagraphs = false,
       convertBlock = (dependencies, element, index, cascadedStyles) =>
-        this.convertBlock(element, cascadedStyles),
+        this.convertBlock(element, stylesheet, cascadedStyles),
     } = options;
 
     if (!element.content || element.content.length <= 0) {
       // If the provided element has no content it probably has text and we can convert it inline or directly with the text converter?
-      const inlineElements = await this.convertInline(element, cascadedStyles);
+      const inlineElements = await this.convertInline(
+        element,
+        stylesheet,
+        cascadedStyles
+      );
       // const wrappedChildren = this.runFallthroughWrapConvertedChildren(
       //   element,
       //   inlineElements,
@@ -399,7 +408,7 @@ export class ElementConverter {
       markedWithMergedInlines.map(async (item, i) => {
         if (item.type === 'blocks') {
           return convertBlock(
-            this.elementConverterDependencies,
+            this.getDependencies(stylesheet),
             item.children,
             i,
             cascadedStyles
@@ -408,7 +417,7 @@ export class ElementConverter {
 
         let newChildren = await promiseAllFlat(
           item.children.map((child) =>
-            this.convertInline(child, cascadedStyles)
+            this.convertInline(child, stylesheet, cascadedStyles)
           )
         );
 

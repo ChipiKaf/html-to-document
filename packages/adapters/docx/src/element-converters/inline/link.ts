@@ -24,7 +24,11 @@ export class LinkConverter implements IInlineConverter<DocumentElementType> {
     };
     const href = element.attributes.href;
     const children =
-      (await converter.convertInlineTextOrContent(element, mergedStyles)) ?? [];
+      (await converter.convertInlineTextOrContent(
+        element,
+        stylesheet,
+        mergedStyles
+      )) ?? [];
     if (href.startsWith('#')) {
       return [
         new InternalHyperlink({

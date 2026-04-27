@@ -9,17 +9,18 @@ import {
   INumberingOptions,
 } from 'docx';
 import {
+  createStylesheet,
   createBaseStylesheet,
   DocumentElement,
   IConverterDependencies,
   IDocumentConverter,
+  IStylesheet,
   initStyleMeta,
 } from 'html-to-document-core';
 
 import { NumberFormat, AlignmentType } from 'docx';
 import { DocxStyleMapper } from './docx-style-mapper';
 import { ElementConverter } from './element-converters/converter';
-import { ElementStylesheet } from './element-converters/types';
 import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
 import { pipe } from 'remeda';
@@ -27,7 +28,7 @@ import { pipe } from 'remeda';
 export class DocxAdapter implements IDocumentConverter {
   private _mapper: DocxStyleMapper;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
-  private _stylesheet: ElementStylesheet;
+  private _stylesheet: IStylesheet;
   private _docxElementConverter: ElementConverter;
   private readonly documentOptions: NonNullable<
     DocxAdapterConfig['documentOptions']
@@ -55,7 +56,6 @@ export class DocxAdapter implements IDocumentConverter {
       {
         styleMapper: this._mapper,
         defaultStyles: this._defaultStyles,
-        stylesheet: this._stylesheet,
         styleMeta,
       },
       config
@@ -65,29 +65,33 @@ export class DocxAdapter implements IDocumentConverter {
     this.defaultSectionOptions = config?.defaultSectionOptions ?? {};
   }
 
-  async convert(elements: DocumentElement[]): Promise<Buffer | Blob> {
+  async convert(
+    elements: DocumentElement[],
+    stylesheet?: IStylesheet
+  ): Promise<Buffer | Blob> {
+    const effectiveStylesheet = this.mergeStylesheet(stylesheet);
     const { sections, globalHeader, globalFooter } =
       this.organizeSections(elements);
 
     const globalHeaderDocx = globalHeader
-      ? await this.convertHeader(globalHeader)
+      ? await this.convertHeader(globalHeader, effectiveStylesheet)
       : undefined;
     const globalFooterDocx = globalFooter
-      ? await this.convertFooter(globalFooter)
+      ? await this.convertFooter(globalFooter, effectiveStylesheet)
       : undefined;
 
     const docSections: ISectionOptions[] = [];
     const sectionList = sections.length ? sections : [{ children: [] }];
     for (const sec of sectionList) {
       const childrenArrays = await Promise.all(
-        sec.children.map((el) => this.convertElement(el))
+        sec.children.map((el) => this.convertElement(el, effectiveStylesheet))
       );
       const children = childrenArrays.flat();
       const header = sec.header
-        ? await this.convertHeader(sec.header)
+        ? await this.convertHeader(sec.header, effectiveStylesheet)
         : globalHeaderDocx;
       const footer = sec.footer
-        ? await this.convertFooter(sec.footer)
+        ? await this.convertFooter(sec.footer, effectiveStylesheet)
         : globalFooterDocx;
       const options: ISectionOptions = {
         ...this.defaultSectionOptions,
@@ -178,9 +182,21 @@ export class DocxAdapter implements IDocumentConverter {
    * Converts a DocumentElement (or an array of them) into an array of docx elements.
    */
   private async convertElement(
-    el: DocumentElement
+    el: DocumentElement,
+    stylesheet: IStylesheet
   ): Promise<(Paragraph | Table)[]> {
-    return this._docxElementConverter.convertBlock(el);
+    return this._docxElementConverter.convertBlock(el, stylesheet);
+  }
+
+  private mergeStylesheet(stylesheet?: IStylesheet): IStylesheet {
+    if (!stylesheet) {
+      return this._stylesheet;
+    }
+
+    return createStylesheet([
+      ...this._stylesheet.getStatements(),
+      ...stylesheet.getStatements(),
+    ]);
   }
 
   private organizeSections(elements: DocumentElement[]): {
@@ -242,9 +258,12 @@ export class DocxAdapter implements IDocumentConverter {
     return { sections, globalHeader, globalFooter };
   }
 
-  private async convertHeader(el: DocumentElement): Promise<Header> {
+  private async convertHeader(
+    el: DocumentElement,
+    stylesheet: IStylesheet
+  ): Promise<Header> {
     let childrenArrays = await Promise.all(
-      (el.content || []).map((c) => this.convertElement(c))
+      (el.content || []).map((c) => this.convertElement(c, stylesheet))
     );
 
     if ((!el.content || el.content.length === 0) && el.text) {
@@ -255,7 +274,7 @@ export class DocxAdapter implements IDocumentConverter {
         attributes: el.attributes,
         metadata: { tagName: 'p' },
       };
-      childrenArrays.push(await this.convertElement(paragraphEl));
+      childrenArrays.push(await this.convertElement(paragraphEl, stylesheet));
     }
 
     const children = childrenArrays
@@ -267,9 +286,12 @@ export class DocxAdapter implements IDocumentConverter {
     return new Header({ children });
   }
 
-  private async convertFooter(el: DocumentElement): Promise<Footer> {
+  private async convertFooter(
+    el: DocumentElement,
+    stylesheet: IStylesheet
+  ): Promise<Footer> {
     let childrenArrays = await Promise.all(
-      (el.content || []).map((c) => this.convertElement(c))
+      (el.content || []).map((c) => this.convertElement(c, stylesheet))
     );
 
     if ((!el.content || el.content.length === 0) && el.text) {
@@ -280,7 +302,7 @@ export class DocxAdapter implements IDocumentConverter {
         attributes: el.attributes,
         metadata: { tagName: 'p' },
       };
-      childrenArrays.push(await this.convertElement(paragraphEl));
+      childrenArrays.push(await this.convertElement(paragraphEl, stylesheet));
     }
 
     const children = childrenArrays
