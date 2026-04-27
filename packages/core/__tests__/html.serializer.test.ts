@@ -1,7 +1,7 @@
 import { Parser } from '../src/parser';
 import { JSDOMParser } from './utils/parser.helper';
 import { toHtml } from '../src/utils/html.serializer';
-import { minifyMiddleware } from 'html-to-document-core';
+import { minifyMiddleware } from '../src/middleware/minify.middleware';
 import { DocumentElement } from '../src/types';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 
@@ -203,6 +203,36 @@ describe('html.serializer', () => {
       await minifyMiddleware(html)
     );
   });
+
+  it('preserves thead, tbody, and tfoot rows during parse and serialize', async () => {
+    const html = await minifyMiddleware(`
+      <table>
+        <thead>
+          <tr><th>Head</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Body</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td>Foot</td></tr>
+        </tfoot>
+      </table>
+    `);
+
+    const [table] = parser.parse(html);
+
+    expect(table.type).toBe('table');
+    expect(table.rows.map((row) => row.metadata?.section)).toEqual([
+      'thead',
+      'tbody',
+      'tfoot',
+    ]);
+
+    expect(await minifyMiddleware(toHtml([table]))).toBe(
+      '<div><table><thead><tr><th>Head</th></tr></thead><tbody><tr><td>Body</td></tr></tbody><tfoot><tr><td>Foot</td></tr></tfoot></table></div>'
+    );
+  });
+
   it('restores complex html string, when altered in parsing by tag handler, back to html after deep clone of object', async () => {
     const html = `<div>
 <h1 style="text-align: center; color: darkblue;">Complex Document Test</h1>
