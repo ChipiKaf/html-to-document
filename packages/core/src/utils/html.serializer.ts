@@ -267,7 +267,7 @@ function elementToHtml(
     const tfootRows: string[] = [];
 
     (table.rows ?? []).forEach((row: TableRowElement) => {
-      const rowSection = row.metadata?.tagName;
+      const rowSection = row.metadata?.section;
       const isHeader =
         rowSection === 'thead' ||
         row.cells.every((c) => {

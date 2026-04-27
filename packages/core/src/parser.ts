@@ -259,9 +259,19 @@ export class Parser {
 
   private _parseTableContainers(element: HTMLElement): TableRowElement[] {
     const rows: TableRowElement[] = [];
+    const section = element.tagName.toLowerCase();
+
     Array.from(element.children)
       .filter((c): c is HTMLElement => c.tagName.toLowerCase() === 'tr')
-      .forEach((tr) => rows.push(this._parseRow(tr)));
+      .forEach((tr) => {
+        const row = this._parseRow(tr);
+        row.metadata = {
+          ...(row.metadata ?? {}),
+          section,
+        };
+        rows.push(row);
+      });
+
     return rows;
   }
 
