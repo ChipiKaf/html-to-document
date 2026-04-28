@@ -362,7 +362,7 @@ export interface IConverterDependencies {
     Record<ElementType, Partial<Record<keyof CSS.Properties, string | number>>>
   >;
   /** Optional stylesheet carrying seeded parser defaults and adapter rules */
-  stylesheet: IStylesheet;
+  stylesheet?: IStylesheet;
   /** The inheritance rules for styles */
   styleMeta?: Partial<Record<keyof CSS.Properties, StyleMeta>>;
   [key: string]: unknown;

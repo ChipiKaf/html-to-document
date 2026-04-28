@@ -32,7 +32,7 @@ function isHtml2PdfBuilder(obj: unknown): obj is Html2PdfBuilder {
 export class PDFAdapter implements IDocumentConverter {
   private docxAdapter: DocxAdapter;
   private _defaultStyles: IConverterDependencies['defaultStyles'] = {};
-  private _stylesheet: IConverterDependencies['stylesheet'];
+  private _stylesheet: NonNullable<IConverterDependencies['stylesheet']>;
 
   constructor(dependencies: IConverterDependencies, config?: PDFAdapterConfig) {
     this.docxAdapter = new DocxAdapter(dependencies, config?.docx);
@@ -75,7 +75,6 @@ export class PDFAdapter implements IDocumentConverter {
     if (!stylesheet) {
       return this._stylesheet;
     }
-
     return createStylesheet([
       ...this._stylesheet.getStatements(),
       ...stylesheet.getStatements(),
