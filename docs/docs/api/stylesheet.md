@@ -307,7 +307,7 @@ const pageRules = stylesheet.getAtRules('page');
 - `h5` → `fontSize: '13.28px'`, `fontWeight: 'bold'`
 - `h6` → `fontSize: '10.72px'`, `fontWeight: 'bold'`
 
-These are stylesheet rules, not parser-inlined defaults.
+There are many other rules which aim to make it look like the browsers' defaults.
 
 ## Summary
 

@@ -262,13 +262,6 @@ export class ElementConverter {
       children = this.convertText(element, stylesheet, cascadedStyles);
     }
 
-    // children = this.runFallthroughWrapConvertedChildren(
-    //   element,
-    //   children,
-    //   cascadedStyles,
-    //   0
-    // );
-
     return children;
   }
 
