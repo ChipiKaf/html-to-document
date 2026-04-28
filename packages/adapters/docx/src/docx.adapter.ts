@@ -37,6 +37,10 @@ export class DocxAdapter implements IDocumentConverter {
     DocxAdapterConfig['defaultSectionOptions']
   >;
 
+  private readonly _beforeConvert: NonNullable<
+    DocxAdapterConfig['beforeConvert']
+  >;
+
   constructor(
     {
       defaultStyles,
@@ -63,6 +67,9 @@ export class DocxAdapter implements IDocumentConverter {
     this._docxElementConverter = docxElementConverter;
     this.documentOptions = config?.documentOptions ?? {};
     this.defaultSectionOptions = config?.defaultSectionOptions ?? {};
+    this._beforeConvert =
+      config?.beforeConvert ??
+      (({ docxDocumentOptions: docxDocument }) => docxDocument);
   }
 
   async convert(
@@ -166,10 +173,15 @@ export class DocxAdapter implements IDocumentConverter {
         ? this.documentOptions(addDefaultOptions({}))
         : addDefaultOptions(this.documentOptions);
 
-    const doc = new Document({
-      ...documentOptions,
-      sections: docSections,
+    const finalDocumentOptions = this._beforeConvert({
+      docxDocumentOptions: {
+        ...documentOptions,
+        sections: docSections,
+      },
+      stylesheet: effectiveStylesheet,
+      elements,
     });
+    const doc = new Document(finalDocumentOptions);
 
     // Pack the document to a Buffer.
     if (isServer) {
