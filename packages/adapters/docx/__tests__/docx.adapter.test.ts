@@ -2547,4 +2547,159 @@ describe('Docx.adapter.convert', () => {
       expect(defaultRunPropsAgain).not.toHaveProperty('w:b');
     });
   });
+
+  describe('beforeConvert', () => {
+    it('should inject paragraph styles into the document via beforeConvert', async () => {
+      const adapterWithStyles = new DocxAdapter(
+        {},
+        {
+          beforeConvert: ({ docxDocumentOptions }) => ({
+            ...docxDocumentOptions,
+            styles: {
+              paragraphStyles: [
+                {
+                  id: 'CustomHeading',
+                  name: 'Custom Heading',
+                  basedOn: 'Normal',
+                  run: { bold: true, size: 48 },
+                  paragraph: { spacing: { before: 240, after: 120 } },
+                },
+              ],
+            },
+          }),
+        }
+      );
+
+      const elements: DocumentElement[] = [
+        { type: 'paragraph', text: 'Hello' },
+      ];
+      const buffer = await adapterWithStyles.convert(elements);
+      expect(buffer).toBeInstanceOf(Buffer);
+
+      const stylesXml = await parseDocxXml(buffer, 'word/styles.xml');
+      const styles: any[] = [].concat(
+        stylesXml?.['w:styles']?.['w:style'] ?? []
+      );
+      const custom = styles.find(
+        (s: any) => s['@_w:styleId'] === 'CustomHeading'
+      );
+      expect(custom).toBeDefined();
+      expect(custom['w:name']['@_w:val']).toBe('Custom Heading');
+      expect(custom['w:basedOn']['@_w:val']).toBe('Normal');
+      // run props: bold
+      expect(custom['w:rPr']['w:b']).toBeDefined();
+    });
+
+    it('should set custom numbering via beforeConvert', async () => {
+      const adapterWithNumbering = new DocxAdapter(
+        {},
+        {
+          beforeConvert: ({ docxDocumentOptions }) => ({
+            ...docxDocumentOptions,
+            numbering: {
+              config: [
+                {
+                  reference: 'custom-list',
+                  levels: [
+                    {
+                      level: 0,
+                      format: NumberFormat.UPPER_ROMAN,
+                      text: '%1.',
+                      alignment: AlignmentType.LEFT,
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }
+      );
+
+      const elements: DocumentElement[] = [
+        {
+          type: 'list',
+          listType: 'unordered',
+          level: 0,
+          content: [
+            {
+              type: 'list-item',
+              level: 0,
+              content: [{ type: 'text', text: 'Item A' }],
+              metadata: { reference: 'custom-list', level: '0' },
+            },
+          ],
+        },
+      ];
+      const buffer = await adapterWithNumbering.convert(elements);
+      expect(buffer).toBeInstanceOf(Buffer);
+
+      const numberingXml = await parseDocxXml(buffer, 'word/numbering.xml');
+      const abstractNums: any[] = [].concat(
+        numberingXml?.['w:numbering']?.['w:abstractNum'] ?? []
+      );
+      // The custom-list abstract numbering should define UPPER_ROMAN at level 0
+      const customAbstract = abstractNums.find((n: any) => {
+        const lvl = [].concat(n['w:lvl'] ?? [])[0];
+        return lvl?.['w:numFmt']?.['@_w:val'] === 'upperRoman';
+      });
+      expect(customAbstract).toBeDefined();
+    });
+
+    it('should extend default numbering with additional configs via beforeConvert', async () => {
+      const adapterExtended = new DocxAdapter(
+        {},
+        {
+          beforeConvert: ({ docxDocumentOptions }) => ({
+            ...docxDocumentOptions,
+            numbering: {
+              ...docxDocumentOptions.numbering,
+              config: [
+                ...(docxDocumentOptions.numbering?.config ?? []),
+                {
+                  reference: 'extra-list',
+                  levels: [
+                    {
+                      level: 0,
+                      format: NumberFormat.LOWER_LETTER,
+                      text: '%1)',
+                      alignment: AlignmentType.LEFT,
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        }
+      );
+
+      const elements: DocumentElement[] = [{ type: 'paragraph', text: 'test' }];
+      const buffer = await adapterExtended.convert(elements);
+      expect(buffer).toBeInstanceOf(Buffer);
+
+      const numberingXml = await parseDocxXml(buffer, 'word/numbering.xml');
+      const abstractNums: any[] = [].concat(
+        numberingXml?.['w:numbering']?.['w:abstractNum'] ?? []
+      );
+
+      // Default configs: 'unordered' (bullet) and 'ordered' (decimal) should still be present
+      const bulletAbstract = abstractNums.find((n: any) => {
+        const lvl = [].concat(n['w:lvl'] ?? [])[0];
+        return lvl?.['w:numFmt']?.['@_w:val'] === 'bullet';
+      });
+      expect(bulletAbstract).toBeDefined();
+
+      const decimalAbstract = abstractNums.find((n: any) => {
+        const lvl = [].concat(n['w:lvl'] ?? [])[0];
+        return lvl?.['w:numFmt']?.['@_w:val'] === 'decimal';
+      });
+      expect(decimalAbstract).toBeDefined();
+
+      // Extra config should also be present
+      const lowerLetterAbstract = abstractNums.find((n: any) => {
+        const lvl = [].concat(n['w:lvl'] ?? [])[0];
+        return lvl?.['w:numFmt']?.['@_w:val'] === 'lowerLetter';
+      });
+      expect(lowerLetterAbstract).toBeDefined();
+    });
+  });
 });
