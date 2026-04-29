@@ -46,7 +46,7 @@ Below is a high-level overview of the conversion pipeline. The library processes
 The stages are:
 
 - **Input**: Raw HTML input as a string.
-- **Plugins**: `beforeParse` hooks can transform the HTML string before parsing, and `afterParse` hooks can transform the parsed `DocumentElement[]`. Legacy middleware still works through plugin adaptation.
+- **Plugins**: `beforeParse` hooks can transform HTML, `onDocument` hooks can inspect or mutate the parsed `Document`, and `afterParse` hooks can replace the parsed `DocumentElement[]`. Legacy middleware still works through plugin adaptation.
 - **Parser**: Converts the (possibly modified) HTML string into an array of `DocumentElement` objects, representing a structured AST.
 - **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format (e.g., DOCX, PDF, Markdown) via a registered adapter.
 

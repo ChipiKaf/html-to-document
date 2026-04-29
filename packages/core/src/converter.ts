@@ -1,9 +1,12 @@
 import {
+  AfterParseContext,
+  BeforeParseContext,
   AdapterProvider,
   AdapterRegistration,
   CreateAdapter,
   IDocumentConverter,
   IConverterDependencies,
+  OnDocumentContext,
   StyleMeta,
   Styles,
 } from './types';
@@ -12,6 +15,7 @@ import {
   DocumentElement,
   InitOptions,
   Middleware,
+  ParseState,
   Plugin,
 } from './types';
 import { Parser } from './parser';
@@ -27,14 +31,16 @@ import { createStylesheet } from './styles/sheet';
 import * as CSS from 'csstype';
 
 export class Converter {
+  private _baseStylesheet = createStylesheet();
   private _plugins: Plugin[];
   private _parser: Parser;
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
-    const { tags, domParser, registerAdapters } = options;
+    const { tags, domParser, registerAdapters, stylesheet } = options;
     this._registry = new ConverterRegistry();
     this._plugins = resolvePlugins(options);
+    this._baseStylesheet = createStylesheet(stylesheet?.getStatements());
     this._parser = new Parser(
       tags?.tagHandlers,
       domParser,
@@ -80,12 +86,15 @@ export class Converter {
     const adapter = this._registry.get(format);
     if (!adapter) throw new Error('Format not available');
 
-    let parsed: DocumentElement[];
-
     if (typeof content === 'string') {
-      parsed = await this.parse(content);
-    } else parsed = content;
-    return adapter.convert(parsed);
+      const parseState = await this.parseState(content);
+      return adapter.convert(parseState.elements, parseState.stylesheet);
+    }
+
+    return adapter.convert(
+      content,
+      createStylesheet(this._baseStylesheet.getStatements())
+    );
   }
 
   /**
@@ -99,28 +108,105 @@ export class Converter {
    * @returns A `Promise` that resolves to an array of `DocumentElement` objects representing the parsed content.
    */
   async parse(html: string): Promise<DocumentElement[]> {
-    let modifiedHtml = html;
+    const parseState = await this.parseState(html);
+    return parseState.elements;
+  }
+
+  async parseState(html: string): Promise<ParseState> {
+    const stylesheet = createStylesheet(this._baseStylesheet.getStatements());
+    const data: Record<string, unknown> = {};
+    const parseState: Omit<ParseState, 'document' | 'elements'> & {
+      document?: Document;
+      elements?: DocumentElement[];
+    } = {
+      originalHtml: html,
+      html,
+      stylesheet,
+      data,
+    };
 
     for (const plugin of this._plugins) {
-      if (plugin.beforeParse) {
-        modifiedHtml = await plugin.beforeParse(modifiedHtml);
+      if (!plugin.beforeParse) continue;
+
+      const context: BeforeParseContext = {
+        phase: 'beforeParse',
+        get html() {
+          return parseState.html;
+        },
+        set html(next: string) {
+          parseState.html = next;
+        },
+        setHtml(next: string) {
+          parseState.html = next;
+        },
+        stylesheet: parseState.stylesheet,
+        data: parseState.data,
+      };
+
+      await plugin.beforeParse(context);
+    }
+
+    parseState.document = this._parser.parseDocumentSource(parseState.html);
+
+    for (const plugin of this._plugins) {
+      if (!plugin.onDocument || !parseState.document) continue;
+
+      const context: OnDocumentContext = {
+        phase: 'onDocument',
+        html: parseState.html,
+        document: parseState.document,
+        stylesheet: parseState.stylesheet,
+        data: parseState.data,
+      };
+
+      await plugin.onDocument(context);
+    }
+
+    parseState.elements = this._parser.parseDocument(parseState.document);
+
+    if (parseState.elements && parseState.document) {
+      for (const plugin of this._plugins) {
+        if (!plugin.afterParse) {
+          continue;
+        }
+
+        const context: AfterParseContext = {
+          phase: 'afterParse',
+          html: parseState.html,
+          document: parseState.document,
+          get elements() {
+            return parseState.elements as DocumentElement[];
+          },
+          replaceElements(next: DocumentElement[]) {
+            parseState.elements = next;
+          },
+          stylesheet: parseState.stylesheet,
+          data: parseState.data,
+        };
+
+        await plugin.afterParse(context);
       }
     }
 
-    let parsed = this._parser.parse(modifiedHtml);
-
-    for (const plugin of this._plugins) {
-      if (plugin.afterParse) {
-        parsed = await plugin.afterParse(parsed);
-      }
+    if (!parseState.document || !parseState.elements) {
+      throw new Error('Parse lifecycle did not produce a complete parse state');
     }
 
-    return parsed;
+    return {
+      originalHtml: parseState.originalHtml,
+      html: parseState.html,
+      stylesheet: parseState.stylesheet,
+      data: parseState.data,
+      document: parseState.document,
+      elements: parseState.elements,
+    };
   }
 }
 
 const middlewareToPlugin = (middleware: Middleware): Plugin => ({
-  beforeParse: middleware,
+  beforeParse: async (context) => {
+    context.setHtml(await middleware(context.html));
+  },
 });
 
 const resolvePlugins = ({
@@ -151,7 +237,9 @@ const resolvePlugins = ({
 
 const minifyPlugin: Plugin = {
   name: 'minify',
-  beforeParse: minifyMiddleware,
+  beforeParse: async (context) => {
+    context.setHtml(await minifyMiddleware(context.html));
+  },
 };
 
 /**

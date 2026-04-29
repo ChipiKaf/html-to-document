@@ -70,7 +70,7 @@ export class Parser {
       this._defaultAttributes.set(attribute.key, attribute.attributes);
     });
     this._parseElement = this._parseElement.bind(this);
-    this._parseHTML = this._parseHTML.bind(this);
+    this._parseDocumentToElements = this._parseDocumentToElements.bind(this);
     this._defaultHandler = this._defaultHandler.bind(this);
   }
 
@@ -80,13 +80,15 @@ export class Parser {
   }
 
   parse(html: string) {
-    const tree = this._parseHTML(html);
-    try {
-      Object.defineProperty(tree, '__originalHtml', {
-        value: html,
-        enumerable: false,
-      });
-    } catch {}
+    return this.parseDocument(this.parseDocumentSource(html));
+  }
+
+  public parseDocumentSource(html: string): Document {
+    return this._domParser.parse(html);
+  }
+
+  public parseDocument(document: Document) {
+    const tree = this._parseDocumentToElements(document);
     return tree;
   }
 
@@ -336,8 +338,7 @@ export class Parser {
     };
   }
 
-  private _parseHTML(html: string): DocumentElement[] {
-    const doc = this._domParser.parse(html);
+  private _parseDocumentToElements(doc: Document): DocumentElement[] {
     const content: DocumentElement[] = [];
 
     doc.body.childNodes.forEach((child) => {

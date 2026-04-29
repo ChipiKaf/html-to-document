@@ -49,7 +49,7 @@ converter
 Initialize a new [`Converter`](./types) instance.
 
 - **options**: [`InitOptions`](./types) (optional)
-  - `plugins?: [`Plugin`](./types)[]` – plugin hooks for pre-parse and post-parse transforms.
+- `plugins?: [`Plugin`](./types)[]` – plugin hooks for HTML preprocessing, document inspection, and post-parse element replacement.
   - `enableDefaultPlugins?: boolean` – enable or disable built-in plugins.
   - `middleware?: [`Middleware`](./types)[]` – deprecated middleware compatibility layer.
   - `tags?: { tagHandlers?: [`TagHandlerObject`](./types)[]; defaultStyles?: ...; defaultAttributes?: ... }` – custom tag handlers and default tag options.
@@ -118,7 +118,7 @@ Register a middleware function to process HTML before parsing.
 
 Register a plugin after construction.
 
-- `plugin`: [`Plugin`](./types) object.
+- `plugin`: [`Plugin`](./types) object with `beforeParse`, `onDocument`, and/or `afterParse` hooks.
 
 ##### registerConverter(name: string, converter: [`IDocumentConverter`](./types)): void
 
