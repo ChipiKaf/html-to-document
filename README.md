@@ -22,7 +22,7 @@ Below is a high-level overview of the conversion pipeline. The library processes
 The stages are:
 
 - **Input**: Raw HTML input as a string.
-- **Plugins**: `beforeParse` hooks can inspect or transform the HTML string before parsing, and `afterParse` hooks can transform parsed `DocumentElement[]`. Deprecated middleware still works through internal plugin adaptation.
+- **Plugins**: `beforeParse` hooks can inspect or transform the HTML string, `onDocument` hooks can inspect or mutate the parsed `Document`, and `afterParse` hooks can replace parsed `DocumentElement[]`. Deprecated middleware still works through internal plugin adaptation.
 - **Parser**: Converts the (possibly modified) HTML string into an array of `DocumentElement` objects, representing a structured AST.
 - **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format (e.g., DOCX, PDF, Markdown) via a registered adapter.
 
@@ -38,7 +38,7 @@ The stages are:
 | **Style mapping engine**    | Define your own css mappings for the adapters and set per‑format defaults                                        |
 | **Custom tag handlers**     | Override or extend how any HTML tag is parsed                                                                    |
 | **Page sections & headers** | Use `<section class="page">`, `<section class="page-break">`, `<header>` and `<footer>` to control pages in DOCX |
-| **Plugin pipeline**         | Transform HTML before parsing or transform `DocumentElement[]` after parsing                                     |
+| **Plugin pipeline**         | Transform HTML before parsing, inspect the parsed `Document`, or replace `DocumentElement[]` after parsing       |
 
 ---
 
@@ -192,16 +192,22 @@ const converter = init({
   plugins: [
     {
       name: 'strip-scripts',
-      beforeParse: async (html) =>
-        html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+      beforeParse: async (context) => {
+        context.setHtml(
+          context.html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, '')
+        );
+      },
     },
     {
       name: 'mark-generated',
-      afterParse: async (elements) =>
-        elements.map((element) => ({
-          ...element,
-          metadata: { ...element.metadata, generated: true },
-        })),
+      afterParse: async (context) => {
+        context.replaceElements(
+          context.elements.map((element) => ({
+            ...element,
+            metadata: { ...element.metadata, generated: true },
+          }))
+        );
+      },
     },
   ],
 });
@@ -219,7 +225,9 @@ You can also register plugins after construction:
 
 ```ts
 converter.usePlugin({
-  beforeParse: async (html) => html.replace('Draft', 'Final'),
+  beforeParse: async (context) => {
+    context.setHtml(context.html.replace('Draft', 'Final'));
+  },
 });
 ```
 

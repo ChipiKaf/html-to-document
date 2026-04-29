@@ -70,7 +70,8 @@ describe('Converter initialization', () => {
         clearMiddleware: true,
         plugins: [
           {
-            beforeParse: (html) => html.replace('Hello', 'Hi'),
+            beforeParse: (context) =>
+              context.setHtml(context.html.replace('Hello', 'Hi')),
           },
         ],
         middleware: [async (html) => html.replace('Hi', 'Welcome')],
@@ -273,7 +274,8 @@ describe('Converter initialization', () => {
         adapters: { register: [] },
         plugins: [
           {
-            beforeParse: (html) => html.replace('Hello', 'Hi'),
+            beforeParse: (context) =>
+              context.setHtml(context.html.replace('Hello', 'Hi')),
           },
         ],
       } as any);
@@ -282,16 +284,49 @@ describe('Converter initialization', () => {
       expect(parsed[0].text).toBe('Hi');
     });
 
+    it('should return the full parse state for a parse session', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            beforeParse: (context) =>
+              context.setHtml(context.html.replace('Hello', 'Hi')),
+            onDocument: (context) => {
+              context.stylesheet.addRule('p', { color: 'red' });
+              context.data.tag =
+                context.document.body.firstElementChild?.tagName;
+            },
+          },
+        ],
+      } as any);
+
+      const state = await converter.parseState('<p>Hello</p>');
+
+      expect(state.originalHtml).toBe('<p>Hello</p>');
+      expect(state.html).toBe('<p>Hi</p>');
+      expect(state.document.body.querySelector('p')?.textContent).toBe('Hi');
+      expect(state.elements[0].text).toBe('Hi');
+      expect(state.data).toMatchObject({ tag: 'P' });
+      expect(
+        state.stylesheet.getMatchedStyles(state.elements[0])
+      ).toMatchObject({
+        color: 'red',
+      });
+    });
+
     it('should run multiple beforeParse plugins in order', async () => {
       const converter = init({
         domParser: new JSDOMParser(),
         adapters: { register: [] },
         plugins: [
           {
-            beforeParse: (html) => html.replace('Hello', 'Hi'),
+            beforeParse: (context) =>
+              context.setHtml(context.html.replace('Hello', 'Hi')),
           },
           {
-            beforeParse: (html) => html.replace('Hi', 'Welcome'),
+            beforeParse: (context) =>
+              context.setHtml(context.html.replace('Hi', 'Welcome')),
           },
         ],
       } as any);
@@ -306,7 +341,8 @@ describe('Converter initialization', () => {
         adapters: { register: [] },
         plugins: [
           {
-            beforeParse: (html) => html.replace('Hello', 'Hi'),
+            beforeParse: (context) =>
+              context.setHtml(context.html.replace('Hello', 'Hi')),
           },
         ],
         middleware: [async (html) => html.replace('Hi', 'Welcome')],
@@ -361,7 +397,7 @@ describe('Converter initialization', () => {
     });
 
     it('should pass parsed DocumentElements to plugins.afterParse', async () => {
-      const afterParse = vi.fn((elements) => elements);
+      const afterParse = vi.fn();
       const converter = init({
         domParser: new JSDOMParser(),
         adapters: { register: [] },
@@ -370,7 +406,15 @@ describe('Converter initialization', () => {
 
       const parsed = await converter.parse('<p>Hello</p>');
       expect(afterParse).toHaveBeenCalledTimes(1);
-      expect(afterParse).toHaveBeenCalledWith(parsed);
+      expect(afterParse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: 'afterParse',
+          html: '<p>Hello</p>',
+          document: expect.any(Object),
+          elements: parsed,
+          replaceElements: expect.any(Function),
+        })
+      );
     });
 
     it('should allow plugins.afterParse to replace the parsed DocumentElement array', async () => {
@@ -379,7 +423,11 @@ describe('Converter initialization', () => {
         adapters: { register: [] },
         plugins: [
           {
-            afterParse: () => [{ type: 'paragraph', text: 'Replaced' }],
+            afterParse: (context) => {
+              context.replaceElements([
+                { type: 'paragraph', text: 'Replaced' },
+              ]);
+            },
           },
         ],
       } as any);
@@ -394,21 +442,100 @@ describe('Converter initialization', () => {
         adapters: { register: [] },
         plugins: [
           {
-            afterParse: (elements) =>
-              elements.map((element) => ({ ...element, text: 'First' })),
+            afterParse: (context) => {
+              context.replaceElements(
+                context.elements.map((element) => ({
+                  ...element,
+                  text: 'First',
+                }))
+              );
+            },
           },
           {
-            afterParse: (elements) =>
-              elements.map((element) => ({
-                ...element,
-                text: `${element.text}!`,
-              })),
+            afterParse: (context) => {
+              context.replaceElements(
+                context.elements.map((element) => ({
+                  ...element,
+                  text: `${element.text}!`,
+                }))
+              );
+            },
           },
         ],
       } as any);
 
       const parsed = await converter.parse('<p>Hello</p>');
       expect(parsed[0].text).toBe('First!');
+    });
+
+    it('should expose a fresh stylesheet before any plugin hooks run', async () => {
+      const stylesheets: any[] = [];
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            beforeParse: (context) => {
+              stylesheets.push(context.stylesheet);
+              context.stylesheet.addRule('p', { color: 'red' });
+            },
+            afterParse: (context) => {
+              stylesheets.push(context.stylesheet);
+            },
+          },
+        ],
+      } as any);
+
+      const first = await converter.parse('<p>First</p>');
+      const second = await converter.parse('<p>Second</p>');
+
+      expect(stylesheets[0]).toBe(stylesheets[1]);
+      expect(stylesheets[2]).toBe(stylesheets[3]);
+      expect(stylesheets[0]).not.toBe(stylesheets[2]);
+      expect(first[0].text).toBe('First');
+      expect(second[0].text).toBe('Second');
+    });
+
+    it('should allow plugins.onDocument to inspect the parsed document and stylesheet', async () => {
+      const onDocument = vi.fn((context) => {
+        expect(
+          context.document.head.querySelector('style')?.textContent
+        ).toContain('color: red');
+        context.stylesheet.addRule('p', { color: 'red' });
+      });
+
+      let receivedStylesheet: any;
+      let parsedElements: any[] = [];
+
+      class StyleAdapter implements IDocumentConverter {
+        async convert(parsed: any, stylesheet?: any): Promise<Buffer> {
+          parsedElements = parsed;
+          receivedStylesheet = stylesheet;
+          return Buffer.from('style-ok');
+        }
+      }
+
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [{ format: 'style', adapter: StyleAdapter }] },
+        plugins: [{ onDocument }],
+      } as any);
+
+      const parsed = await converter.parse(
+        '<html><head><style>p { color: red; }</style></head><body><p>Hello</p></body></html>'
+      );
+      await converter.convert(
+        '<html><head><style>p { color: red; }</style></head><body><p>Hello</p></body></html>',
+        'style'
+      );
+
+      expect(onDocument).toHaveBeenCalledTimes(2);
+      expect(parsed[0].text).toBe('Hello');
+      expect(
+        receivedStylesheet.getMatchedStyles(parsedElements[0])
+      ).toMatchObject({
+        color: 'red',
+      });
     });
 
     it('should handle empty HTML and unknown tags', async () => {

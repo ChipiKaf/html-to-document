@@ -89,7 +89,9 @@ converter.convert('<p style="color:red">Hello</p>', 'docx')
 const converter = init({
   plugins: [
     {
-      beforeParse: async (html) => html.replace(/ style="[^"]*"/g, ''),
+      beforeParse: async (context) => {
+        context.setHtml(context.html.replace(/ style="[^"]*"/g, ''));
+      },
     },
   ],
 });

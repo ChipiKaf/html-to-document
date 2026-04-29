@@ -257,19 +257,65 @@ export interface GridCell {
  */
 export type Middleware = (html: string) => Promise<string>;
 
+export interface PluginContextBase {
+  /** Current plugin lifecycle phase. */
+  phase: 'beforeParse' | 'onDocument' | 'afterParse';
+  /** Fresh stylesheet instance for the current parse session. */
+  stylesheet: IStylesheet;
+  /** Shared per-parse plugin scratchpad. */
+  data: Record<string, unknown>;
+}
+
+export interface ParseState {
+  /** Raw HTML passed into the parse session before plugins mutate it. */
+  originalHtml: string;
+  /** Current HTML after `beforeParse` plugins have run. */
+  html: string;
+  /** Fresh stylesheet instance for the current parse session. */
+  stylesheet: IStylesheet;
+  /** Shared per-parse plugin scratchpad. */
+  data: Record<string, unknown>;
+  /** Parsed DOM document after the HTML phase completes. */
+  document: Document;
+  /** Parsed intermediate representation after the full parse lifecycle completes. */
+  elements: DocumentElement[];
+}
+
+export interface BeforeParseContext extends PluginContextBase {
+  phase: 'beforeParse';
+  html: string;
+  setHtml(next: string): void;
+}
+
+export interface OnDocumentContext extends PluginContextBase {
+  phase: 'onDocument';
+  html: string;
+  document: Document;
+}
+
+export interface AfterParseContext extends PluginContextBase {
+  phase: 'afterParse';
+  html: string;
+  document: Document;
+  elements: DocumentElement[];
+  replaceElements(next: DocumentElement[]): void;
+}
+
 export interface Plugin {
   /** Optional plugin identifier for diagnostics. */
   name?: string;
   /**
    * Hook for transforming raw HTML before DOM parsing.
    */
-  beforeParse?(html: string): string | Promise<string>;
+  beforeParse?(context: BeforeParseContext): void | Promise<void>;
+  /**
+   * Hook for interacting with the parsed document before element parsing.
+   */
+  onDocument?(context: OnDocumentContext): void | Promise<void>;
   /**
    * Hook for transforming parsed document elements before adapter conversion.
    */
-  afterParse?(
-    elements: DocumentElement[]
-  ): DocumentElement[] | Promise<DocumentElement[]>;
+  afterParse?(context: AfterParseContext): void | Promise<void>;
 }
 /**
  * Options passed to tag handlers for parsing HTML elements.

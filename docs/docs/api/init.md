@@ -49,9 +49,10 @@ Register one or more plugins for the converter pipeline.
 - **Type:** [`Plugin`](./types)[]
 - **Default:** the built-in `minify` plugin is enabled unless disabled by `enableDefaultPlugins: false`, or implicitly by legacy `clearMiddleware: true`
 - **Hooks:**
-  - `beforeParse?(html)` transforms the raw HTML string
-  - `afterParse?(elements)` transforms the parsed `DocumentElement[]`
-- **Order:** plugins run in array order; all `beforeParse` hooks run before parsing and all `afterParse` hooks run after parsing
+  - `beforeParse?(context)` can inspect and replace the raw HTML via `context.setHtml(...)`
+  - `onDocument?(context)` can inspect or mutate the parsed `Document` and the fresh per-parse stylesheet
+  - `afterParse?(context)` can inspect the parsed `DocumentElement[]` and replace them via `context.replaceElements(...)`
+- **Order:** plugins run in array order across the three phases: `beforeParse`, `onDocument`, then `afterParse`
 - **Errors:** plugin failures fail fast and surface their original errors
 - **Example:**
 
@@ -62,20 +63,26 @@ Register one or more plugins for the converter pipeline.
     plugins: [
       {
         name: 'strip-scripts',
-        beforeParse: async (html) =>
-          html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+        beforeParse: async (context) => {
+          context.setHtml(
+            context.html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, '')
+          );
+        },
       },
       {
         name: 'mark-paragraphs',
-        afterParse: async (elements) =>
-          elements.map((element) =>
-            element.type === 'paragraph'
-              ? {
-                  ...element,
-                  metadata: { ...element.metadata, sanitized: true },
-                }
-              : element
-          ),
+        afterParse: async (context) => {
+          context.replaceElements(
+            context.elements.map((element) =>
+              element.type === 'paragraph'
+                ? {
+                    ...element,
+                    metadata: { ...element.metadata, sanitized: true },
+                  }
+                : element
+            )
+          );
+        },
       },
     ],
   });
@@ -324,8 +331,10 @@ import { CustomParser } from './parser';
 const converter = init({
   plugins: [
     {
-      beforeParse: async (html) =>
-        html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+      beforeParse: async (context) =>
+        context.setHtml(
+          context.html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, '')
+        ),
     },
   ],
   tags: {

@@ -7,19 +7,18 @@ sidebar_position: 4
 
 # Plugins
 
-Plugins are the primary extension point for the converter pipeline. They can transform the raw HTML before parsing, transform the parsed `DocumentElement[]` after parsing, or do both.
+Plugins are the primary extension point for the converter pipeline. They can transform the raw HTML before parsing, inspect or mutate the parsed `Document`, and replace the parsed `DocumentElement[]` after parsing.
 
 ## Signature
 
 ```ts
-import { Plugin, DocumentElement } from 'html-to-document';
+import { Plugin } from 'html-to-document';
 
 interface Plugin {
   name?: string;
-  beforeParse?(html: string): string | Promise<string>;
-  afterParse?(
-    elements: DocumentElement[]
-  ): DocumentElement[] | Promise<DocumentElement[]>;
+  beforeParse?(context: BeforeParseContext): void | Promise<void>;
+  onDocument?(context: OnDocumentContext): void | Promise<void>;
+  afterParse?(context: AfterParseContext): void | Promise<void>;
 }
 ```
 
@@ -30,8 +29,11 @@ interface Plugin {
 Plugins run in registration order.
 
 1. Every `beforeParse` hook runs against the HTML string.
-2. The parser converts the final HTML into `DocumentElement[]`.
-3. Every `afterParse` hook runs against the parsed elements.
+2. The converter parses the final HTML into a `Document` and runs every `onDocument` hook.
+3. The parser converts that `Document` into `DocumentElement[]`.
+4. Every `afterParse` hook runs against the parsed elements.
+
+Each parse session starts with a fresh stylesheet clone. Every hook receives the same per-parse `stylesheet` and `data` object.
 
 If any plugin throws or rejects, parsing fails immediately and the original error is surfaced.
 
@@ -57,16 +59,24 @@ const converter = init({
   plugins: [
     {
       name: 'strip-scripts',
-      beforeParse: async (html) =>
-        html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+      beforeParse: async (context) => {
+        context.setHtml(
+          context.html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, '')
+        );
+      },
     },
     {
-      name: 'append-exclamation',
-      afterParse: async (elements) =>
-        elements.map((element) =>
-          element.type === 'paragraph' && element.text
-            ? { ...element, text: `${element.text}!` }
-            : element
+      name: 'append-review-flag',
+      afterParse: async (context) =>
+        context.replaceElements(
+          context.elements.map((element) =>
+            element.type === 'paragraph' && element.text
+              ? {
+                  ...element,
+                  metadata: { ...element.metadata, reviewed: true },
+                }
+              : element
+          )
         ),
     },
   ],
@@ -96,7 +106,9 @@ But new integrations should prefer:
 const converter = init({
   plugins: [
     {
-      beforeParse: async (html) => html.replace('foo', 'bar'),
+      beforeParse: async (context) => {
+        context.setHtml(context.html.replace('foo', 'bar'));
+      },
     },
   ],
 });

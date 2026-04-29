@@ -30,7 +30,8 @@ const converter = init({
   },
   plugins: [
     {
-      beforeParse: async (html) => html.replace('Hello', 'Hi'),
+      beforeParse: async (context) =>
+        context.setHtml(context.html.replace('Hello', 'Hi')),
     },
   ],
   tags: {
@@ -140,7 +141,8 @@ The `dependencies` object is fresh for each adapter registration, so changes mad
 
 Plugins are the primary extension mechanism for parsing.
 
-- `plugins` accepts objects with `beforeParse?(html)` and `afterParse?(elements)` hooks
+- `plugins` accepts objects with `beforeParse?(context)`, `onDocument?(context)`, and `afterParse?(context)` hooks
+- each parse session starts with a fresh stylesheet clone shared across all plugin hooks
 - built-in default middleware is now the default `minify` plugin
 - `usePlugin(plugin)` registers plugins after construction
 - deprecated `middleware` and `clearMiddleware` still work for compatibility
@@ -150,17 +152,22 @@ Plugins are the primary extension mechanism for parsing.
 const converter = new Converter({
   plugins: [
     {
-      beforeParse: (html) => html.replace('Draft', 'Final'),
+      beforeParse: (context) => {
+        context.setHtml(context.html.replace('Draft', 'Final'));
+      },
     },
   ],
 });
 
 converter.usePlugin({
-  afterParse: (elements) =>
-    elements.map((element) => ({
-      ...element,
-      metadata: { ...element.metadata, reviewed: true },
-    })),
+  afterParse: (context) => {
+    context.replaceElements(
+      context.elements.map((element) => ({
+        ...element,
+        metadata: { ...element.metadata, reviewed: true },
+      }))
+    );
+  },
 });
 ```
 
@@ -229,7 +236,7 @@ const converter = init({
 - `useMiddleware(mw: Middleware): void`  
   Add custom middleware for HTML preprocessing. Deprecated; internally adapted to a `beforeParse` plugin.
 - `usePlugin(plugin: Plugin): void`
-  Add a plugin for HTML preprocessing or parsed-element postprocessing.
+  Add a plugin for HTML preprocessing, document inspection, or parsed-element postprocessing.
 - `registerConverter(format: string, adapter: IDocumentConverter): void`  
   Register a custom adapter.
 - `serialize(elements: DocumentElement[]): string`  
