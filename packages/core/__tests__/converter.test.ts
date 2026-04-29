@@ -63,6 +63,22 @@ describe('Converter initialization', () => {
       await converter.convert('<p>Hello</p>', 'dummy');
       expect(adapter.parsed[0].text).toBe('Hi');
     });
+
+    it('accepts constructor plugins and legacy middleware in order', async () => {
+      const converter = new Converter({
+        domParser: new JSDOMParser(),
+        clearMiddleware: true,
+        plugins: [
+          {
+            beforeParse: (html) => html.replace('Hello', 'Hi'),
+          },
+        ],
+        middleware: [async (html) => html.replace('Hi', 'Welcome')],
+      });
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0].text).toBe('Welcome');
+    });
   });
 
   describe('init', () => {
@@ -249,6 +265,150 @@ describe('Converter initialization', () => {
       });
       await converter.parse('<p>test</p>');
       expect(called).toBe(true);
+    });
+
+    it('should apply plugins.beforeParse during parsing', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            beforeParse: (html) => html.replace('Hello', 'Hi'),
+          },
+        ],
+      } as any);
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0].text).toBe('Hi');
+    });
+
+    it('should run multiple beforeParse plugins in order', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            beforeParse: (html) => html.replace('Hello', 'Hi'),
+          },
+          {
+            beforeParse: (html) => html.replace('Hi', 'Welcome'),
+          },
+        ],
+      } as any);
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0].text).toBe('Welcome');
+    });
+
+    it('should allow plugins and legacy middleware to both transform HTML', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            beforeParse: (html) => html.replace('Hello', 'Hi'),
+          },
+        ],
+        middleware: [async (html) => html.replace('Hi', 'Welcome')],
+      } as any);
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0].text).toBe('Welcome');
+    });
+
+    it('should apply the default plugin when enableDefaultPlugins is omitted', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+      });
+
+      const parsed = await converter.parse('<p>   spaced   </p>');
+      expect(parsed[0].text).toBe('spaced');
+    });
+
+    it('should not apply the default plugin when enableDefaultPlugins is false', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        enableDefaultPlugins: false,
+      } as any);
+
+      const parsed = await converter.parse('<p>   spaced   </p>');
+      expect(parsed[0].text).toContain('   spaced   ');
+    });
+
+    it('should disable default plugins when clearMiddleware is true', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        clearMiddleware: true,
+      } as any);
+
+      const parsed = await converter.parse('<p>   spaced   </p>');
+      expect(parsed[0].text).toContain('   spaced   ');
+    });
+
+    it('should let explicit enableDefaultPlugins override clearMiddleware', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        clearMiddleware: true,
+        enableDefaultPlugins: true,
+      } as any);
+
+      const parsed = await converter.parse('<p>   spaced   </p>');
+      expect(parsed[0].text).toBe('spaced');
+    });
+
+    it('should pass parsed DocumentElements to plugins.afterParse', async () => {
+      const afterParse = vi.fn((elements) => elements);
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [{ afterParse }],
+      } as any);
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(afterParse).toHaveBeenCalledTimes(1);
+      expect(afterParse).toHaveBeenCalledWith(parsed);
+    });
+
+    it('should allow plugins.afterParse to replace the parsed DocumentElement array', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            afterParse: () => [{ type: 'paragraph', text: 'Replaced' }],
+          },
+        ],
+      } as any);
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed).toEqual([{ type: 'paragraph', text: 'Replaced' }]);
+    });
+
+    it('should run multiple afterParse plugins in order', async () => {
+      const converter = init({
+        domParser: new JSDOMParser(),
+        adapters: { register: [] },
+        plugins: [
+          {
+            afterParse: (elements) =>
+              elements.map((element) => ({ ...element, text: 'First' })),
+          },
+          {
+            afterParse: (elements) =>
+              elements.map((element) => ({
+                ...element,
+                text: `${element.text}!`,
+              })),
+          },
+        ],
+      } as any);
+
+      const parsed = await converter.parse('<p>Hello</p>');
+      expect(parsed[0].text).toBe('First!');
     });
 
     it('should handle empty HTML and unknown tags', async () => {

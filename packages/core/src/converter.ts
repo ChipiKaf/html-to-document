@@ -12,9 +12,9 @@ import {
   DocumentElement,
   InitOptions,
   Middleware,
+  Plugin,
 } from './types';
 import { Parser } from './parser';
-import { MiddlewareManager } from './middleware/middleware.manager';
 import { minifyMiddleware } from './middleware/minify.middleware';
 import { ConverterRegistry } from './registry';
 import { initStyleMeta } from './styles/style-inheritance';
@@ -27,14 +27,14 @@ import { createStylesheet } from './styles/sheet';
 import * as CSS from 'csstype';
 
 export class Converter {
-  private _middlewareManager: MiddlewareManager;
+  private _plugins: Plugin[];
   private _parser: Parser;
   private _registry: ConverterRegistry;
 
   constructor(options: ConverterOptions) {
     const { tags, domParser, registerAdapters } = options;
     this._registry = new ConverterRegistry();
-    this._middlewareManager = new MiddlewareManager();
+    this._plugins = resolvePlugins(options);
     this._parser = new Parser(
       tags?.tagHandlers,
       domParser,
@@ -50,7 +50,11 @@ export class Converter {
   }
 
   public useMiddleware(mw: Middleware) {
-    this._middlewareManager.use(mw);
+    this._plugins.push(middlewareToPlugin(mw));
+  }
+
+  public usePlugin(plugin: Plugin) {
+    this._plugins.push(plugin);
   }
 
   public registerConverter(format: string, converter: IDocumentConverter) {
@@ -87,18 +91,68 @@ export class Converter {
   /**
    * Parses an HTML string into a structured array of `DocumentElement` objects.
    *
-   * This method first executes any registered middleware transformations on the HTML,
+   * This method first executes any registered plugin hooks that transform the HTML,
    * then uses the configured parser to convert the modified HTML into a document-agnostic
-   * intermediate format (`DocumentElement[]`), which can be used by format adapters (e.g., DOCX, PDF).
+   * intermediate format (`DocumentElement[]`), and finally runs any post-parse plugin hooks.
    *
    * @param html - The raw HTML string to be parsed.
    * @returns A `Promise` that resolves to an array of `DocumentElement` objects representing the parsed content.
    */
   async parse(html: string): Promise<DocumentElement[]> {
-    const modifiedHtml = await this._middlewareManager.execute(html);
-    return this._parser.parse(modifiedHtml);
+    let modifiedHtml = html;
+
+    for (const plugin of this._plugins) {
+      if (plugin.beforeParse) {
+        modifiedHtml = await plugin.beforeParse(modifiedHtml);
+      }
+    }
+
+    let parsed = this._parser.parse(modifiedHtml);
+
+    for (const plugin of this._plugins) {
+      if (plugin.afterParse) {
+        parsed = await plugin.afterParse(parsed);
+      }
+    }
+
+    return parsed;
   }
 }
+
+const middlewareToPlugin = (middleware: Middleware): Plugin => ({
+  beforeParse: middleware,
+});
+
+const resolvePlugins = ({
+  plugins,
+  middleware,
+  clearMiddleware = false,
+  enableDefaultPlugins = !clearMiddleware,
+}: Pick<
+  ConverterOptions,
+  'plugins' | 'middleware' | 'clearMiddleware' | 'enableDefaultPlugins'
+>): Plugin[] => {
+  const resolvedPlugins: Plugin[] = [];
+
+  if (enableDefaultPlugins) {
+    resolvedPlugins.push(minifyPlugin);
+  }
+
+  if (plugins && plugins.length > 0) {
+    resolvedPlugins.push(...plugins);
+  }
+
+  if (middleware && middleware.length > 0) {
+    resolvedPlugins.push(...middleware.map(middlewareToPlugin));
+  }
+
+  return resolvedPlugins;
+};
+
+const minifyPlugin: Plugin = {
+  name: 'minify',
+  beforeParse: minifyMiddleware,
+};
 
 /**
  * A helper function that provides type inference for creating registrations.
@@ -147,10 +201,12 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
 ) => {
   const {
     middleware,
+    plugins,
     tags,
     adapters,
     domParser,
     clearMiddleware = false,
+    enableDefaultPlugins = !clearMiddleware,
     styleInheritance,
     stylesheetRules = [],
     stylesheet = createStylesheet(),
@@ -221,20 +277,12 @@ export const init = <const T extends readonly AdapterProvider<any>[]>(
     registerAdapters,
     domParser,
     adapters,
+    plugins,
+    middleware,
+    clearMiddleware,
+    enableDefaultPlugins,
     stylesheet,
   });
-
-  // Default middleware
-  if (!clearMiddleware) {
-    converter.useMiddleware(minifyMiddleware);
-  }
-
-  // Incoming middleware
-  if (middleware && middleware.length > 0) {
-    middleware.forEach((mw) => {
-      converter.useMiddleware(mw);
-    });
-  }
 
   return converter;
 };

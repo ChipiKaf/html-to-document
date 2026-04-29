@@ -23,11 +23,16 @@ https://www.npmjs.com/package/html-to-document
 import { init, Converter } from 'html-to-document-core';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
 
-// Initialize with optional tags, middleware, and adapters
+// Initialize with optional tags, plugins, and adapters
 const converter = init({
   adapters: {
     register: [{ format: 'docx', adapter: DocxAdapter }],
   },
+  plugins: [
+    {
+      beforeParse: async (html) => html.replace('Hello', 'Hi'),
+    },
+  ],
   tags: {
     defaultStyles: [
       { key: 'p', styles: { marginBottom: '1px', marginTop: '1px' } },
@@ -128,8 +133,36 @@ The `dependencies` object is fresh for each adapter registration, so changes mad
 
 ### `init(options?: InitOptions): Converter`
 
-- `options`: configuration for tags, middleware, adapters, DOM parser, and **styleInheritance**.
+- `options`: configuration for tags, plugins, adapters, DOM parser, and **styleInheritance**.
 - Returns a `Converter` instance.
+
+#### Plugins and deprecated middleware
+
+Plugins are the primary extension mechanism for parsing.
+
+- `plugins` accepts objects with `beforeParse?(html)` and `afterParse?(elements)` hooks
+- built-in default middleware is now the default `minify` plugin
+- `usePlugin(plugin)` registers plugins after construction
+- deprecated `middleware` and `clearMiddleware` still work for compatibility
+- `clearMiddleware: true` implies `enableDefaultPlugins: false` unless `enableDefaultPlugins` is explicitly provided
+
+```ts
+const converter = new Converter({
+  plugins: [
+    {
+      beforeParse: (html) => html.replace('Draft', 'Final'),
+    },
+  ],
+});
+
+converter.usePlugin({
+  afterParse: (elements) =>
+    elements.map((element) => ({
+      ...element,
+      metadata: { ...element.metadata, reviewed: true },
+    })),
+});
+```
 
 #### Stylesheet API
 
@@ -194,7 +227,9 @@ const converter = init({
 - `convert(elements: DocumentElement[] | string, format: string): Promise<Buffer | Blob>`  
   Converts parsed elements (or HTML string) into the specified format using a registered adapter.
 - `useMiddleware(mw: Middleware): void`  
-  Add custom middleware for HTML preprocessing.
+  Add custom middleware for HTML preprocessing. Deprecated; internally adapted to a `beforeParse` plugin.
+- `usePlugin(plugin: Plugin): void`
+  Add a plugin for HTML preprocessing or parsed-element postprocessing.
 - `registerConverter(format: string, adapter: IDocumentConverter): void`  
   Register a custom adapter.
 - `serialize(elements: DocumentElement[]): string`  
