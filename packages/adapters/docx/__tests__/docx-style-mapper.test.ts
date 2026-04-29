@@ -51,10 +51,34 @@ describe('DocxStyleMapper', () => {
   it('maps fontSize and lineHeight', () => {
     const el = { type: 'paragraph' } as DocumentElement;
     expect(mapper.mapStyles({ fontSize: '20px' }, el)).toEqual({
-      size: Math.round(20 * 1.5),
+      size: 30,
     });
     expect(mapper.mapStyles({ fontSize: '200%' }, el)).toEqual({
-      size: Math.round(16 * (200 / 100) * 1.5),
+      size: 48,
+    });
+    expect(mapper.mapStyles({ fontSize: '12pt' }, el)).toEqual({
+      size: 24,
+    });
+    expect(mapper.mapStyles({ fontSize: '1pc' }, el)).toEqual({
+      size: 24,
+    });
+    expect(mapper.mapStyles({ fontSize: '2.54cm' }, el)).toEqual({
+      size: 144,
+    });
+    expect(mapper.mapStyles({ fontSize: '25.4mm' }, el)).toEqual({
+      size: 144,
+    });
+    expect(mapper.mapStyles({ fontSize: '1in' }, el)).toEqual({
+      size: 144,
+    });
+    expect(mapper.mapStyles({ fontSize: '1.5em' }, el)).toEqual({
+      size: 36,
+    });
+    expect(mapper.mapStyles({ fontSize: '1.5rem' }, el)).toEqual({
+      size: 36,
+    });
+    expect(mapper.mapStyles({ fontSize: '20' }, el)).toEqual({
+      size: 30,
     });
     expect(mapper.mapStyles({ lineHeight: '2' }, el)).toEqual({
       spacing: { line: Math.round(2 * 240), lineRule: 'auto' },
@@ -165,17 +189,29 @@ describe('DocxStyleMapper', () => {
 
   it('maps border and borderWidth for various contexts', () => {
     const img = { type: 'image' } as DocumentElement;
-    const br = mapper.mapStyles({ border: '2px dashed #000' }, img) as any;
-    expect(br.outline).toBeDefined();
+    const br = mapper.mapStyles({ border: '12pt dashed #000' }, img) as any;
+    expect(br.outline).toEqual({
+      width: 152400,
+      type: 'solidFill',
+      solidFillType: 'rgb',
+      value: '000000',
+    });
     const cell = { type: 'table-cell' } as DocumentElement;
     const none = mapper.mapStyles({ border: 'none' }, cell) as any;
     expect(none.borders.top.style).toBe(BorderStyle.NONE);
     const t = { type: 'table' } as DocumentElement;
-    const bw = mapper.mapStyles({ borderWidth: '2' } as any, t) as any;
-    expect(bw.borders).toBeDefined();
+    const bw = mapper.mapStyles({ borderWidth: '12pt' } as any, t) as any;
+    expect(bw.borders.top.size).toBe(96);
     const p = { type: 'paragraph' } as DocumentElement;
-    const bwp = mapper.mapStyles({ borderWidth: '2' } as any, p) as any;
-    expect(bwp.border).toBeDefined();
+    const bwp = mapper.mapStyles({ borderWidth: '1in' } as any, p) as any;
+    expect(bwp.border.left.size).toBe(576);
+  });
+
+  it('maps letterSpacing with shared length conversion', () => {
+    const el = { type: 'paragraph' } as DocumentElement;
+    expect(mapper.mapStyles({ letterSpacing: '12pt' }, el)).toEqual({
+      characterSpacing: 240,
+    });
   });
 
   it('executes all mapping functions without throwing', () => {
