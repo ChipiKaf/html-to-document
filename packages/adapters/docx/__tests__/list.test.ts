@@ -35,6 +35,10 @@ describe('ListConverter', () => {
       mapStyles: vi.fn().mockReturnValue({ bold: true, fontSize: 12 }),
     };
 
+    const mockStylesheet = {
+      getComputedStyles: vi.fn().mockReturnValue({}),
+      getMatchedStyles: vi.fn().mockReturnValue([]),
+    };
     const mockConverter = {
       convertToBlocks: vi.fn((config) => {
         const result = config.wrapInlineElements([], 0);
@@ -49,6 +53,7 @@ describe('ListConverter', () => {
       styleMapper: mockStyleMapper,
       converter: mockConverter,
       defaultStyles: { 'list-item': {} },
+      stylesheet: mockStylesheet,
       styleMeta: {},
     } as unknown as ElementConverterDependencies;
 
@@ -64,7 +69,7 @@ describe('ListConverter', () => {
         bold: true,
         fontSize: 12,
       },
-      children: [],
+      children: { ...mockStylesheet },
       bold: true,
       fontSize: 12,
     });

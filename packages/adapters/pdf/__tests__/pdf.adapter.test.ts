@@ -1,18 +1,18 @@
-import { PDFAdapter } from '../src/pdf.adapter';
-import { createStylesheet, DocumentElement } from 'html-to-document-core';
+import { createStylesheet, type DocumentElement } from 'html-to-document-core';
 import { JSDOM } from 'jsdom';
 import {
-  vi,
-  describe,
-  it,
-  expect,
-  beforeEach,
   beforeAll,
-  MockedFunction,
-  Mocked,
-  Mock,
-  MockedClass,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  type Mocked,
+  type MockedClass,
+  type MockedFunction,
+  vi,
 } from 'vitest';
+import { PDFAdapter } from '../src/pdf.adapter';
 
 // Mock the libreoffice-convert module
 vi.mock('libreoffice-convert', () => ({
@@ -59,10 +59,10 @@ vi.mock('html-to-document-adapter-docx', () => ({
   })),
 }));
 
-import { convert } from 'libreoffice-convert';
 import { DocxAdapter } from 'html-to-document-adapter-docx';
-import mammoth from 'mammoth';
 import html2pdf from 'html2pdf.js';
+import { convert } from 'libreoffice-convert';
+import mammoth from 'mammoth';
 
 const mockLibreOfficeConvert = convert as MockedFunction<typeof convert>;
 const mockMammoth = mammoth as Mocked<typeof mammoth>;

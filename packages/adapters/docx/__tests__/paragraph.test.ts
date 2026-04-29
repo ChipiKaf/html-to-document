@@ -32,6 +32,11 @@ describe('ParagraphConverter', () => {
       mapStyles: vi.fn().mockReturnValue({ bold: true, fontSize: 12 }),
     };
 
+    const mockStylesheet = {
+      getComputedStyles: vi.fn().mockReturnValue({}),
+      getMatchedStyles: vi.fn().mockReturnValue([]),
+    };
+
     const mockConverter = {
       convertToBlocks: vi.fn((config) => {
         const result = config.wrapInlineElements([], 0);
@@ -46,6 +51,7 @@ describe('ParagraphConverter', () => {
       styleMapper: mockStyleMapper,
       converter: mockConverter,
       defaultStyles: { paragraph: {} },
+      stylesheet: mockStylesheet,
       styleMeta: {},
     } as unknown as ElementConverterDependencies;
 
@@ -53,7 +59,7 @@ describe('ParagraphConverter', () => {
 
     expect(result).toHaveLength(1);
     expect(Paragraph).toHaveBeenCalledWith({
-      children: [],
+      children: { ...mockStylesheet },
       bold: true,
       fontSize: 12,
       run: {
