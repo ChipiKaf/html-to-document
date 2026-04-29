@@ -19,6 +19,11 @@ import {
   ITableRowOptions,
   ISpacingProperties,
 } from 'docx';
+import {
+  twipsToEighthsOfPoint,
+  twipsToEmus,
+  twipsToHalfPoints,
+} from './utils/unit-conversion';
 
 type StyleKey = keyof Styles;
 
@@ -71,6 +76,11 @@ const mapBorderStyle = (style: string): string => {
     default:
       return BorderStyle.SINGLE;
   }
+};
+
+const lengthToBorderSize = (value: string): number | undefined => {
+  const twips = lengthToTwips(value);
+  return typeof twips === 'number' ? twipsToEighthsOfPoint(twips) : undefined;
 };
 
 function deepMerge<T extends object, U extends object>(
@@ -230,17 +240,10 @@ export class DocxStyleMapper {
 
       // Font size
       fontSize: (v) => {
-        if (v.endsWith('px')) {
-          const px = parseFloat(v.slice(0, -2));
-          return { size: Math.round(px * 1.5) };
-        } else if (v.endsWith('%')) {
-          const base = 16;
-          const percent = parseFloat(v.slice(0, -1));
-          return { size: Math.round(base * (percent / 100) * 1.5) };
-        } else {
-          const num = parseFloat(v);
-          return !isNaN(num) ? { size: Math.round(num * 1.5) } : {};
-        }
+        const twips = lengthToTwips(v, { basePx: BASE_FONT_SIZE_PX });
+        return typeof twips === 'number'
+          ? { size: twipsToHalfPoints(twips) }
+          : {};
       },
 
       // Line height and spacing
@@ -328,8 +331,8 @@ export class DocxStyleMapper {
       },
 
       letterSpacing: (v) => {
-        const px = parseFloat(v);
-        return !isNaN(px) ? { characterSpacing: Math.round(px * 10) } : {};
+        const twips = lengthToTwips(v);
+        return typeof twips === 'number' ? { characterSpacing: twips } : {};
       },
       border: (v: string, el) => {
         const raw = v.trim();
@@ -337,17 +340,15 @@ export class DocxStyleMapper {
         if (el.type === 'image') {
           // expect format: "<width> <style> <color>" (e.g. "2px dashed #333")
           const parts = raw.split(/\s+/);
-          // parse width (px assumed)
           const widthPart = parts[0] || '';
-          const px = parseFloat(widthPart);
-          if (!isNaN(px) && parts.length >= 2) {
+          const width = lengthToTwips(widthPart);
+          if (typeof width === 'number' && parts.length >= 2) {
             // parse color as last part
             const colorPart = parts.slice(2).join(' ') || (parts[1] ?? '');
             const color = colorConversion(colorPart);
             return {
               outline: {
-                // width in eighths of a point (approx px * 8)
-                width: Math.round(px * 8),
+                width: twipsToEmus(width),
                 // solid fill stroke of outline
                 type: 'solidFill',
                 solidFillType: 'rgb',
@@ -360,36 +361,36 @@ export class DocxStyleMapper {
         return {};
       },
       borderWidth: (v, el) => {
-        const w = parseFloat(v);
-        return isNaN(w)
+        const size = lengthToBorderSize(v);
+        return size === undefined
           ? {}
           : el.type === 'table'
             ? {
                 borders: {
                   top: {
                     style: BorderStyle.SINGLE,
-                    size: w * 8,
+                    size,
                   },
                   bottom: {
                     style: BorderStyle.SINGLE,
-                    size: w * 8,
+                    size,
                   },
                   left: {
                     style: BorderStyle.SINGLE,
-                    size: w * 8,
+                    size,
                   },
                   right: {
                     style: BorderStyle.SINGLE,
-                    size: w * 8,
+                    size,
                   },
                 },
               }
             : {
                 border: {
-                  top: { size: w * 8 },
-                  bottom: { size: w * 8 },
-                  left: { size: w * 8 },
-                  right: { size: w * 8 },
+                  top: { size },
+                  bottom: { size },
+                  left: { size },
+                  right: { size },
                 },
               };
       },
@@ -430,12 +431,12 @@ export class DocxStyleMapper {
             [
               `border${capDir}Width` satisfies StyleKey,
               (v: string) => {
-                const w = parseFloat(v);
-                return isNaN(w)
+                const size = lengthToBorderSize(v);
+                return size === undefined
                   ? {}
                   : {
-                      borders: { [dir]: { size: w * 8 } },
-                      border: { [dir]: { size: w * 8 } },
+                      borders: { [dir]: { size } },
+                      border: { [dir]: { size } },
                     };
               },
             ],
