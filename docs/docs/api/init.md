@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # Initialization
 
-The `init` function is your main entry point to configure and initialize the converter engine. It returns a `Converter` instance that can parse HTML and convert it into document formats like DOCX, PDF, or Markdown. Through `init`, you can register custom adapters, tag handlers, middleware, and default styles to control how HTML is interpreted and styled.
+The `init` function is your main entry point to configure and initialize the converter engine. It returns a `Converter` instance that can parse HTML and convert it into document formats like DOCX, PDF, or Markdown. Through `init`, you can register custom adapters, tag handlers, plugins, and default styles to control how HTML is interpreted and styled.
 
 ## Quick Start
 
@@ -42,13 +42,62 @@ declare function init(options?: InitOptions): Converter;
 
 The `options` object conforms to the [`InitOptions`](./types) type and supports the following properties:
 
+### `plugins?: Plugin[]`
+
+Register one or more plugins for the converter pipeline.
+
+- **Type:** [`Plugin`](./types)[]
+- **Default:** the built-in `minify` plugin is enabled unless disabled by `enableDefaultPlugins: false`, or implicitly by legacy `clearMiddleware: true`
+- **Hooks:**
+  - `beforeParse?(html)` transforms the raw HTML string
+  - `afterParse?(elements)` transforms the parsed `DocumentElement[]`
+- **Order:** plugins run in array order; all `beforeParse` hooks run before parsing and all `afterParse` hooks run after parsing
+- **Errors:** plugin failures fail fast and surface their original errors
+- **Example:**
+
+  ```ts
+  import { init } from 'html-to-document';
+
+  const converter = init({
+    plugins: [
+      {
+        name: 'strip-scripts',
+        beforeParse: async (html) =>
+          html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+      },
+      {
+        name: 'mark-paragraphs',
+        afterParse: async (elements) =>
+          elements.map((element) =>
+            element.type === 'paragraph'
+              ? {
+                  ...element,
+                  metadata: { ...element.metadata, sanitized: true },
+                }
+              : element
+          ),
+      },
+    ],
+  });
+  ```
+
+### `enableDefaultPlugins?: boolean`
+
+Controls whether built-in plugins are registered.
+
+- **Type:** boolean
+- **Default:** `true`, unless `clearMiddleware: true` is set and `enableDefaultPlugins` is not explicitly provided
+- **Current built-in plugin:** `minify`
+
+See [Plugins](./plugins) for details.
+
 ### `middleware?: Middleware[]`
 
-Register one or more middleware functions to transform the HTML before parsing.
-Middleware lets you transform or sanitize HTML before parsing—e.g., stripping scripts, normalizing whitespace, or injecting metadata.
+Deprecated compatibility layer for HTML preprocessing.
 
 - **Type:** [`Middleware`](./types)[]
-- **Default:** _[minifyMiddleware] applied automatically unless `clearMiddleware` is `true`_
+- **Status:** deprecated; prefer `plugins` with `beforeParse`
+- **Behavior:** each middleware entry is internally adapted into a plugin
 - **Example:**
 
   ```ts
@@ -62,11 +111,12 @@ Middleware lets you transform or sanitize HTML before parsing—e.g., stripping 
 
 ### `clearMiddleware?: boolean`
 
-Skips registering the default `minifyMiddleware`. When `true`, only your provided middleware functions will be used.
+Deprecated compatibility switch for the old middleware model.
 
 - **Type:** boolean
 - **Default:** `false`
-- **Default:** `false`
+- **Status:** deprecated; prefer `enableDefaultPlugins: false`
+- **Behavior:** implies `enableDefaultPlugins: false` by default, but explicit `enableDefaultPlugins` overrides that legacy implication
 
 ### `styleInheritance?`
 
@@ -269,12 +319,15 @@ Use a custom DOM parser implementation.
 ```ts
 import { init } from 'html-to-document';
 import { MyAdapter } from './my-adapter';
-import { customMiddleware } from './middleware';
 import { CustomParser } from './parser';
 
 const converter = init({
-  clearMiddleware: false,
-  middleware: [customMiddleware],
+  plugins: [
+    {
+      beforeParse: async (html) =>
+        html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+    },
+  ],
   tags: {
     defaultStyles: [{ key: 'p', styles: { marginBottom: 8 } }],
   },
@@ -293,6 +346,7 @@ converter
 
 ## Learn More
 
+- [Plugins and hooks](./plugins)
 - [Building a custom adapter](./converters)
 - [Available tag handlers and structure](./tags)
 - [DocumentElement schema reference](./types)

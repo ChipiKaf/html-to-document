@@ -256,6 +256,21 @@ export interface GridCell {
  * Middleware function type for processing HTML strings asynchronously.
  */
 export type Middleware = (html: string) => Promise<string>;
+
+export interface Plugin {
+  /** Optional plugin identifier for diagnostics. */
+  name?: string;
+  /**
+   * Hook for transforming raw HTML before DOM parsing.
+   */
+  beforeParse?(html: string): string | Promise<string>;
+  /**
+   * Hook for transforming parsed document elements before adapter conversion.
+   */
+  afterParse?(
+    elements: DocumentElement[]
+  ): DocumentElement[] | Promise<DocumentElement[]>;
+}
 /**
  * Options passed to tag handlers for parsing HTML elements.
  */
@@ -434,9 +449,7 @@ export type AdapterRegistration<
 /**
  * Initialization options for the document conversion module.
  *
- * @property middleware Optional array of middleware functions to apply during conversion.
  * @property tagHandlers Optional array of custom tag handlers to use for parsing HTML elements.
- * @property clearMiddleware If true, clears the default middleware stack before applying custom middleware.
  * @property adapters Optional configuration object for registering adapters and styles for different formats.
  *   - defaultStyles: Array of default style objects for each format (used by adapters).
  *   - register: Array of adapter registration objects, each with a format and an AdapterProvider.
@@ -448,8 +461,12 @@ export type InitOptions<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     readonly AdapterProvider<any>[] = AdapterProvider<any>[],
 > = {
-  /** Optional middleware functions to apply */
+  /** @deprecated Use plugins instead. */
   middleware?: readonly Middleware[];
+  /** Optional plugins to apply during parsing. */
+  plugins?: readonly Plugin[];
+  /** Whether built-in plugins are enabled. Defaults to true. */
+  enableDefaultPlugins?: boolean;
   /**
    * Optional custom style inheritance rules.
    * Allows overriding default inheritance behavior for specific CSS properties.
@@ -486,7 +503,7 @@ export type InitOptions<
    * You can include extra style rules in this stylesheet, but all other style rules will still be appended.
    * */
   stylesheet?: IStylesheet;
-  /** Whether to clear default middleware */
+  /** @deprecated Use enableDefaultPlugins instead. */
   clearMiddleware?: boolean;
   /**
    * Optional adapters configuration for supported formats.
@@ -556,15 +573,11 @@ export interface IDOMParser {
 /**
  * Options for configuring a document converter instance.
  */
-export type ConverterOptions = Omit<
-  InitOptions,
-  'clearMiddleware' | 'middleware'
-> & {
+export type ConverterOptions = InitOptions & {
   registerAdapters?: {
     format: Formats;
     adapter: IDocumentConverter;
   }[];
-  stylesheet?: IStylesheet;
 };
 
 export interface IDocumentConverter {

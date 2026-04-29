@@ -15,14 +15,14 @@ Write HTML → get Word, PDFs, spreadsheets, and more — all with one unified T
 
 ## How It Works
 
-Below is a high-level overview of the conversion pipeline. The library processes the HTML input through optional middleware steps, parses it into a structured intermediate representation, and then delegates to an adapter to generate the desired output format.
+Below is a high-level overview of the conversion pipeline. The library processes the HTML input through optional plugin steps, parses it into a structured intermediate representation, and then delegates to an adapter to generate the desired output format.
 
 ![Conversion Pipeline Diagram](./static/img/conversion-pipeline.png)
 
 The stages are:
 
 - **Input**: Raw HTML input as a string.
-- **Middleware**: One or more middleware functions can inspect or transform the HTML string before parsing (e.g., sanitization, custom tags).
+- **Plugins**: `beforeParse` hooks can inspect or transform the HTML string before parsing, and `afterParse` hooks can transform parsed `DocumentElement[]`. Deprecated middleware still works through internal plugin adaptation.
 - **Parser**: Converts the (possibly modified) HTML string into an array of `DocumentElement` objects, representing a structured AST.
 - **Adapter**: Takes the parsed `DocumentElement[]` and renders it into the target format (e.g., DOCX, PDF, Markdown) via a registered adapter.
 
@@ -38,7 +38,7 @@ The stages are:
 | **Style mapping engine**    | Define your own css mappings for the adapters and set per‑format defaults                                        |
 | **Custom tag handlers**     | Override or extend how any HTML tag is parsed                                                                    |
 | **Page sections & headers** | Use `<section class="page">`, `<section class="page-break">`, `<header>` and `<footer>` to control pages in DOCX |
-| **Middleware pipeline**     | Transform or sanitise HTML before parsing                                                                        |
+| **Plugin pipeline**         | Transform HTML before parsing or transform `DocumentElement[]` after parsing                                     |
 
 ---
 
@@ -181,6 +181,46 @@ Need just the parsed structure?
 ```ts
 const elements = await converter.parse('<p>Some HTML</p>');
 console.log(elements); // => DocumentElement[]
+```
+
+### Plugins
+
+Plugins are the primary way to extend parsing.
+
+```ts
+const converter = init({
+  plugins: [
+    {
+      name: 'strip-scripts',
+      beforeParse: async (html) =>
+        html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, ''),
+    },
+    {
+      name: 'mark-generated',
+      afterParse: async (elements) =>
+        elements.map((element) => ({
+          ...element,
+          metadata: { ...element.metadata, generated: true },
+        })),
+    },
+  ],
+});
+```
+
+The built-in `minify` plugin is enabled by default. Disable built-in plugins with `enableDefaultPlugins: false`.
+
+Deprecated `middleware` and `clearMiddleware` still work:
+
+- `middleware` entries are adapted into `beforeParse` plugins internally
+- `clearMiddleware: true` implies `enableDefaultPlugins: false`
+- explicit `enableDefaultPlugins` overrides that implication
+
+You can also register plugins after construction:
+
+```ts
+converter.usePlugin({
+  beforeParse: async (html) => html.replace('Draft', 'Final'),
+});
 ```
 
 ---

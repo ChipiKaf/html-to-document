@@ -2,12 +2,16 @@
 id: middleware
 title: Middleware
 sidebar_label: Middleware
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # Middleware
 
-Middleware functions run on the HTML string _before_ it is parsed into `DocumentElement` nodes. They allow you to transform, sanitize, or minify the HTML content.
+`middleware` is deprecated and kept as a compatibility layer for the newer plugin system.
+
+Middleware functions still run on the HTML string _before_ it is parsed into `DocumentElement` nodes, but internally each middleware entry is adapted into a plugin with a `beforeParse` hook.
+
+Use [Plugins](./plugins) for new code.
 
 ## Signature
 
@@ -19,9 +23,12 @@ type Middleware = (html: string) => Promise<string>;
 
 See the [Types Reference](./types) for the full definition.
 
-## Default Middleware
+## Default Middleware Behavior
 
-By default, `init()` applies a built-in whitespace-minifying middleware (unless you set `clearMiddleware: true`). This default middleware:
+The old built-in whitespace minifier now exists as the default `minify` plugin. `clearMiddleware: true` still disables it by default because it implies `enableDefaultPlugins: false` unless you explicitly override that.
+
+The default behavior is still:
+
 - Strips HTML comments (`<!-- ... -->`)
 - Collapses consecutive whitespace into a single space (outside `<pre>`)
 - Removes unnecessary whitespace between tags
@@ -29,7 +36,7 @@ By default, `init()` applies a built-in whitespace-minifying middleware (unless 
 
 ## Custom Middleware
 
-There are two ways to register your own middleware:
+There are two legacy ways to register middleware:
 
 ### 1. Via `init` options
 
@@ -41,7 +48,7 @@ const stripScripts: Middleware = async (html) =>
   html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/g, '');
 
 const converter = init({
-  clearMiddleware: true,    // skip default minifier
+  clearMiddleware: true, // skip default minifier
   middleware: [stripScripts],
 });
 ```
@@ -56,6 +63,7 @@ converter.useMiddleware(stripScripts);
 
 > **Note:** Middleware functions are executed in the order they are passed in or registered. Make sure to arrange them accordingly if one depends on the output of another.
 
+When both `plugins` and deprecated `middleware` are provided through `init()` or the `Converter` constructor, plugin `beforeParse` hooks run first and adapted middleware runs after them.
 
 ## Example: Sanitizing HTML
 
@@ -73,4 +81,16 @@ const converter = init({
 converter.convert('<p style="color:red">Hello</p>', 'docx')
   .then(buffer => /* ... */)
   .catch(console.error);
+```
+
+## Migration to Plugins
+
+```ts
+const converter = init({
+  plugins: [
+    {
+      beforeParse: async (html) => html.replace(/ style="[^"]*"/g, ''),
+    },
+  ],
+});
 ```

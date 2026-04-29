@@ -49,10 +49,12 @@ converter
 Initialize a new [`Converter`](./types) instance.
 
 - **options**: [`InitOptions`](./types) (optional)
-  - `middleware?: [`Middleware`](./types)[]` – custom middleware functions.
+  - `plugins?: [`Plugin`](./types)[]` – plugin hooks for pre-parse and post-parse transforms.
+  - `enableDefaultPlugins?: boolean` – enable or disable built-in plugins.
+  - `middleware?: [`Middleware`](./types)[]` – deprecated middleware compatibility layer.
   - `tags?: { tagHandlers?: [`TagHandlerObject`](./types)[]; defaultStyles?: ...; defaultAttributes?: ... }` – custom tag handlers and default tag options.
 - `adapters?: { defaultStyles?: ...; register?: { format: string; adapter: [`AdapterProvider`](./types); config?: object; createAdapter?: ... }[] }` – register adapters, customize construction per adapter, and pass adapter-specific config.
-  - `clearMiddleware?: boolean` – clear default middleware.
+  - `clearMiddleware?: boolean` – deprecated legacy switch that disables default plugins by implication.
   - `domParser?: [`IDOMParser`](./types)` – custom DOM parser implementation.
 
 Returns: a configured [`Converter`](./types) instance.
@@ -62,6 +64,7 @@ Returns: a configured [`Converter`](./types) instance.
 Explore further customization using the links below:
 
 - [Initialization](./init)
+- [Plugins](./plugins)
 - [Custom Tag Handlers](./tags)
 - [Middleware](./middleware)
 - [Style Mappings & Default Styles](./style-mappings)
@@ -78,6 +81,10 @@ Class for parsing and converting HTML to document formats.
 Create a Converter with raw options:
 
 - `tags?: ...` – alias for `options.tags` in `init`.
+- `plugins?: [`Plugin`](./types)[]`
+- `enableDefaultPlugins?: boolean`
+- `middleware?: [`Middleware`](./types)[]` (deprecated)
+- `clearMiddleware?: boolean` (deprecated)
 - `adapters?: ...`
 - `registerAdapters?: { format: string; adapter: [`IDocumentConverter`](./types) }[]`
 - `domParser?: [`IDOMParser`](./types)`
@@ -107,6 +114,12 @@ Register a middleware function to process HTML before parsing.
 
 - `mw`: [`Middleware`](./types) function.
 
+##### usePlugin(plugin: [`Plugin`](./types)): void
+
+Register a plugin after construction.
+
+- `plugin`: [`Plugin`](./types) object.
+
 ##### registerConverter(name: string, converter: [`IDocumentConverter`](./types)): void
 
 Register a custom document converter adapter.
@@ -121,6 +134,7 @@ Register a custom document converter adapter.
 | [`InitOptions`](./types)        | Options for initializing the converter via `init`.                                                                                          |
 | [`ConverterOptions`](./types)   | Internal options for the `Converter` constructor.                                                                                           |
 | [`Converter`](./types)          | Main class for conversion and parsing.                                                                                                      |
+| [`Plugin`](./types)             | Optional `beforeParse` and `afterParse` hooks for extending the conversion pipeline.                                                        |
 | [`Middleware`](./types)         | Asynchronous function taking an HTML string and returning a Promise of string.                                                              |
 | [`TagHandler`](./types)         | Handler that processes an `HTMLElement` with optional `TagHandlerOptions` and returns a `DocumentElement` or an array of `DocumentElement`. |
 | [`TagHandlerObject`](./types)   | `{ key: string; handler: TagHandler }`                                                                                                      |
