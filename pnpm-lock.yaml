@@ -286,6 +286,25 @@ importers:
       html-to-document-core:
         specifier: workspace:*
         version: link:../core
+      html-to-document-plugin-css-parser:
+        specifier: workspace:*
+        version: link:../plugins/css-parser
+
+  packages/plugins/css-parser:
+    dependencies:
+      css-tree:
+        specifier: ^3.1.0
+        version: 3.2.1
+      html-to-document-core:
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/css-tree':
+        specifier: ^2.3.11
+        version: 2.3.11
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.3.0)(jiti@2.5.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.8.1)
 
 packages:
 
@@ -2381,6 +2400,9 @@ packages:
 
   '@types/conventional-commits-parser@5.0.1':
     resolution: {integrity: sha512-7uz5EHdzz2TqoMfV7ee61Egf5y6NkcO4FB/1iCCQnbeiI1F3xzv3vK5dBCXUCLQgGYS+mUeigK1iKQzvED+QnQ==}
+
+  '@types/css-tree@2.3.11':
+    resolution: {integrity: sha512-aEokibJOI77uIlqoBOkVbaQGC9zII0A+JH1kcTNKW2CwyYWD8KM6qdo+4c77wD3wZOQfJuNWAr9M4hdk+YhDIg==}
 
   '@types/debug@4.1.12':
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
@@ -10862,6 +10884,8 @@ snapshots:
   '@types/conventional-commits-parser@5.0.1':
     dependencies:
       '@types/node': 24.3.0
+
+  '@types/css-tree@2.3.11': {}
 
   '@types/debug@4.1.12':
     dependencies:

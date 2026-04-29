@@ -3,6 +3,7 @@ packages:
   - 'packages/core'
   - 'packages/adapters/*'
   - 'packages/deconverters/*'
+  - 'packages/plugins/*'
   - 'packages/html-to-document'
   - 'packages/e2e-tests'
   - 'docs'
