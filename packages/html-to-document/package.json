@@ -51,7 +51,8 @@
   },
   "dependencies": {
     "html-to-document-core": "workspace:*",
-    "html-to-document-adapter-docx": "workspace:*"
+    "html-to-document-adapter-docx": "workspace:*",
+    "html-to-document-plugin-css-parser": "workspace:*"
   },
   "engines": {
     "node": ">=14"

@@ -1,5 +1,6 @@
 import { DocxAdapter } from 'html-to-document-adapter-docx';
 import { init } from 'html-to-document-core';
+import { cssParserPlugin } from 'html-to-document';
 import { JSDOMParser, parseDocxDocument } from '../utils/parser.helper';
 import { describe, it, expect } from 'vitest';
 
@@ -231,5 +232,33 @@ describe('e2e tests using the docx adapter', () => {
 
     expect(paragraph).toBeDefined();
     expect(paragraph['w:pPr']?.['w:pBdr']).toBeUndefined();
+  });
+
+  it('applies styles from <style> tags to the generated docx document', async () => {
+    const styledConverter = init({
+      domParser: new JSDOMParser(),
+      plugins: [cssParserPlugin()],
+      adapters: {
+        register: [
+          {
+            format: 'docx',
+            adapter: DocxAdapter,
+          },
+        ],
+      },
+    });
+
+    const docx = await styledConverter.convert(
+      '<style>.styled { font-weight: bold; color: #3366FF; }</style><p class="styled">Styled from style tag</p>',
+      'docx'
+    );
+    const jsonDocument = await parseDocxDocument(docx);
+    const paragraph = jsonDocument['w:document']['w:body']['w:p'];
+    const runProps = paragraph['w:r']['w:rPr'];
+
+    expect(paragraph['w:r']['w:t']['#text']).toBe('Styled from style tag');
+    expect(runProps).toHaveProperty('w:b');
+    expect(runProps).toHaveProperty('w:bCs');
+    expect(runProps['w:color']['@_w:val']).toBe('3366FF');
   });
 });

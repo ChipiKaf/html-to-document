@@ -12,7 +12,9 @@
       "html-to-document-core": ["../core/src"],
       "html-to-document-core/*": ["../core/src/*"],
       "html-to-document-adapter-docx": ["../adapters/docx/src"],
-      "html-to-document-adapter-docx/*": ["../adapters/docx/src/*"]
+      "html-to-document-adapter-docx/*": ["../adapters/docx/src/*"],
+      "html-to-document-plugin-css-parser": ["../plugins/css-parser/src"],
+      "html-to-document-plugin-css-parser/*": ["../plugins/css-parser/src/*"]
     }
   },
   "include": ["src/**/*"],

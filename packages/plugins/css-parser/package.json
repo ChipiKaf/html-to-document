@@ -1,0 +1,59 @@
+{
+  "name": "html-to-document-plugin-css-parser",
+  "version": "0.1.0",
+  "description": "CSS parser plugin for html-to-document-core that harvests <style> tags and appends parsed statements to the per-parse stylesheet.",
+  "keywords": [
+    "html-to-document",
+    "plugin",
+    "css",
+    "parser"
+  ],
+  "license": "ISC",
+  "homepage": "https://github.com/ChipiKaf/html-to-document#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChipiKaf/html-to-document.git",
+    "directory": "packages/plugins/css-parser"
+  },
+  "bugs": {
+    "url": "https://github.com/ChipiKaf/html-to-document/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "default": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.js"
+      }
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest --watch false",
+    "test:watch": "vitest --watch",
+    "lint": "eslint 'src/**/*.{ts,tsx}' --ignore-pattern '**/*.d.ts'",
+    "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'"
+  },
+  "dependencies": {
+    "css-tree": "^3.1.0",
+    "html-to-document-core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "devDependencies": {
+    "@types/css-tree": "^2.3.11",
+    "vitest": "^3.2.4"
+  }
+}

@@ -231,6 +231,16 @@ converter.usePlugin({
 });
 ```
 
+To parse stylesheet rules from `<style>` tags during the `onDocument` phase:
+
+```ts
+import { cssParserPlugin } from 'html-to-document';
+
+const converter = init({
+  plugins: [cssParserPlugin()],
+});
+```
+
 ---
 
 ## 📚 Documentation & Demo
