@@ -75,6 +75,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
           cascadingStyles,
           i
         );
+        const styles = styleMapper.mapStyles(mergedStyles, element);
         return [
           new Paragraph({
             numbering: {
@@ -82,8 +83,9 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
               level: element.level,
             },
             run: {
-              ...styleMapper.mapStyles(mergedStyles, element),
+              ...styles,
             },
+            ...styles,
             children,
           }),
         ];

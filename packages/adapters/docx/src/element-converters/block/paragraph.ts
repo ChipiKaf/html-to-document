@@ -61,10 +61,14 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
           cascadingStyles,
           i
         );
+        const styles = styleMapper.mapStyles(consumedStyles, element);
         return [
           new Paragraph({
             children,
-            ...styleMapper.mapStyles(consumedStyles, element),
+            ...styles,
+            run: {
+              ...styles,
+            },
           }),
         ];
       },
