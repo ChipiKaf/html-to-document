@@ -168,7 +168,7 @@ export class DocxAdapter implements IDocumentConverter {
       ? await this.convertFooter(globalFooter, effectiveStylesheet)
       : undefined;
 
-    const stylesheetPageRules = this._stylesheet.getAtRules('page');
+    const stylesheetPageRules = effectiveStylesheet.getAtRules('page');
     const defaultPageRules = stylesheetPageRules.filter((r) => !r.prelude);
 
     const validatedPageRules = this.normalizePageRules(defaultPageRules);

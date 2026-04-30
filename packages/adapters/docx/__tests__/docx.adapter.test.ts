@@ -2653,6 +2653,24 @@ describe('Docx.adapter.convert', () => {
       }
     });
 
+    it('should expand two-value @page margin shorthand', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { margin: '1cm 2cm' } },
+      ]);
+      const customAdapter = new DocxAdapter({ stylesheet });
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('567');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('1134');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('567');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('1134');
+    });
+
     it('should apply per-side @page margins', async () => {
       const stylesheet = createStylesheetWithPageRules([
         {
