@@ -1,10 +1,8 @@
-import { FileChild, Paragraph } from 'docx';
+import { FileChild } from 'docx';
 import {
-  cascadeStyles,
   DocumentElement,
   filterForScope,
   ListElement,
-  ListItemElement,
   Styles,
 } from 'html-to-document-core';
 import { ElementConverterDependencies, IBlockConverter } from '../types';
@@ -36,60 +34,12 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
         child.metadata.reference = `${element.listType}${
           element.markerStyle ? `-${element.markerStyle}` : ''
         }`;
-        return this.convertListItem(dependencies, child, mergedStyles);
+        return dependencies.converter.convertBlock(
+          child,
+          dependencies.stylesheet,
+          mergedStyles
+        );
       })
     );
-  }
-
-  convertListItem(
-    {
-      styleMapper,
-      converter,
-      defaultStyles,
-      stylesheet,
-      styleMeta,
-    }: ElementConverterDependencies,
-    element: ListItemElement,
-    cascadedStyles: Styles = {}
-  ) {
-    const mergedStyles = {
-      ...defaultStyles?.[element.type],
-      ...stylesheet.getComputedStyles(element, cascadedStyles),
-    };
-
-    return converter.convertToBlocks({
-      stylesheet,
-      cascadedStyles: mergedStyles,
-      inlineParagraphs: true,
-      element,
-      wrapInlineElements: (inlines, i) => {
-        const cascadingStyles = cascadeStyles(
-          mergedStyles,
-          element.scope,
-          styleMeta
-        );
-        const children = converter.runFallthroughWrapConvertedChildren(
-          element,
-          stylesheet,
-          inlines,
-          cascadingStyles,
-          i
-        );
-        const styles = styleMapper.mapStyles(mergedStyles, element);
-        return [
-          new Paragraph({
-            numbering: {
-              reference: (element.metadata?.reference as string) || '',
-              level: element.level,
-            },
-            run: {
-              ...styles,
-            },
-            ...styles,
-            children,
-          }),
-        ];
-      },
-    });
   }
 }
