@@ -26,6 +26,7 @@ import { DocxStyleMapper } from '../docx-style-mapper';
 import { ImageConverter } from './inline/image';
 import { ImageBlockConverter } from './block/image';
 import { promiseAllFlat } from '../docx.util';
+import { ListItemConverter } from './block/list-item';
 
 type ElementConverterInitDependencies = {
   styleMapper: DocxStyleMapper;
@@ -60,6 +61,7 @@ export class ElementConverter {
       new ImageBlockConverter(),
       new LineConverter(),
       new ListConverter(),
+      new ListItemConverter(),
       new HeadingConverter(),
       new TableConverter(),
       new ParagraphConverter(),
