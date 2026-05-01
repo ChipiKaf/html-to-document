@@ -216,18 +216,23 @@ export class DocxAdapter implements IDocumentConverter {
             margin: {
               ...this.defaultSectionOptions?.properties?.page?.margin,
               // TODO: consider supporting unitless numbers
-              top: validatedPageRules.marginTop
-                ? validatedPageRules.marginTop
-                : this.defaultSectionOptions?.properties?.page?.margin?.top,
-              right: validatedPageRules.marginRight
-                ? validatedPageRules.marginRight
-                : this.defaultSectionOptions?.properties?.page?.margin?.right,
-              bottom: validatedPageRules.marginBottom
-                ? validatedPageRules.marginBottom
-                : this.defaultSectionOptions?.properties?.page?.margin?.bottom,
-              left: validatedPageRules.marginLeft
-                ? validatedPageRules.marginLeft
-                : this.defaultSectionOptions?.properties?.page?.margin?.left,
+              top:
+                validatedPageRules.marginTop !== undefined
+                  ? validatedPageRules.marginTop
+                  : this.defaultSectionOptions?.properties?.page?.margin?.top,
+              right:
+                validatedPageRules.marginRight !== undefined
+                  ? validatedPageRules.marginRight
+                  : this.defaultSectionOptions?.properties?.page?.margin?.right,
+              bottom:
+                validatedPageRules.marginBottom !== undefined
+                  ? validatedPageRules.marginBottom
+                  : this.defaultSectionOptions?.properties?.page?.margin
+                      ?.bottom,
+              left:
+                validatedPageRules.marginLeft !== undefined
+                  ? validatedPageRules.marginLeft
+                  : this.defaultSectionOptions?.properties?.page?.margin?.left,
             },
             size: {
               ...this.defaultSectionOptions?.properties?.page?.size,
@@ -442,13 +447,13 @@ export class DocxAdapter implements IDocumentConverter {
       }
     }
 
-    if (merged.marginTop)
+    if (merged.marginTop !== undefined)
       normalized.marginTop = lengthToTwips(merged.marginTop);
-    if (merged.marginRight)
+    if (merged.marginRight !== undefined)
       normalized.marginRight = lengthToTwips(merged.marginRight);
-    if (merged.marginBottom)
+    if (merged.marginBottom !== undefined)
       normalized.marginBottom = lengthToTwips(merged.marginBottom);
-    if (merged.marginLeft)
+    if (merged.marginLeft !== undefined)
       normalized.marginLeft = lengthToTwips(merged.marginLeft);
 
     const sizeSplitted = merged.size?.toString().split(/\s+/);
@@ -469,7 +474,7 @@ export class DocxAdapter implements IDocumentConverter {
         const heightToken = sizeSplitted[1] ?? sizeSplitted[0]; // if only one value is provided, use it for both width and height
         const width = lengthToTwips(widthToken);
         const height = lengthToTwips(heightToken);
-        if (width && height) {
+        if (width !== undefined && height !== undefined) {
           normalized.size = {
             kind: 'explicit',
             width,

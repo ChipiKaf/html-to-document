@@ -2696,6 +2696,24 @@ describe('Docx.adapter.convert', () => {
       expect(sectPr['w:pgMar']['@_w:left']).toBe('5760');
     });
 
+    it('should preserve zero @page margins', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { margin: '0' } },
+      ]);
+      const customAdapter = new DocxAdapter({ stylesheet });
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('0');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('0');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('0');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('0');
+    });
+
     it.each([
       // Use non calculated values here to avoid discrepancies due to rounding
       ['A3', '16838', '23811'],
