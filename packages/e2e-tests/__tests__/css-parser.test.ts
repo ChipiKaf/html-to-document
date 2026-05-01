@@ -363,4 +363,21 @@ describe('e2e tests for the css parser plugin', () => {
     expect(sectionProps['w:pgMar']['@_w:bottom']).toBe('1701');
     expect(sectionProps['w:pgMar']['@_w:left']).toBe('3402');
   });
+
+  it('exports zero @page margins through docx conversion', async () => {
+    const converter = createDocxConverter();
+
+    const docx = await converter.convert(
+      '<style>@page { margin: 0; }</style><p>Page margins</p>',
+      'docx'
+    );
+
+    const documentJson = await parseDocxDocument(docx);
+    const sectionProps = documentJson['w:document']['w:body']['w:sectPr'];
+
+    expect(sectionProps['w:pgMar']['@_w:top']).toBe('0');
+    expect(sectionProps['w:pgMar']['@_w:right']).toBe('0');
+    expect(sectionProps['w:pgMar']['@_w:bottom']).toBe('0');
+    expect(sectionProps['w:pgMar']['@_w:left']).toBe('0');
+  });
 });
