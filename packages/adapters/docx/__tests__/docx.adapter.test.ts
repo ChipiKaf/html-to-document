@@ -17,6 +17,14 @@ import {
 import JSZip from 'jszip';
 import { AlignmentType, NumberFormat } from 'docx';
 import type { ISectionOptions } from 'docx';
+import type {
+  CompiledStyleRule,
+  StylesheetStatement,
+} from 'html-to-document-core';
+import {
+  DOCX_DEFAULT_DECLARATION_ORIGIN,
+  DocxStylesheet,
+} from '../src/docx-stylesheet';
 import { TWIPS_PER_INCH, TWIPS_PER_MM } from '../src/utils/unit-conversion';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
@@ -80,6 +88,20 @@ const createStylesheetWithPageRules = (
   return stylesheet;
 };
 
+class DecoratedDocxStylesheet extends DocxStylesheet {
+  constructor(statements: readonly StylesheetStatement[] = []) {
+    super(statements, DecoratedDocxStylesheet);
+  }
+
+  protected override shouldExcludeDeclarations(
+    rule: CompiledStyleRule
+  ): boolean {
+    return (
+      super.shouldExcludeDeclarations(rule) || rule.selector === '.exclude-me'
+    );
+  }
+}
+
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
   let parser: Parser;
@@ -93,6 +115,63 @@ describe('Docx.adapter.convert', () => {
       const elements: DocumentElement[] = [];
       const buffer = await adapter.convert(elements);
       expect(buffer).toBeInstanceOf(Buffer);
+    });
+
+    it('supports extending stylesheet exclusion rules through decorateStylesheet', async () => {
+      const beforeConvert = vi.fn(
+        ({ docxDocumentOptions }) => docxDocumentOptions
+      );
+      const baseStylesheet = createStylesheet([
+        {
+          kind: 'style',
+          selectors: ['h1'],
+          declarations: { color: 'blue' },
+          declarationMeta: { origin: DOCX_DEFAULT_DECLARATION_ORIGIN },
+        },
+        {
+          kind: 'style',
+          selectors: ['.exclude-me'],
+          declarations: { fontWeight: 'bold' },
+        },
+        {
+          kind: 'style',
+          selectors: ['.keep-me'],
+          declarations: { color: 'green' },
+        },
+      ]);
+
+      const decoratedAdapter = new DocxAdapter(
+        { stylesheet: baseStylesheet },
+        {
+          decorateStylesheet: (stylesheet) =>
+            new DecoratedDocxStylesheet(stylesheet.getStatements()),
+          beforeConvert,
+        }
+      );
+
+      await decoratedAdapter.convert([]);
+
+      const [{ stylesheet }] = beforeConvert.mock.calls[0] as [
+        { stylesheet: DocxStylesheet },
+      ];
+
+      expect(stylesheet).toBeInstanceOf(DecoratedDocxStylesheet);
+      expect(
+        stylesheet.getMatchedStyles({
+          type: 'heading',
+          level: 1,
+          attributes: { class: 'exclude-me' },
+          metadata: { tagName: 'h1' },
+        })
+      ).toEqual({});
+      expect(
+        stylesheet.getMatchedStyles({
+          type: 'heading',
+          level: 1,
+          attributes: { class: 'keep-me' },
+          metadata: { tagName: 'h1' },
+        })
+      ).toEqual({ color: 'green' });
     });
   });
   describe('DocxAdapter image conversion', () => {

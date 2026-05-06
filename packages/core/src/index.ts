@@ -7,6 +7,4 @@ export * from './utils';
 
 // Export testing utilities for visual layout comparison
 export { toHtml } from './utils/html.serializer';
-export * from './styles/style-inheritance';
-export * from './styles/sheet';
-export * from './styles/stylesheet-seeding';
+export * from './styles';
