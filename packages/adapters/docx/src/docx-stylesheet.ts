@@ -42,7 +42,10 @@ export const createBaseHeadingElement = (
 };
 
 export class DocxStylesheet extends Stylesheet {
-  constructor(statements: readonly StylesheetStatement[] = []) {
+  constructor(
+    statements: readonly StylesheetStatement[] = [],
+    protected readonly self: typeof DocxStylesheet = DocxStylesheet
+  ) {
     super(statements);
   }
 
@@ -59,7 +62,7 @@ export class DocxStylesheet extends Stylesheet {
   protected createDerivedStylesheet(
     statements: readonly StylesheetStatement[]
   ) {
-    return new DocxStylesheet(statements);
+    return new this.self(statements, this.self);
   }
 
   protected override shouldExcludeDeclarations(

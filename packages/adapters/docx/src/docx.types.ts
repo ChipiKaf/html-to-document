@@ -14,6 +14,7 @@ import {
 } from './element-converters/types';
 import { DocxStyleMapper, DocxStyleMapping } from './docx-style-mapper';
 import { DocumentElement, IStylesheet } from 'html-to-document-core';
+import { DocxStylesheet } from './docx-stylesheet';
 
 export type DocxElement =
   | Paragraph
@@ -32,6 +33,10 @@ export type DocxAdapterConfig = {
   inlineConverters?: IInlineConverter[];
   fallthroughConverters?: FallthroughConverter[];
   defaultSectionOptions?: Partial<ISectionOptions>;
+  /**
+   * @experimental
+   */
+  decorateStylesheet?: (stylesheet: DocxStylesheet) => DocxStylesheet;
   styleMapper?: DocxStyleMapper;
   styleMappings?: DocxStyleMapping;
   /**

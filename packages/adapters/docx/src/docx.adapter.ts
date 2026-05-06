@@ -14,6 +14,7 @@ import {
 } from 'docx';
 import {
   createBaseStylesheet,
+  createStylesheet,
   DocumentElement,
   IConverterDependencies,
   IDocumentConverter,
@@ -122,6 +123,8 @@ export class DocxAdapter implements IDocumentConverter {
     DocxAdapterConfig['beforeConvert']
   >;
 
+  private readonly decorateStylesheet?: DocxAdapterConfig['decorateStylesheet'];
+
   constructor(
     {
       defaultStyles,
@@ -134,6 +137,7 @@ export class DocxAdapter implements IDocumentConverter {
     if (config?.styleMappings) {
       this._mapper.addMapping(config.styleMappings);
     }
+    this.decorateStylesheet = config?.decorateStylesheet;
     this._defaultStyles = { ...defaultStyles };
     this._stylesheet = this.createAdapterStylesheet(stylesheet);
 
@@ -328,7 +332,11 @@ export class DocxAdapter implements IDocumentConverter {
   }
 
   private createAdapterStylesheet(stylesheet: IStylesheet): DocxStylesheet {
-    return new DocxStylesheet(stylesheet.getStatements());
+    const adapterStylesheet = new DocxStylesheet(stylesheet.getStatements());
+
+    return this.decorateStylesheet
+      ? this.decorateStylesheet(adapterStylesheet)
+      : adapterStylesheet;
   }
 
   private addAdapterDocumentStyles(
@@ -497,10 +505,12 @@ export class DocxAdapter implements IDocumentConverter {
       return this._stylesheet;
     }
 
-    return new DocxStylesheet([
-      ...this._stylesheet.getStatements(),
-      ...stylesheet.getStatements(),
-    ]);
+    return this.createAdapterStylesheet(
+      createStylesheet([
+        ...this._stylesheet.getStatements(),
+        ...stylesheet.getStatements(),
+      ])
+    );
   }
 
   private organizeSections(elements: DocumentElement[]): {
