@@ -39,24 +39,10 @@ export class ParagraphConverter implements IBlockConverter<ParagraphElement> {
       cascadedStyles: cascadingStyles,
       convertBlock: (dependencies, childBlock) => {
         const { converter } = dependencies;
-        const newChildBlock = converter.runFallthroughNestedBlock(
-          dependencies,
-          element,
-          childBlock,
-          mergedStyles
-        );
-
-        return converter.convertBlock(newChildBlock, stylesheet, mergedStyles);
+        return converter.convertBlock(childBlock, stylesheet, mergedStyles);
       },
-      wrapInlineElements: (inlines, i) => {
-        let children = inlines;
-        children = converter.runFallthroughWrapConvertedChildren(
-          element,
-          stylesheet,
-          children,
-          cascadingStyles,
-          i
-        );
+      wrapInlineElements: (inlines) => {
+        const children = inlines;
         const styles = styleMapper.mapStyles(consumedStyles, element);
         return [
           new Paragraph({

@@ -128,9 +128,10 @@ describe('Parser', () => {
         {
           type: 'text',
           text: 'inside',
-          attributes: { id: 'wrapper', 'data-custom': 'x' },
+          attributes: { 'data-custom': 'x' },
           styles: { margin: '10px', border: '1px solid #fff' },
           scope: 'inline',
+          metadata: { extraIds: ['wrapper'] },
         },
       ]);
     });
@@ -143,13 +144,14 @@ describe('Parser', () => {
         {
           type: 'text',
           text: 'No parent content',
-          attributes: { id: 'wrapper' },
+          attributes: {},
           styles: { margin: '10px' },
+          metadata: { extraIds: ['wrapper'] },
         },
         {
           type: 'text',
           text: 'inside',
-          attributes: { id: 'wrapper', 'data-custom': 'x' },
+          attributes: { 'data-custom': 'x' },
           styles: { margin: '10px', border: '1px solid #fff' },
           scope: 'inline',
         },
