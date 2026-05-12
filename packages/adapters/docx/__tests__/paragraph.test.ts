@@ -59,7 +59,7 @@ describe('ParagraphConverter', () => {
 
     expect(result).toHaveLength(1);
     expect(Paragraph).toHaveBeenCalledWith({
-      children: { ...mockStylesheet },
+      children: [],
       bold: true,
       fontSize: 12,
       run: {

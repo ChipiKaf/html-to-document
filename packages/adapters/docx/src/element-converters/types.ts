@@ -78,7 +78,8 @@ export interface IFallthroughAttributesNestedBlockConverter<
     dependencies: ElementConverterDependencies,
     element: T,
     childBlock: DocumentElement,
-    cascadedStyles?: Styles
+    cascadedStyles?: Styles,
+    index?: number
   ): DocumentElement;
 }
 
