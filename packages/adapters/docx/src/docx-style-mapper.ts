@@ -18,6 +18,7 @@ import {
   IImageOptions,
   ITableRowOptions,
   ISpacingProperties,
+  IRunOptions,
 } from 'docx';
 import {
   twipsToEighthsOfPoint,
@@ -228,6 +229,23 @@ export class DocxStyleMapper {
       backgroundColor: (v, el) => {
         if (el.type === 'table') return {};
         // strip “#” and turn CSS names → hex
+
+        if (el.metadata?.tag === 'mark') {
+          let hightlightColor: IRunOptions['highlight'] | null = null;
+          switch (v.trim().toLowerCase()) {
+            case '#ffff00':
+            case 'yellow':
+              hightlightColor = 'yellow';
+              break;
+            // TODO: add the other available hightlight colors
+          }
+          if (hightlightColor) {
+            return {
+              highlight: hightlightColor,
+            } satisfies IRunOptions;
+          }
+        }
+
         const fill = colorConversion(v);
         return {
           shading: {
@@ -235,7 +253,7 @@ export class DocxStyleMapper {
             fill, // e.g. "F9F9F9"
             color: 'auto', // text color fallback
           },
-        };
+        } satisfies IRunOptions;
       },
 
       // Font size
