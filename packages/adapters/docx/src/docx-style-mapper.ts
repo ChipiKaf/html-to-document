@@ -1,4 +1,12 @@
 import {
+  colorConversion,
+  parseImageSizePx,
+  type DocumentElement,
+  type Styles,
+} from 'html-to-document-core';
+import { convert, utils } from '@asamuzakjp/css-color';
+import { lengthToTwips, parseWidth } from './utils/parse';
+import {
   BorderStyle,
   // Floating image positioning and wrapping enums
   HorizontalPositionAlign,
@@ -11,14 +19,8 @@ import {
   TextWrappingType,
   VerticalPositionAlign,
   VerticalPositionRelativeFrom,
+  IRunOptions,
 } from 'docx';
-import {
-  colorConversion,
-  type DocumentElement,
-  parseImageSizePx,
-  type Styles,
-} from 'html-to-document-core';
-import { lengthToTwips, parseWidth } from './utils/parse';
 import { splitQuadShorthand } from './utils/css-shorthands';
 import {
   twipsToEighthsOfPoint,
@@ -27,6 +29,26 @@ import {
 } from './utils/unit-conversion';
 
 type StyleKey = keyof Styles;
+type HighlightColor = NonNullable<IRunOptions['highlight']>;
+
+const HIGHLIGHT_BY_HEX: Record<string, HighlightColor> = {
+  '000000': 'black',
+  '0000FF': 'blue',
+  '00FFFF': 'cyan',
+  '00FF00': 'green',
+  FF00FF: 'magenta',
+  FF0000: 'red',
+  FFFF00: 'yellow',
+  FFFFFF: 'white',
+  '000080': 'darkBlue',
+  '008080': 'darkCyan',
+  '008000': 'darkGreen',
+  '800080': 'darkMagenta',
+  '800000': 'darkRed',
+  '808000': 'darkYellow',
+  '808080': 'darkGray',
+  C0C0C0: 'lightGray',
+};
 
 export type DocxStyleMapping = Partial<
   Record<StyleKey, (value: string, el: DocumentElement) => unknown>
@@ -252,6 +274,20 @@ export class DocxStyleMapper {
       backgroundColor: (v, el) => {
         if (el.type === 'table') return {};
         // strip “#” and turn CSS names → hex
+
+        if (el.metadata?.tagName === 'mark' && utils.isColor(v)) {
+          const hex = convert.colorToHex(v);
+          const [, , , alpha] = convert.colorToRgb(v);
+          const highlightColor = hex
+            ? HIGHLIGHT_BY_HEX[hex.slice(1).toUpperCase()]
+            : undefined;
+          if (alpha === 1 && highlightColor) {
+            return {
+              highlight: highlightColor,
+            } satisfies IRunOptions;
+          }
+        }
+
         const fill = colorConversion(v);
         return {
           shading: {
@@ -259,7 +295,7 @@ export class DocxStyleMapper {
             fill, // e.g. "F9F9F9"
             color: 'auto', // text color fallback
           },
-        };
+        } satisfies IRunOptions;
       },
 
       // Font size
