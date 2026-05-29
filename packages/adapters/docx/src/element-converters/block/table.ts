@@ -176,11 +176,6 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       }
     }
 
-    console.debug('[table-border] table raw styles:', {
-      ...mergedStyles,
-      ...element.styles,
-    });
-
     // Helper to get the merged raw CSS styles for any grid cell (used for adjacent hidden resolution)
     const getGridCellRawStyles = (
       gridCell: (typeof grid)[0][0] | undefined
@@ -326,10 +321,6 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           });
           cells.push(newCell);
           j += colSpan;
-
-          console.debug(
-            `[table-border] cell [${i},${j}], styles: ${JSON.stringify(newCell, null, 2)}`
-          );
         }
       }
       const rowElement = element.rows[i];

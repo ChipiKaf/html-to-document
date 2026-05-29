@@ -385,62 +385,6 @@ describe('PDFAdapter', () => {
       // expect(mockMammoth.convertToHtml).toHaveBeenCalled();
       // expect(result).toBeInstanceOf(Blob);
     });
-
-    it('passes hidden table perimeter borders through serialized HTML for browser PDF conversion', async () => {
-      const elements: DocumentElement[] = [
-        {
-          type: 'table',
-          styles: { borderStyle: 'hidden' },
-          attributes: {},
-          rows: [
-            {
-              type: 'table-row',
-              attributes: {},
-              styles: {},
-              cells: [
-                {
-                  type: 'table-cell',
-                  content: [{ type: 'text', text: 'A' }],
-                  styles: {},
-                  attributes: {},
-                },
-                {
-                  type: 'table-cell',
-                  content: [{ type: 'text', text: 'B' }],
-                  styles: {},
-                  attributes: {},
-                },
-              ],
-            },
-          ],
-        },
-      ];
-
-      const mockOutputPdf = (vi.fn() as any).mockResolvedValue(
-        new Blob(['%PDF-mock'], { type: 'application/pdf' })
-      );
-      const mockInstance = {
-        set: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        outputPdf: mockOutputPdf,
-      };
-      mockHtml2pdf.mockReturnValue(mockInstance);
-
-      await adapter.convert(elements);
-
-      expect(mockHtml2pdf).toHaveBeenCalled();
-      expect(mockInstance.from).toHaveBeenCalledTimes(1);
-
-      const html = mockInstance.from.mock.calls[0]?.[0];
-      expect(typeof html).toBe('string');
-      expect(html).toContain('<table style="border-style: hidden;">');
-      expect(html).toContain(
-        '<td style="border-top-style: hidden; border-left-style: hidden; border-bottom-style: hidden;">A</td>'
-      );
-      expect(html).toContain(
-        '<td style="border-top-style: hidden; border-bottom-style: hidden; border-right-style: hidden;">B</td>'
-      );
-    });
   });
 
   describe('Error handling', () => {

@@ -1,685 +1,685 @@
 import type {
-	DocumentElement,
-	IDOMParser,
-	ListItemElement,
-	TableCellElement,
-	TableRowElement,
-	TagHandler,
-	TagHandlerObject,
-	TagHandlerOptions,
-} from "./types";
+  DocumentElement,
+  IDOMParser,
+  ListItemElement,
+  TableCellElement,
+  TableRowElement,
+  TagHandler,
+  TagHandlerObject,
+  TagHandlerOptions,
+} from './types';
 import {
-	extractAttributesToMetadata,
-	parseAttributes,
-	parseStyles,
-} from "./utils/html.utils";
+  extractAttributesToMetadata,
+  parseAttributes,
+  parseStyles,
+} from './utils/html.utils';
 
 class NativeParser implements IDOMParser {
-	parse(html: string): Document {
-		const parser = new DOMParser();
-		return parser.parseFromString(html, "text/html");
-	}
+  parse(html: string): Document {
+    const parser = new DOMParser();
+    return parser.parseFromString(html, 'text/html');
+  }
 }
 
 const getListLevel = (tagName: string, options: TagHandlerOptions) => {
-	const isList = tagName === "ul" || tagName === "ol" || tagName === "li";
-	const newLevel =
-		options &&
-		options.metadata &&
-		typeof options.metadata.level !== "undefined" &&
-		typeof options.metadata.level === "string"
-			? tagName === "li"
-				? (parseInt(options.metadata.level || "0") + 1).toString()
-				: options.metadata.level
-			: "0";
-	return { isList, newLevel };
+  const isList = tagName === 'ul' || tagName === 'ol' || tagName === 'li';
+  const newLevel =
+    options &&
+    options.metadata &&
+    typeof options.metadata.level !== 'undefined' &&
+    typeof options.metadata.level === 'string'
+      ? tagName === 'li'
+        ? (parseInt(options.metadata.level || '0') + 1).toString()
+        : options.metadata.level
+      : '0';
+  return { isList, newLevel };
 };
 
 // @ToDo: Handle passing of options for tag handlers and maybe Middleware
 export class Parser {
-	private _tagHandlers: Map<string, TagHandler>;
-	private _domParser: IDOMParser;
-	private _defaultAttributes: Map<
-		keyof HTMLElementTagNameMap,
-		Record<string, string | number>
-	>;
+  private _tagHandlers: Map<string, TagHandler>;
+  private _domParser: IDOMParser;
+  private _defaultAttributes: Map<
+    keyof HTMLElementTagNameMap,
+    Record<string, string | number>
+  >;
 
-	constructor(
-		tagHandlers?: readonly TagHandlerObject[],
-		domParser?: IDOMParser,
-		defaultAttributes: readonly {
-			key: keyof HTMLElementTagNameMap;
-			attributes: Record<string, string | number>;
-		}[] = [],
-	) {
-		this._domParser = domParser || new NativeParser();
-		this._tagHandlers = new Map();
-		this._defaultAttributes = new Map();
-		// Add default handlers
-		this._tagHandlers.set("table", this._parseTable.bind(this));
-		this._tagHandlers.set("thead", this._parseTableContainers.bind(this));
-		this._tagHandlers.set("tbody", this._parseTableContainers.bind(this));
-		this._tagHandlers.set("tfoot", this._parseTableContainers.bind(this));
-		if (tagHandlers && tagHandlers.length > 0) {
-			tagHandlers.forEach((tHandler) => {
-				this._tagHandlers.set(tHandler.key, tHandler.handler);
-			});
-		}
+  constructor(
+    tagHandlers?: readonly TagHandlerObject[],
+    domParser?: IDOMParser,
+    defaultAttributes: readonly {
+      key: keyof HTMLElementTagNameMap;
+      attributes: Record<string, string | number>;
+    }[] = []
+  ) {
+    this._domParser = domParser || new NativeParser();
+    this._tagHandlers = new Map();
+    this._defaultAttributes = new Map();
+    // Add default handlers
+    this._tagHandlers.set('table', this._parseTable.bind(this));
+    this._tagHandlers.set('thead', this._parseTableContainers.bind(this));
+    this._tagHandlers.set('tbody', this._parseTableContainers.bind(this));
+    this._tagHandlers.set('tfoot', this._parseTableContainers.bind(this));
+    if (tagHandlers && tagHandlers.length > 0) {
+      tagHandlers.forEach((tHandler) => {
+        this._tagHandlers.set(tHandler.key, tHandler.handler);
+      });
+    }
 
-		defaultAttributes.forEach((attribute) => {
-			this._defaultAttributes.set(attribute.key, attribute.attributes);
-		});
-		this._parseElement = this._parseElement.bind(this);
-		this._parseDocumentToElements = this._parseDocumentToElements.bind(this);
-		this._defaultHandler = this._defaultHandler.bind(this);
-	}
+    defaultAttributes.forEach((attribute) => {
+      this._defaultAttributes.set(attribute.key, attribute.attributes);
+    });
+    this._parseElement = this._parseElement.bind(this);
+    this._parseDocumentToElements = this._parseDocumentToElements.bind(this);
+    this._defaultHandler = this._defaultHandler.bind(this);
+  }
 
-	public registerTagHandler(tag: string, handler: TagHandler) {
-		// They are case insensitive
-		this._tagHandlers.set(tag.toLowerCase(), handler);
-	}
+  public registerTagHandler(tag: string, handler: TagHandler) {
+    // They are case insensitive
+    this._tagHandlers.set(tag.toLowerCase(), handler);
+  }
 
-	parse(html: string) {
-		return this.parseDocument(this.parseDocumentSource(html));
-	}
+  parse(html: string) {
+    return this.parseDocument(this.parseDocumentSource(html));
+  }
 
-	public parseDocumentSource(html: string): Document {
-		return this._domParser.parse(html);
-	}
+  public parseDocumentSource(html: string): Document {
+    return this._domParser.parse(html);
+  }
 
-	public parseDocument(document: Document) {
-		const tree = this._parseDocumentToElements(document);
-		return tree;
-	}
+  public parseDocument(document: Document) {
+    const tree = this._parseDocumentToElements(document);
+    return tree;
+  }
 
-	private _parseRow(
-		tr: HTMLElement,
-		options: TagHandlerOptions = {},
-	): TableRowElement {
-		const cells: TableCellElement[] = [];
-		const rowStyles = { ...options.styles, ...parseStyles(tr) };
-		const rowAttrs = { ...options.attributes, ...parseAttributes(tr) };
+  private _parseRow(
+    tr: HTMLElement,
+    options: TagHandlerOptions = {}
+  ): TableRowElement {
+    const cells: TableCellElement[] = [];
+    const rowStyles = { ...options.styles, ...parseStyles(tr) };
+    const rowAttrs = { ...options.attributes, ...parseAttributes(tr) };
 
-		Array.from(tr.children)
-			.filter((c): c is HTMLElement =>
-				["td", "th"].includes(c.tagName.toLowerCase()),
-			)
-			.forEach((cell) => {
-				const isHeader = cell.tagName.toLowerCase() === "th";
-				// parse children of the cell
-				const content = Array.from(cell.childNodes).flatMap((node) => {
-					const parsed = this._parseElement(
-						node,
-						this._tagHandlers.get(node.nodeName.toLowerCase()) ??
-							this._defaultHandler,
-					);
-					// flatten fragments
-					return parsed;
-				});
+    Array.from(tr.children)
+      .filter((c): c is HTMLElement =>
+        ['td', 'th'].includes(c.tagName.toLowerCase())
+      )
+      .forEach((cell) => {
+        const isHeader = cell.tagName.toLowerCase() === 'th';
+        // parse children of the cell
+        const content = Array.from(cell.childNodes).flatMap((node) => {
+          const parsed = this._parseElement(
+            node,
+            this._tagHandlers.get(node.nodeName.toLowerCase()) ??
+              this._defaultHandler
+          );
+          // flatten fragments
+          return parsed;
+        });
 
-				const cs = parseStyles(cell);
-				const ca = parseAttributes(cell);
-				const da =
-					this._defaultAttributes.get(
-						cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap,
-					) || {};
-				const colspan = Number(
-					cell.getAttribute("colspan") || da["colspan"] || 1,
-				);
-				const rowspan = Number(
-					cell.getAttribute("rowspan") || da["rowspan"] || 1,
-				);
+        const cs = parseStyles(cell);
+        const ca = parseAttributes(cell);
+        const da =
+          this._defaultAttributes.get(
+            cell.tagName.toLowerCase() as keyof HTMLElementTagNameMap
+          ) || {};
+        const colspan = Number(
+          cell.getAttribute('colspan') || da['colspan'] || 1
+        );
+        const rowspan = Number(
+          cell.getAttribute('rowspan') || da['rowspan'] || 1
+        );
 
-				cells.push({
-					type: "table-cell",
-					content,
-					styles: cs,
-					attributes: { ...da, ...ca },
-					metadata: {
-						tagName: isHeader ? "th" : "td",
-					},
-					colspan,
-					rowspan,
-					scope: "tableCell",
-				});
-			});
+        cells.push({
+          type: 'table-cell',
+          content,
+          styles: cs,
+          attributes: { ...da, ...ca },
+          metadata: {
+            tagName: isHeader ? 'th' : 'td',
+          },
+          colspan,
+          rowspan,
+          scope: 'tableCell',
+        });
+      });
 
-		return {
-			type: "table-row",
-			cells,
-			styles: rowStyles,
-			attributes: rowAttrs,
-			scope: "tableRow",
-			metadata: {
-				tagName: "tr",
-			},
-		};
-	}
+    return {
+      type: 'table-row',
+      cells,
+      styles: rowStyles,
+      attributes: rowAttrs,
+      scope: 'tableRow',
+      metadata: {
+        tagName: 'tr',
+      },
+    };
+  }
 
-	private _parseElement(
-		element: HTMLElement | ChildNode,
-		handler: TagHandler,
-		options: TagHandlerOptions = {},
-	): DocumentElement | DocumentElement[] {
-		if (element.nodeType === 3) {
-			return {
-				type: "text",
-				text: element.textContent || "",
-				...options,
-			};
-		}
-		let styles = parseStyles(element as HTMLElement);
-		let attributes = parseAttributes(element as HTMLElement);
+  private _parseElement(
+    element: HTMLElement | ChildNode,
+    handler: TagHandler,
+    options: TagHandlerOptions = {}
+  ): DocumentElement | DocumentElement[] {
+    if (element.nodeType === 3) {
+      return {
+        type: 'text',
+        text: element.textContent || '',
+        ...options,
+      };
+    }
+    let styles = parseStyles(element as HTMLElement);
+    let attributes = parseAttributes(element as HTMLElement);
 
-		// Add default attributes
-		attributes = {
-			...(this._defaultAttributes.get(
-				(
-					element as HTMLElement
-				).tagName.toLowerCase() as keyof HTMLElementTagNameMap,
-			) ?? {}),
-			...options.attributes,
-			...attributes,
-		};
+    // Add default attributes
+    attributes = {
+      ...(this._defaultAttributes.get(
+        (
+          element as HTMLElement
+        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      ) ?? {}),
+      ...options.attributes,
+      ...attributes,
+    };
 
-		styles = {
-			...options.styles,
-			...styles,
-		};
+    styles = {
+      ...options.styles,
+      ...styles,
+    };
 
-		// Extract children
-		let children: DocumentElement[] | undefined;
-		const tagName = (element as HTMLElement).nodeName.toLowerCase();
-		const shouldWalk =
-			tagName === "div" ||
-			!(
-				element.childNodes.length === 1 && element.childNodes[0]?.nodeType === 3
-			);
-		if (shouldWalk) {
-			const { isList, newLevel } = getListLevel(tagName, options);
+    // Extract children
+    let children: DocumentElement[] | undefined;
+    const tagName = (element as HTMLElement).nodeName.toLowerCase();
+    const shouldWalk =
+      tagName === 'div' ||
+      !(
+        element.childNodes.length === 1 && element.childNodes[0]?.nodeType === 3
+      );
+    if (shouldWalk) {
+      const { isList, newLevel } = getListLevel(tagName, options);
 
-			children = Array.from(element.childNodes).flatMap((child) => {
-				const key = child.nodeName.toLowerCase();
-				return this._parseElement(
-					child,
-					this._tagHandlers.get(key) ?? this._defaultHandler,
-					isList
-						? {
-								metadata: {
-									level: newLevel,
-								},
-							}
-						: {},
-				);
-			});
-		}
-		// Extract text
-		const text =
-			children === undefined
-				? element.textContent
-					? element.textContent
-					: undefined
-				: undefined;
-		const result = handler(element as HTMLElement, {
-			...options,
-			styles,
-			attributes,
-			content: children,
-			text,
-			metadata: {
-				...(options.metadata ?? {}),
-				tagName,
-			},
-		});
+      children = Array.from(element.childNodes).flatMap((child) => {
+        const key = child.nodeName.toLowerCase();
+        return this._parseElement(
+          child,
+          this._tagHandlers.get(key) ?? this._defaultHandler,
+          isList
+            ? {
+                metadata: {
+                  level: newLevel,
+                },
+              }
+            : {}
+        );
+      });
+    }
+    // Extract text
+    const text =
+      children === undefined
+        ? element.textContent
+          ? element.textContent
+          : undefined
+        : undefined;
+    const result = handler(element as HTMLElement, {
+      ...options,
+      styles,
+      attributes,
+      content: children,
+      text,
+      metadata: {
+        ...(options.metadata ?? {}),
+        tagName,
+      },
+    });
 
-		// helper to guarantee tagName is always present
-		const ensureTagName = <T extends DocumentElement>(el: T): T => {
-			el.metadata = { tagName, ...(el.metadata ?? {}) };
-			return el;
-		};
+    // helper to guarantee tagName is always present
+    const ensureTagName = <T extends DocumentElement>(el: T): T => {
+      el.metadata = { tagName, ...(el.metadata ?? {}) };
+      return el;
+    };
 
-		if (Array.isArray(result)) {
-			return result.map((el) => extractAttributesToMetadata(ensureTagName(el)));
-		}
+    if (Array.isArray(result)) {
+      return result.map((el) => extractAttributesToMetadata(ensureTagName(el)));
+    }
 
-		ensureTagName(result);
+    ensureTagName(result);
 
-		if (result.type === "fragment") {
-			const wrapperStyles = result.styles || {};
-			const wrapperAttrs = result.attributes || {};
-			return (result.content || []).map((el) => ({
-				...el,
-				styles: { ...wrapperStyles, ...el.styles },
-				attributes: { ...wrapperAttrs, ...el.attributes },
-			}));
-		}
+    if (result.type === 'fragment') {
+      const wrapperStyles = result.styles || {};
+      const wrapperAttrs = result.attributes || {};
+      return (result.content || []).map((el) => ({
+        ...el,
+        styles: { ...wrapperStyles, ...el.styles },
+        attributes: { ...wrapperAttrs, ...el.attributes },
+      }));
+    }
 
-		return extractAttributesToMetadata(result);
-	}
+    return extractAttributesToMetadata(result);
+  }
 
-	private _parseTableContainers(element: HTMLElement): TableRowElement[] {
-		const rows: TableRowElement[] = [];
-		const section = element.tagName.toLowerCase();
+  private _parseTableContainers(element: HTMLElement): TableRowElement[] {
+    const rows: TableRowElement[] = [];
+    const section = element.tagName.toLowerCase();
 
-		Array.from(element.children)
-			.filter((c): c is HTMLElement => c.tagName.toLowerCase() === "tr")
-			.forEach((tr) => {
-				const row = this._parseRow(tr);
-				row.metadata = {
-					...(row.metadata ?? {}),
-					section,
-				};
-				rows.push(row);
-			});
+    Array.from(element.children)
+      .filter((c): c is HTMLElement => c.tagName.toLowerCase() === 'tr')
+      .forEach((tr) => {
+        const row = this._parseRow(tr);
+        row.metadata = {
+          ...(row.metadata ?? {}),
+          section,
+        };
+        rows.push(row);
+      });
 
-		return rows;
-	}
+    return rows;
+  }
 
-	private _parseTable(
-		element: HTMLElement | ChildNode,
-		options: TagHandlerOptions = {},
-	): DocumentElement {
-		const rows: TableRowElement[] = [];
-		const content: DocumentElement[] = [];
+  private _parseTable(
+    element: HTMLElement | ChildNode,
+    options: TagHandlerOptions = {}
+  ): DocumentElement {
+    const rows: TableRowElement[] = [];
+    const content: DocumentElement[] = [];
 
-		const tableEl = element as HTMLElement;
+    const tableEl = element as HTMLElement;
 
-		// Fetch defaults
-		const defaultTableAttrs =
-			this._defaultAttributes.get(
-				tableEl.tagName.toLowerCase() as keyof HTMLElementTagNameMap,
-			) || {};
+    // Fetch defaults
+    const defaultTableAttrs =
+      this._defaultAttributes.get(
+        tableEl.tagName.toLowerCase() as keyof HTMLElementTagNameMap
+      ) || {};
 
-		const tableStyles = parseStyles(tableEl);
-		const tableAttrs = parseAttributes(tableEl);
+    const tableStyles = parseStyles(tableEl);
+    const tableAttrs = parseAttributes(tableEl);
 
-		// Map the deprecated HTML `border` attribute to CSS when no explicit
-		// border-style is already set via the `style` attribute.
-		// e.g. border="1" → borderStyle: 'solid', borderWidth: '1px'
-		// Per the HTML spec and browser behaviour, this also applies to all cells.
-		const borderAttr = tableAttrs["border"];
-		const borderPx = Number(borderAttr);
-		const tableBorderFromAttr =
-			borderAttr !== undefined &&
-			!tableStyles.borderStyle &&
-			!tableStyles.border &&
-			borderPx > 0;
+    // Map the deprecated HTML `border` attribute to CSS when no explicit
+    // border-style is already set via the `style` attribute.
+    // e.g. border="1" → borderStyle: 'solid', borderWidth: '1px'
+    // Per the HTML spec and browser behaviour, this also applies to all cells.
+    const borderAttr = tableAttrs['border'];
+    const borderPx = Number(borderAttr);
+    const tableBorderFromAttr =
+      borderAttr !== undefined &&
+      !tableStyles.borderStyle &&
+      !tableStyles.border &&
+      borderPx > 0;
 
-		if (tableBorderFromAttr) {
-			tableStyles.borderStyle = "solid";
-			tableStyles.borderWidth = `${borderPx}px`;
-		}
+    if (tableBorderFromAttr) {
+      tableStyles.borderStyle = 'solid';
+      tableStyles.borderWidth = `${borderPx}px`;
+    }
 
-		// Iterate *every* direct child of <table> in source order
-		Array.from(tableEl.childNodes).forEach((node) => {
-			if (node.nodeType !== 1) return; // skip text/comments
-			const el = node as HTMLElement;
-			const tag = el.tagName.toLowerCase();
+    // Iterate *every* direct child of <table> in source order
+    Array.from(tableEl.childNodes).forEach((node) => {
+      if (node.nodeType !== 1) return; // skip text/comments
+      const el = node as HTMLElement;
+      const tag = el.tagName.toLowerCase();
 
-			const result = this._parseElement(
-				el,
-				this._tagHandlers.get(tag) ?? this._defaultHandler,
-			);
+      const result = this._parseElement(
+        el,
+        this._tagHandlers.get(tag) ?? this._defaultHandler
+      );
 
-			if (Array.isArray(result)) {
-				rows.push(
-					...result.filter((c): c is TableRowElement => c.type === "table-row"),
-				);
-				content.push(
-					...result.filter((c): c is DocumentElement => c.type !== "table-row"),
-				);
-			} else {
-				if (result.type === "table-row") {
-					rows.push(result as TableRowElement);
-				}
-				if (result.type !== "table-row") {
-					content.push(result as DocumentElement);
-				}
-			}
-		});
+      if (Array.isArray(result)) {
+        rows.push(
+          ...result.filter((c): c is TableRowElement => c.type === 'table-row')
+        );
+        content.push(
+          ...result.filter((c): c is DocumentElement => c.type !== 'table-row')
+        );
+      } else {
+        if (result.type === 'table-row') {
+          rows.push(result as TableRowElement);
+        }
+        if (result.type !== 'table-row') {
+          content.push(result as DocumentElement);
+        }
+      }
+    });
 
-		// Propagate border attribute down to cells that don't have their own border.
-		if (tableBorderFromAttr) {
-			for (const row of rows) {
-				for (const cell of row.cells) {
-					if (!cell.styles?.borderStyle && !cell.styles?.border) {
-						cell.styles = {
-							...cell.styles,
-							borderStyle: "solid",
-							borderWidth: `${borderPx}px`,
-						};
-					}
-				}
-			}
-		}
-		return {
-			type: "table",
-			rows,
-			content: content.length > 0 ? content : undefined,
-			styles: {
-				...options.styles,
-				...tableStyles,
-			},
-			metadata: {
-				...options.metadata,
-				nested: tableEl.parentElement?.tagName.toLowerCase() === "td",
-			},
-			attributes: {
-				...defaultTableAttrs,
-				...options.attributes,
-				...tableAttrs,
-			},
-			scope: "table",
-		};
-	}
+    // Propagate border attribute down to cells that don't have their own border.
+    if (tableBorderFromAttr) {
+      for (const row of rows) {
+        for (const cell of row.cells) {
+          if (!cell.styles?.borderStyle && !cell.styles?.border) {
+            cell.styles = {
+              ...cell.styles,
+              borderStyle: 'solid',
+              borderWidth: `${borderPx}px`,
+            };
+          }
+        }
+      }
+    }
+    return {
+      type: 'table',
+      rows,
+      content: content.length > 0 ? content : undefined,
+      styles: {
+        ...options.styles,
+        ...tableStyles,
+      },
+      metadata: {
+        ...options.metadata,
+        nested: tableEl.parentElement?.tagName.toLowerCase() === 'td',
+      },
+      attributes: {
+        ...defaultTableAttrs,
+        ...options.attributes,
+        ...tableAttrs,
+      },
+      scope: 'table',
+    };
+  }
 
-	private _parseDocumentToElements(doc: Document): DocumentElement[] {
-		const content: DocumentElement[] = [];
+  private _parseDocumentToElements(doc: Document): DocumentElement[] {
+    const content: DocumentElement[] = [];
 
-		doc.body.childNodes.forEach((child) => {
-			const key = child.nodeName.toLowerCase();
-			const result = this._parseElement(
-				child,
-				this._tagHandlers.get(key) ?? this._defaultHandler,
-			);
-			// if (result) {
-			if (Array.isArray(result)) {
-				content.push(...result);
-			} else {
-				content.push(result);
-			}
-			// }
-		});
-		return content;
-	}
+    doc.body.childNodes.forEach((child) => {
+      const key = child.nodeName.toLowerCase();
+      const result = this._parseElement(
+        child,
+        this._tagHandlers.get(key) ?? this._defaultHandler
+      );
+      // if (result) {
+      if (Array.isArray(result)) {
+        content.push(...result);
+      } else {
+        content.push(result);
+      }
+      // }
+    });
+    return content;
+  }
 
-	private _defaultHandler(
-		element: HTMLElement | ChildNode,
-		options: TagHandlerOptions = {},
-	): DocumentElement {
-		if (element.nodeType === 3) {
-			return {
-				type: "text",
-				text: element.textContent || "",
-			};
-		}
-		const tag =
-			(element as HTMLElement).tagName?.toLowerCase() ||
-			(element as ChildNode).nodeName?.toLowerCase();
-		// Now just use options.text and options.content (children)
-		const text = (options.text ?? undefined) as string | undefined;
-		const children = (options.content ?? undefined) as
-			| DocumentElement[]
-			| ListItemElement[]
-			| undefined;
+  private _defaultHandler(
+    element: HTMLElement | ChildNode,
+    options: TagHandlerOptions = {}
+  ): DocumentElement {
+    if (element.nodeType === 3) {
+      return {
+        type: 'text',
+        text: element.textContent || '',
+      };
+    }
+    const tag =
+      (element as HTMLElement).tagName?.toLowerCase() ||
+      (element as ChildNode).nodeName?.toLowerCase();
+    // Now just use options.text and options.content (children)
+    const text = (options.text ?? undefined) as string | undefined;
+    const children = (options.content ?? undefined) as
+      | DocumentElement[]
+      | ListItemElement[]
+      | undefined;
 
-		switch (tag) {
-			case "p":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
-			case "div":
-				return { type: "fragment", text, content: children, ...options };
-			case "strong":
-			case "b":
-				return {
-					type: "text",
-					text,
-					content: children,
-					...options,
-					scope: "inline",
-				};
-			case "colgroup":
-				return {
-					type: "attribute",
-					name: "colgroup",
-					content: children,
-					scope: "inline",
-					...options,
-				};
-			case "col":
-				return {
-					type: "attribute",
-					name: "col",
-					content: children,
-					scope: "inline",
-					...options,
-				};
-			case "em":
-			case "i":
-			case "cite":
-			case "dfn":
-			case "var":
-				return {
-					type: "text",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
-			case "small":
-				return {
-					type: "text",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
+    switch (tag) {
+      case 'p':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
+      case 'div':
+        return { type: 'fragment', text, content: children, ...options };
+      case 'strong':
+      case 'b':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          scope: 'inline',
+        };
+      case 'colgroup':
+        return {
+          type: 'attribute',
+          name: 'colgroup',
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
+      case 'col':
+        return {
+          type: 'attribute',
+          name: 'col',
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
+      case 'em':
+      case 'i':
+      case 'cite':
+      case 'dfn':
+      case 'var':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
+      case 'small':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
 
-			case "u":
-			case "ins":
-				return {
-					type: "text",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
+      case 'u':
+      case 'ins':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
 
-			case "hr":
-				return { type: "line", ...options };
+      case 'hr':
+        return { type: 'line', ...options };
 
-			case "h1":
-			case "h2":
-			case "h3":
-				return {
-					type: "heading",
-					level: Number(tag.slice(1)),
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
+      case 'h1':
+      case 'h2':
+      case 'h3':
+        return {
+          type: 'heading',
+          level: Number(tag.slice(1)),
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
-			case "ul":
-			case "ol":
-				return {
-					type: "list",
-					listType: tag === "ol" ? "ordered" : "unordered",
-					content: children,
-					scope: "block",
-					level:
-						typeof options.metadata?.level === "number"
-							? options.metadata.level
-							: parseInt(options.metadata?.level as string) || 0,
-					...options,
-					metadata: {
-						...options.metadata,
-						level: options.metadata?.level ?? "0",
-					},
-				};
+      case 'ul':
+      case 'ol':
+        return {
+          type: 'list',
+          listType: tag === 'ol' ? 'ordered' : 'unordered',
+          content: children,
+          scope: 'block',
+          level:
+            typeof options.metadata?.level === 'number'
+              ? options.metadata.level
+              : parseInt(options.metadata?.level as string) || 0,
+          ...options,
+          metadata: {
+            ...options.metadata,
+            level: options.metadata?.level ?? '0',
+          },
+        };
 
-			case "li":
-				return {
-					type: "list-item",
-					text,
-					content: children,
-					level:
-						typeof options.metadata?.level === "number"
-							? options.metadata.level
-							: parseInt(options.metadata?.level as string) || 0,
-					scope: "block",
-					...options,
-				};
+      case 'li':
+        return {
+          type: 'list-item',
+          text,
+          content: children,
+          level:
+            typeof options.metadata?.level === 'number'
+              ? options.metadata.level
+              : parseInt(options.metadata?.level as string) || 0,
+          scope: 'block',
+          ...options,
+        };
 
-			case "header":
-				return { type: "header", text, content: children, ...options };
+      case 'header':
+        return { type: 'header', text, content: children, ...options };
 
-			case "address":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
+      case 'address':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
-			case "footer":
-				return { type: "footer", text, content: children, ...options };
+      case 'footer':
+        return { type: 'footer', text, content: children, ...options };
 
-			case "section":
-				if ((element as HTMLElement).classList.contains("page-break")) {
-					return { type: "page-break", ...options };
-				}
-				if ((element as HTMLElement).classList.contains("page")) {
-					return { type: "page", text, content: children, ...options };
-				}
-				return { type: "fragment", text, content: children, ...options };
+      case 'section':
+        if ((element as HTMLElement).classList.contains('page-break')) {
+          return { type: 'page-break', ...options };
+        }
+        if ((element as HTMLElement).classList.contains('page')) {
+          return { type: 'page', text, content: children, ...options };
+        }
+        return { type: 'fragment', text, content: children, ...options };
 
-			case "span":
-			case "a":
-			case "mark":
-			case "kbd":
-			case "samp":
-			case "s":
-			case "del":
-				return {
-					type: "text",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
+      case 'span':
+      case 'a':
+      case 'mark':
+      case 'kbd':
+      case 'samp':
+      case 's':
+      case 'del':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
 
-			case "sup":
-				return {
-					type: "text",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
+      case 'sup':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
 
-			case "sub":
-				return {
-					type: "text",
-					text,
-					content: children,
-					...options,
-					scope: "inline",
-				};
+      case 'sub':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          ...options,
+          scope: 'inline',
+        };
 
-			case "img":
-				return {
-					type: "image",
-					src: (element as HTMLImageElement).src,
-					scope: "inline", // default to inline, but can be changed to block depending on context
-					...options,
-				};
+      case 'img':
+        return {
+          type: 'image',
+          src: (element as HTMLImageElement).src,
+          scope: 'inline', // default to inline, but can be changed to block depending on context
+          ...options,
+        };
 
-			case "pre":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
+      case 'pre':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
-			case "code":
-				return {
-					type: "text",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
+      case 'code':
+        return {
+          type: 'text',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
 
-			case "br":
-				return {
-					...options,
-					type: "text",
-					text: "",
-					metadata: { break: 1, ...options.metadata },
-					scope: "inline",
-				};
+      case 'br':
+        return {
+          ...options,
+          type: 'text',
+          text: '',
+          metadata: { break: 1, ...options.metadata },
+          scope: 'inline',
+        };
 
-			case "blockquote":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
+      case 'blockquote':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
-			// FIGURE and CAPTION now as paragraphs
-			case "figure":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
+      // FIGURE and CAPTION now as paragraphs
+      case 'figure':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
-			case "figcaption":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
-			case "caption":
-				return {
-					type: "attribute",
-					name: "caption",
-					text,
-					content: children,
-					scope: "inline",
-					...options,
-				};
-			// Description list container
-			case "dl":
-				return { type: "fragment", text, content: children, ...options };
-			// Description term
-			case "dt":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-					// default term style: bold
-					styles: { ...(options.styles || {}) },
-				};
-			// Description definition: indented
-			case "dd":
-				return {
-					type: "paragraph",
-					text,
-					content: children,
-					scope: "block",
-					...options,
-				};
+      case 'figcaption':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
+      case 'caption':
+        return {
+          type: 'attribute',
+          name: 'caption',
+          text,
+          content: children,
+          scope: 'inline',
+          ...options,
+        };
+      // Description list container
+      case 'dl':
+        return { type: 'fragment', text, content: children, ...options };
+      // Description term
+      case 'dt':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+          // default term style: bold
+          styles: { ...(options.styles || {}) },
+        };
+      // Description definition: indented
+      case 'dd':
+        return {
+          type: 'paragraph',
+          text,
+          content: children,
+          scope: 'block',
+          ...options,
+        };
 
-			default:
-				return { type: "custom", text, content: children, ...options };
-		}
-	}
+      default:
+        return { type: 'custom', text, content: children, ...options };
+    }
+  }
 }

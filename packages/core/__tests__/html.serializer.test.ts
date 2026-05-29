@@ -1,9 +1,9 @@
-import { Parser } from '../src/parser';
-import { JSDOMParser } from './utils/parser.helper';
-import { toHtml } from '../src/utils/html.serializer';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { minifyMiddleware } from '../src/middleware/minify.middleware';
-import { DocumentElement } from '../src/types';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { Parser } from '../src/parser';
+import type { DocumentElement } from '../src/types';
+import { toHtml } from '../src/utils/html.serializer';
+import { JSDOMParser } from './utils/parser.helper';
 
 describe('html.serializer', () => {
   let parser: Parser;
@@ -163,12 +163,12 @@ describe('html.serializer', () => {
 <li>Unordered item three with <strong>bold</strong> and <span style="color: green;">green</span> text.</li>
 </ul>
 <h2>Table</h2>
-<table style="border-collapse: collapse; width: 100%;" border="1">
+<table style="border-collapse: collapse; width: 100%; border-style: solid; border-width: 1px;" border="1">
 <thead>
 <tr>
-<th style="background-color: #f0f0f0;">Feature</th>
-<th>Description</th>
-<th colspan="2">Example</th>
+<th style="background-color: #f0f0f0; border-style: solid; border-width: 1px;">Feature</th>
+<th style="border-style: solid; border-width: 1px;">Description</th>
+<th colspan="2" style="border-style: solid; border-width: 1px;">Example</th>
 </tr>
 </thead>
 <tbody>
