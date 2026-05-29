@@ -223,12 +223,9 @@ export class ElementConverter {
     dependencies: ElementConverterDependencies,
     element: DocumentElement,
     childBlock: DocumentElement,
-    cascadedStyles?: Styles
+    cascadedStyles?: Styles,
+    index: number = 0
   ): DocumentElement {
-    // const fallthroughConverters = this.fallthroughConverters.filter(
-    //   (c) =>
-    //     c.isMatch(element) && c.fallthroughAttributesNestedBlock
-    // );
     const fallthroughConverters =
       this.findFallthroughAttributesNestedBlock(element);
 
@@ -237,7 +234,8 @@ export class ElementConverter {
         dependencies,
         element,
         newChildBlock,
-        cascadedStyles
+        cascadedStyles,
+        index
       );
     }, childBlock);
   }
@@ -307,19 +305,48 @@ export class ElementConverter {
     } = options;
 
     if (!element.content || element.content.length <= 0) {
-      // If the provided element has no content it probably has text and we can convert it inline or directly with the text converter?
-      const inlineElements = await this.convertInline(
+      const inlineElements = await this.convertText(
         element,
         stylesheet,
         cascadedStyles
       );
-      // const wrappedChildren = this.runFallthroughWrapConvertedChildren(
-      //   element,
-      //   inlineElements,
-      //   cascadedStyles,
-      //   0
-      // );
-      return wrapInlineElements(inlineElements, 0);
+
+      if (inlineParagraphs) {
+        // Container elements with text-only content: propagate parent
+        // attributes onto a synthetic child so they render as empty bookmarks
+        // (prepended before the text), rather than wrapping bookmarks.
+        const syntheticChild: DocumentElement = {
+          type: element.type,
+          metadata: element.metadata,
+        };
+        const propagated = this.runFallthroughNestedBlock(
+          this.getDependencies(stylesheet),
+          element,
+          syntheticChild,
+          cascadedStyles,
+          0
+        );
+        const wrappedInlines = this.runFallthroughWrapConvertedChildren(
+          propagated,
+          stylesheet,
+          inlineElements,
+          cascadedStyles,
+          0
+        );
+        return wrapInlineElements(wrappedInlines, 0);
+      }
+
+      // Content-bearing elements: wrap with the element's own attributes
+      // (e.g. wrapping bookmarks for paragraph ids).
+      const wrappedInlines = this.runFallthroughWrapConvertedChildren(
+        element,
+        stylesheet,
+        inlineElements,
+        cascadedStyles,
+        0
+      );
+
+      return wrapInlineElements(wrappedInlines, 0);
     }
 
     let content: DocumentElement[] = element.content;
@@ -350,6 +377,10 @@ export class ElementConverter {
 
         return {
           type: 'text',
+          attributes: child.attributes,
+          metadata: child.metadata,
+          styles: child.styles,
+          scope: child.scope,
           content: [
             ...(hasNewlineBefore ? [br] : []),
             ...(child.content ??
@@ -399,21 +430,62 @@ export class ElementConverter {
       [] as typeof marked
     );
 
+    const dependencies = this.getDependencies(stylesheet);
+
     const wrapped = await promiseAllFlat(
       markedWithMergedInlines.map(async (item, i) => {
         if (item.type === 'blocks') {
-          return convertBlock(
-            this.getDependencies(stylesheet),
+          const child = this.runFallthroughNestedBlock(
+            dependencies,
+            element,
             item.children,
-            i,
-            cascadedStyles
+            cascadedStyles,
+            i
           );
+          return convertBlock(dependencies, child, i, cascadedStyles);
         }
 
+        const children = item.children;
+
+        if (inlineParagraphs) {
+          // Container elements (e.g. list-items): propagate parent attributes
+          // to the first inline child so they render as empty bookmarks.
+          const propagated = children.map((child, childIndex) => {
+            if (i === 0 && childIndex === 0) {
+              return this.runFallthroughNestedBlock(
+                dependencies,
+                element,
+                child,
+                cascadedStyles,
+                0
+              );
+            }
+            return child;
+          });
+
+          let newChildren = await promiseAllFlat(
+            propagated.map((child) =>
+              this.convertInline(child, stylesheet, cascadedStyles)
+            )
+          );
+
+          return wrapInlineElements(newChildren, i);
+        }
+
+        // Content-bearing elements (e.g. paragraphs): wrap converted inline
+        // children with the parent's fallthrough attributes (wrapping bookmarks).
         let newChildren = await promiseAllFlat(
-          item.children.map((child) =>
+          children.map((child) =>
             this.convertInline(child, stylesheet, cascadedStyles)
           )
+        );
+
+        newChildren = this.runFallthroughWrapConvertedChildren(
+          element,
+          stylesheet,
+          newChildren,
+          cascadedStyles,
+          i
         );
 
         return wrapInlineElements(newChildren, i);

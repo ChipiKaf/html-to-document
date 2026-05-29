@@ -17,6 +17,17 @@ import {
 } from '../../../core/__tests__/utils/parser.helper';
 import { DocxAdapter } from '../src/docx.adapter';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
+import JSZip from 'jszip';
+import { AlignmentType, NumberFormat } from 'docx';
+import type { ISectionOptions } from 'docx';
+import type {
+  CompiledStyleRule,
+  StylesheetStatement,
+} from 'html-to-document-core';
+import {
+  DOCX_DEFAULT_DECLARATION_ORIGIN,
+  DocxStylesheet,
+} from '../src/docx-stylesheet';
 import { TWIPS_PER_INCH, TWIPS_PER_MM } from '../src/utils/unit-conversion';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
@@ -80,6 +91,20 @@ const createStylesheetWithPageRules = (
   return stylesheet;
 };
 
+class DecoratedDocxStylesheet extends DocxStylesheet {
+  constructor(statements: readonly StylesheetStatement[] = []) {
+    super(statements, DecoratedDocxStylesheet);
+  }
+
+  protected override shouldExcludeDeclarations(
+    rule: CompiledStyleRule
+  ): boolean {
+    return (
+      super.shouldExcludeDeclarations(rule) || rule.selector === '.exclude-me'
+    );
+  }
+}
+
 describe('Docx.adapter.convert', () => {
   let adapter: DocxAdapter;
   let parser: Parser;
@@ -93,6 +118,63 @@ describe('Docx.adapter.convert', () => {
       const elements: DocumentElement[] = [];
       const buffer = await adapter.convert(elements);
       expect(buffer).toBeInstanceOf(Buffer);
+    });
+
+    it('supports extending stylesheet exclusion rules through decorateStylesheet', async () => {
+      const beforeConvert = vi.fn(
+        ({ docxDocumentOptions }) => docxDocumentOptions
+      );
+      const baseStylesheet = createStylesheet([
+        {
+          kind: 'style',
+          selectors: ['h1'],
+          declarations: { color: 'blue' },
+          declarationMeta: { origin: DOCX_DEFAULT_DECLARATION_ORIGIN },
+        },
+        {
+          kind: 'style',
+          selectors: ['.exclude-me'],
+          declarations: { fontWeight: 'bold' },
+        },
+        {
+          kind: 'style',
+          selectors: ['.keep-me'],
+          declarations: { color: 'green' },
+        },
+      ]);
+
+      const decoratedAdapter = new DocxAdapter(
+        { stylesheet: baseStylesheet },
+        {
+          decorateStylesheet: (stylesheet) =>
+            new DecoratedDocxStylesheet(stylesheet.getStatements()),
+          beforeConvert,
+        }
+      );
+
+      await decoratedAdapter.convert([]);
+
+      const [{ stylesheet }] = beforeConvert.mock.calls[0] as [
+        { stylesheet: DocxStylesheet },
+      ];
+
+      expect(stylesheet).toBeInstanceOf(DecoratedDocxStylesheet);
+      expect(
+        stylesheet.getMatchedStyles({
+          type: 'heading',
+          level: 1,
+          attributes: { class: 'exclude-me' },
+          metadata: { tagName: 'h1' },
+        })
+      ).toEqual({});
+      expect(
+        stylesheet.getMatchedStyles({
+          type: 'heading',
+          level: 1,
+          attributes: { class: 'keep-me' },
+          metadata: { tagName: 'h1' },
+        })
+      ).toEqual({ color: 'green' });
     });
   });
   describe('DocxAdapter image conversion', () => {
@@ -2768,6 +2850,109 @@ describe('Docx.adapter.convert', () => {
       // expect(paragraphs['w:bookmarkStart']).toBeDefined();
       // expect(paragraphs['w:bookmarkStart']['@_w:id']).toBe('1');
     });
+
+    it('should generate two bookmarks when a list item and nested paragraph both have ids', async () => {
+      const html = '<ul><li id="id1"><p id="id2">Hello world</p></li></ul>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const zip = await JSZip.loadAsync(buffer);
+      const xml = await zip.file('word/document.xml')!.async('text');
+
+      expect(xml).toContain('Hello world');
+      expect(xml.match(/<w:bookmarkStart\b/g)).toHaveLength(2);
+      expect(xml.match(/<w:bookmarkEnd\b/g)).toHaveLength(2);
+      expect(xml).toContain('w:name="id1"');
+      expect(xml).toContain('w:name="id2"');
+      expect(xml).toMatch(
+        /<w:bookmarkStart[^>]*w:name="id2"[^>]*\/><w:bookmarkStart[^>]*w:name="id1"[^>]*\/><w:bookmarkEnd[^>]*\/><w:r><w:t xml:space="preserve">Hello world<\/w:t><\/w:r><w:bookmarkEnd[^>]*\/>/
+      );
+    });
+
+    it('should apply a list item id only once on the first rendered paragraph', async () => {
+      const html = '<ul><li id="id1">Hello world</li></ul>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const zip = await JSZip.loadAsync(buffer);
+      const xml = await zip.file('word/document.xml')!.async('text');
+
+      expect(xml.match(/<w:bookmarkStart\b/g)).toHaveLength(1);
+      expect(xml.match(/<w:bookmarkEnd\b/g)).toHaveLength(1);
+      expect(xml).toMatch(
+        /<w:bookmarkStart[^>]*w:name="id1"[^>]*\/><w:bookmarkEnd[^>]*\/><w:r><w:t xml:space="preserve">Hello world<\/w:t><\/w:r>/
+      );
+    });
+
+    it('should only apply a list item id to the first rendered paragraph when the first child is a block', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'list',
+          listType: 'unordered',
+          content: [
+            {
+              type: 'list-item',
+              level: 0,
+              attributes: { id: 'id1' },
+              content: [
+                {
+                  type: 'heading',
+                  level: 1,
+                  content: [{ type: 'text', text: 'Heading' }],
+                },
+                { type: 'text', text: 'Body copy' },
+              ],
+            },
+          ],
+        },
+      ];
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+      const body = json['w:document']['w:body'];
+      const paragraphs = body['w:p'];
+
+      expect(paragraphs).toHaveLength(2);
+      expect(paragraphs[0]['w:bookmarkStart']).toBeDefined();
+      expect(paragraphs[0]['w:bookmarkStart']['@_w:name']).toBe('id1');
+      expect(paragraphs[1]['w:bookmarkStart']).toBeUndefined();
+    });
+
+    it('should only apply a div id to the first rendered paragraph when it wraps multiple paragraphs', async () => {
+      const html = '<div id="id1"><p>First</p><p>Second</p></div>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const json = await parseDocxDocument(buffer);
+      const body = json['w:document']['w:body'];
+      const paragraphs = toArray(body['w:p']);
+
+      expect(paragraphs).toHaveLength(2);
+      expect(paragraphs[0]['w:r']['w:t']['#text']).toBe('First');
+      expect(paragraphs[1]['w:r']['w:t']['#text']).toBe('Second');
+      expect(paragraphs[0]['w:bookmarkStart']).toBeDefined();
+      expect(paragraphs[0]['w:bookmarkStart']['@_w:name']).toBe('id1');
+      expect(paragraphs[1]['w:bookmarkStart']).toBeUndefined();
+    });
+
+    it('should preserve nested div ids on the first rendered paragraph', async () => {
+      const html =
+        '<div id="outer"><div id="inner"><p>Hello world</p></div></div>';
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+
+      const zip = await JSZip.loadAsync(buffer);
+      const xml = await zip.file('word/document.xml')!.async('text');
+
+      expect(xml).toContain('Hello world');
+      expect(xml.match(/<w:bookmarkStart\b/g)).toHaveLength(2);
+      expect(xml.match(/<w:bookmarkEnd\b/g)).toHaveLength(2);
+      expect(xml).toContain('w:name="outer"');
+      expect(xml).toContain('w:name="inner"');
+      expect(xml).toMatch(
+        /<w:bookmarkStart[^>]*w:name="inner"[^>]*\/><w:bookmarkEnd[^>]*\/><w:bookmarkStart[^>]*w:name="outer"[^>]*\/><w:bookmarkEnd[^>]*\/><w:r><w:t xml:space="preserve">Hello world<\/w:t><\/w:r>/
+      );
+    });
   });
 
   describe('Pages and headers/footers', () => {
@@ -3072,6 +3257,24 @@ describe('Docx.adapter.convert', () => {
       expect(sectPr['w:pgMar']['@_w:right']).toBe('2880');
       expect(sectPr['w:pgMar']['@_w:bottom']).toBe('4320');
       expect(sectPr['w:pgMar']['@_w:left']).toBe('5760');
+    });
+
+    it('should preserve zero @page margins', async () => {
+      const stylesheet = createStylesheetWithPageRules([
+        { descriptors: { margin: '0' } },
+      ]);
+      const customAdapter = new DocxAdapter({ stylesheet });
+
+      const html = '<p>Test</p>';
+      const elements = parser.parse(html);
+      const buffer = await customAdapter.convert(elements);
+      const parsed = await parseDocxXml(buffer, 'word/document.xml');
+      const sectPr = parsed['w:document']['w:body']['w:sectPr'];
+
+      expect(sectPr['w:pgMar']['@_w:top']).toBe('0');
+      expect(sectPr['w:pgMar']['@_w:right']).toBe('0');
+      expect(sectPr['w:pgMar']['@_w:bottom']).toBe('0');
+      expect(sectPr['w:pgMar']['@_w:left']).toBe('0');
     });
 
     it.each([

@@ -246,12 +246,43 @@ export class Parser {
 
     if (result.type === 'fragment') {
       const wrapperStyles = result.styles || {};
-      const wrapperAttrs = result.attributes || {};
-      return (result.content || []).map((el) => ({
-        ...el,
-        styles: { ...wrapperStyles, ...el.styles },
-        attributes: { ...wrapperAttrs, ...el.attributes },
-      }));
+      const { id: fragmentId, ...wrapperAttrsWithoutId } =
+        result.attributes || {};
+      const fragmentExtraIds = Array.isArray(result.metadata?.extraIds)
+        ? // FIXME: dangerous type assertion
+          (result.metadata.extraIds as string[])
+        : [];
+      // Collect the fragment's own id and any extraIds it already carries.
+      const idsToPropagate = [
+        ...fragmentExtraIds,
+        ...(fragmentId ? [String(fragmentId)] : []),
+      ];
+
+      return (result.content || []).map((el, index) => {
+        const mergedAttrs = { ...wrapperAttrsWithoutId, ...el.attributes };
+
+        // Propagate fragment ids only to the first child via extraIds metadata.
+        if (index === 0 && idsToPropagate.length > 0) {
+          const existingExtraIds = Array.isArray(el.metadata?.extraIds)
+            ? (el.metadata.extraIds as string[])
+            : [];
+          return {
+            ...el,
+            styles: { ...wrapperStyles, ...el.styles },
+            attributes: mergedAttrs,
+            metadata: {
+              ...el.metadata,
+              extraIds: [...existingExtraIds, ...idsToPropagate],
+            },
+          };
+        }
+
+        return {
+          ...el,
+          styles: { ...wrapperStyles, ...el.styles },
+          attributes: mergedAttrs,
+        };
+      });
     }
 
     return extractAttributesToMetadata(result);
