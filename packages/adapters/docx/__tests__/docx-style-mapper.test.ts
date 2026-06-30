@@ -221,6 +221,57 @@ describe('DocxStyleMapper', () => {
     });
   });
 
+  it('maps border shorthand colors without truncating functional color syntax', () => {
+    const cell = { type: 'table-cell' } as DocumentElement;
+    expect(
+      mapper.mapStyles({ border: '1px solid rgb(255, 0, 17)' }, cell)
+    ).toEqual({
+      borders: {
+        top: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+        right: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+        bottom: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+        left: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+      },
+      border: {
+        top: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+        right: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+        bottom: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+        left: { size: 6, style: BorderStyle.SINGLE, color: 'FF0011' },
+      },
+    });
+  });
+
+  it('maps side-specific border shorthand colors with modern rgb syntax', () => {
+    const cell = { type: 'table-cell' } as DocumentElement;
+    expect(
+      mapper.mapStyles(
+        { borderTop: '2px dashed rgb(255 0 17 / 50%)' } as any,
+        cell
+      )
+    ).toEqual({
+      borders: {
+        top: { size: 12, style: BorderStyle.DASHED, color: 'FF0011' },
+      },
+      border: {
+        top: { size: 12, style: BorderStyle.DASHED, color: 'FF0011' },
+      },
+    });
+  });
+
+  it('maps image border shorthand colors without truncating functional color syntax', () => {
+    const img = { type: 'image' } as DocumentElement;
+    expect(
+      mapper.mapStyles({ border: '12pt dashed rgb(255 0 17 / 50%)' }, img)
+    ).toEqual({
+      outline: {
+        width: 152400,
+        type: 'solidFill',
+        solidFillType: 'rgb',
+        value: 'FF0011',
+      },
+    });
+  });
+
   it('maps letterSpacing with shared length conversion', () => {
     const el = { type: 'paragraph' } as DocumentElement;
     expect(mapper.mapStyles({ letterSpacing: '12pt' }, el)).toEqual({

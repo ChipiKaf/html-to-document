@@ -83,6 +83,29 @@ const lengthToBorderSize = (value: string): number | undefined => {
   return typeof twips === 'number' ? twipsToEighthsOfPoint(twips) : undefined;
 };
 
+const splitCssTokens = (value: string): string[] => {
+  const tokens: string[] = [];
+  let current = '';
+  let parenDepth = 0;
+
+  for (const char of value.trim()) {
+    if (/\s/.test(char) && parenDepth === 0) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+
+    if (char === '(') parenDepth += 1;
+    if (char === ')' && parenDepth > 0) parenDepth -= 1;
+    current += char;
+  }
+
+  if (current) tokens.push(current);
+  return tokens;
+};
+
 function deepMerge<T extends object, U extends object>(
   target: T,
   source: U
@@ -339,7 +362,7 @@ export class DocxStyleMapper {
         // For images, map CSS border shorthand to an outline around the picture
         if (el.type === 'image') {
           // expect format: "<width> <style> <color>" (e.g. "2px dashed #333")
-          const parts = raw.split(/\s+/);
+          const parts = splitCssTokens(raw);
           const widthPart = parts[0] || '';
           const width = lengthToTwips(widthPart);
           if (typeof width === 'number' && parts.length >= 2) {
@@ -651,7 +674,8 @@ export class DocxStyleMapper {
   }
 
   private expandShorthands(
-    rawStyles: Partial<Record<StyleKey, string | number>>
+    rawStyles: Partial<Record<StyleKey, string | number>>,
+    el: DocumentElement
   ) {
     const mappedStyles: Partial<Record<StyleKey, string | number>> = {
       ...rawStyles,
@@ -678,7 +702,7 @@ export class DocxStyleMapper {
       let width: string | undefined;
       let style: string | undefined;
       let color: string | undefined;
-      const parts = prop.split(/\s+/).filter(Boolean);
+      const parts = splitCssTokens(prop);
       for (const part of parts) {
         if (!width && widthRegex.test(part)) {
           width = part;
@@ -699,7 +723,7 @@ export class DocxStyleMapper {
     };
 
     // Expand 'border' shorthand into individual border properties if not already set
-    if (mappedStyles.border) {
+    if (mappedStyles.border && el.type !== 'image') {
       const borderValue = mappedStyles.border;
       const { width, style, color } = borderShorthand(borderValue);
       mappedStyles['borderWidth'] ??= width;
@@ -750,7 +774,7 @@ export class DocxStyleMapper {
     rawStyles: Partial<Record<StyleKey, string | number>>,
     el: DocumentElement
   ): Record<string, unknown> {
-    const expandedStyles = this.expandShorthands(rawStyles);
+    const expandedStyles = this.expandShorthands(rawStyles, el);
     return (Object.keys(expandedStyles) as StyleKey[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
