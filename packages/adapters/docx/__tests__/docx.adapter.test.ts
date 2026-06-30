@@ -2031,7 +2031,7 @@ describe('Docx.adapter.convert', () => {
       expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
     });
 
-    it.skip('should export hidden cell borders by disabling table grid and using explicit cell borders', async () => {
+    it('should export hidden cell borders by disabling table grid and using explicit cell borders', async () => {
       const hiddenCell = (text: string): DocumentElement => ({
         type: 'table-cell',
         content: [{ type: 'text', text }],
@@ -2100,7 +2100,10 @@ describe('Docx.adapter.convert', () => {
               {
                 type: 'table-cell',
                 content: [{ type: 'text', text: 'Visible' }],
-                styles: {},
+                styles: {
+                  border: '1px solid #000000',
+                  borderLeft: '1px solid #000000',
+                },
                 attributes: {},
               },
             ],
@@ -2125,7 +2128,10 @@ describe('Docx.adapter.convert', () => {
       expect(hiddenCellBorders['w:right']?.['@_w:val']).toBe('none');
       // The adjacent cell's shared (left) border is suppressed by the hidden neighbour
       expect(visibleCellBorders['w:left']?.['@_w:val']).toBe('none');
-      // Non-shared sides of the visible cell are not affected (no explicit border = undefined)
+      // Non-shared sides of the visible cell keep their explicit solid borders.
+      expect(visibleCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:bottom']?.['@_w:val']).toBe('single');
     });
 
     it('should suppress a stylesheet-defined solid border on the side shared with a hidden-border cell', async () => {
