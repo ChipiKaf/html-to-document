@@ -36,6 +36,7 @@ import { DocxAdapterConfig, OptionalDocumentOptions } from './docx.types';
 import { isServer } from './utils/environment';
 import { mergeDeep, pipe } from 'remeda';
 import { lengthToTwips } from './utils/parse';
+import { splitQuadShorthand } from './utils/css-shorthands';
 import { TWIPS_PER_INCH, TWIPS_PER_MM } from './utils/unit-conversion';
 
 type NormalizedPageRule = {
@@ -421,37 +422,12 @@ export class DocxAdapter implements IDocumentConverter {
 
     const normalized: NormalizedPageRule = {};
     if (merged.margin) {
-      // expand margin shorthand into individual sides, since docx library requires them separately
-      // margin examples "1in" "1in 2cm" "1in 2cm 3mm" "1in 2cm 3mm 4px"
-      const margins = merged.margin
-        .toString()
-        .trim()
-        .split(/\s+/)
-        .map((token) => {
-          if (!token) return undefined;
-          const twips = lengthToTwips(token);
-          return twips;
-        });
-      if (margins.length === 1) {
-        normalized.marginTop = margins[0];
-        normalized.marginRight = margins[0];
-        normalized.marginBottom = margins[0];
-        normalized.marginLeft = margins[0];
-      } else if (margins.length === 2) {
-        normalized.marginTop = margins[0];
-        normalized.marginBottom = margins[0];
-        normalized.marginRight = margins[1];
-        normalized.marginLeft = margins[1];
-      } else if (margins.length === 3) {
-        normalized.marginTop = margins[0];
-        normalized.marginRight = margins[1];
-        normalized.marginLeft = margins[1];
-        normalized.marginBottom = margins[2];
-      } else if (margins.length >= 4) {
-        normalized.marginTop = margins[0];
-        normalized.marginRight = margins[1];
-        normalized.marginBottom = margins[2];
-        normalized.marginLeft = margins[3];
+      const margins = splitQuadShorthand(merged.margin);
+      if (margins) {
+        normalized.marginTop = lengthToTwips(margins.top);
+        normalized.marginRight = lengthToTwips(margins.right);
+        normalized.marginBottom = lengthToTwips(margins.bottom);
+        normalized.marginLeft = lengthToTwips(margins.left);
       }
     }
 

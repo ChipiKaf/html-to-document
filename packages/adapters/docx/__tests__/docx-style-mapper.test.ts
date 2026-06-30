@@ -150,11 +150,44 @@ describe('DocxStyleMapper', () => {
     });
     const p = { type: 'paragraph' } as DocumentElement;
     const padP = mapper.mapStyles({ padding: '3px' }, p) as any;
-    expect(padP.spacing).toBeDefined();
-    expect(padP.indent).toBeDefined();
+    expect(padP.border).toBeDefined();
     const marP = mapper.mapStyles({ margin: '5px' }, p) as any;
     expect(marP.spacing).toBeDefined();
     expect(marP.indent).toBeDefined();
+  });
+
+  it('expands padding shorthand through longhand mappers without overwriting explicit longhands', () => {
+    const cell = { type: 'table-cell' } as DocumentElement;
+    const pad = mapper.mapStyles(
+      { padding: '1px 2px 3px 4px', paddingTop: '9px' } as any,
+      cell
+    ) as any;
+
+    expect(pad.margins).toEqual({
+      top: lengthToTwips('9px'),
+      right: lengthToTwips('2px'),
+      bottom: lengthToTwips('3px'),
+      left: lengthToTwips('4px'),
+    });
+  });
+
+  it('expands margin shorthand through longhand mappers without overwriting explicit longhands', () => {
+    const p = { type: 'paragraph' } as DocumentElement;
+    const margin = mapper.mapStyles(
+      { margin: '5px 6px 7px 8px', marginTop: '9px' } as any,
+      p
+    ) as any;
+
+    expect(margin).toEqual({
+      spacing: {
+        before: lengthToTwips('9px'),
+        after: lengthToTwips('7px'),
+      },
+      indent: {
+        left: lengthToTwips('8px'),
+        right: lengthToTwips('6px'),
+      },
+    });
   });
 
   it('maps listStyleType for bullet and numbering', () => {
@@ -202,6 +235,14 @@ describe('DocxStyleMapper', () => {
     const t = { type: 'table' } as DocumentElement;
     const bw = mapper.mapStyles({ borderWidth: '12pt' } as any, t) as any;
     expect(bw.borders.top.size).toBe(96);
+    const multiBw = mapper.mapStyles(
+      { borderWidth: '1px 2px 3px 4px' } as any,
+      t
+    ) as any;
+    expect(multiBw.borders.top.size).toBe(6);
+    expect(multiBw.borders.right.size).toBe(12);
+    expect(multiBw.borders.bottom.size).toBe(18);
+    expect(multiBw.borders.left.size).toBe(24);
     const p = { type: 'paragraph' } as DocumentElement;
     const bwp = mapper.mapStyles({ borderWidth: '1in' } as any, p) as any;
     expect(bwp.border.left.size).toBe(576);
