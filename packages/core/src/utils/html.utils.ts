@@ -39,12 +39,59 @@ export function parseAttributes(
 export function colorConversion(color: string): string {
   const v = color.trim().toLowerCase();
 
-  // 1) If it comes in as a hex already, just strip the “#”
-  if (/^#?[0-9a-f]{6}$/i.test(v)) {
-    return v.replace(/^#/, '').toUpperCase();
+  // 1) If it comes in as a 6- or 8-digit hex already, strip the '#'.
+  // DOCX color slots are RGB only, so ignore any alpha channel.
+  if (/^#?[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v)) {
+    return v.replace(/^#/, '').slice(0, 6).toUpperCase();
   }
 
-  // 2) Ask colornames() for it (this covers all CSS keyword names)
+  // 2) Expand 3- or 4-digit shorthand hex.
+  if (/^#?[0-9a-f]{3}([0-9a-f])?$/i.test(v)) {
+    const hex = v.replace(/^#/, '');
+    return hex
+      .slice(0, 3)
+      .split('')
+      .map((ch) => ch + ch)
+      .join('')
+      .toUpperCase();
+  }
+
+  // 3) Parse rgb()/rgba() values. Support both legacy comma syntax and
+  // modern space-separated syntax with an optional alpha channel after '/'.
+  // DOCX does not support alpha here, so drop it.
+  const rgbMatch = v.match(/^rgba?\((.+)\)$/i);
+  const rgbBody = rgbMatch?.[1]?.trim();
+  if (rgbBody) {
+    const [channelSection] = rgbBody.split('/').map((part) => part.trim());
+    const channels = (
+      channelSection?.includes(',')
+        ? channelSection.split(',').map((part) => part.trim())
+        : channelSection?.split(/\s+/).filter(Boolean)
+    )?.slice(0, 3);
+
+    if (channels?.length === 3) {
+      const parsed = channels.map((channel) => {
+        if (channel.endsWith('%')) {
+          const percent = Number(channel.slice(0, -1));
+          if (!Number.isFinite(percent)) return null;
+          return Math.round((Math.min(100, Math.max(0, percent)) / 100) * 255);
+        }
+
+        const value = Number(channel);
+        if (!Number.isFinite(value)) return null;
+        return Math.round(Math.min(255, Math.max(0, value)));
+      });
+
+      if (parsed.every((channel): channel is number => channel !== null)) {
+        return parsed
+          .map((channel) => channel.toString(16).padStart(2, '0'))
+          .join('')
+          .toUpperCase();
+      }
+    }
+  }
+
+  // 4) Ask colornames() for it (this covers CSS keyword names)
   let hex = colornames(v); // e.g. "#D3D3D3" for "lightgray"
   if (!hex && v.endsWith('gray')) {
     // Support American/British spelling variants
@@ -54,7 +101,7 @@ export function colorConversion(color: string): string {
     return hex.replace('#', '').toUpperCase();
   }
 
-  // 3) Last resort, black
+  // 5) Last resort, black
   return '000000';
 }
 

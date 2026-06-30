@@ -47,11 +47,22 @@ describe('html.utils', () => {
     it('converts hex colors to uppercase without #', () => {
       expect(colorConversion('#aabbcc')).toBe('AABBCC');
       expect(colorConversion('ddeeff')).toBe('DDEEFF');
+      expect(colorConversion('#abc')).toBe('AABBCC');
+      expect(colorConversion('#abcd')).toBe('AABBCC');
+      expect(colorConversion('#aabbccdd')).toBe('AABBCC');
     });
 
     it('converts named colors using colornames', () => {
       expect(colorConversion('red')).toBe('FF0000');
       expect(colorConversion('lightgray')).toBe('D3D3D3');
+    });
+
+    it('converts rgb colors and ignores alpha', () => {
+      expect(colorConversion('rgb(255, 0, 17)')).toBe('FF0011');
+      expect(colorConversion('rgba(100%, 50%, 0%, 0.5)')).toBe('FF8000');
+      expect(colorConversion('rgb(255 0 17)')).toBe('FF0011');
+      expect(colorConversion('rgb(255 0 17 / 50%)')).toBe('FF0011');
+      expect(colorConversion('rgba(100% 50% 0% / 0.5)')).toBe('FF8000');
     });
 
     it('falls back to black on unknown color', () => {
