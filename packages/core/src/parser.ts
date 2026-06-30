@@ -373,11 +373,10 @@ export class Parser {
     if (tableBorderFromAttr) {
       for (const row of rows) {
         for (const cell of row.cells) {
-          if (!cell.styles?.borderStyle && !cell.styles?.border) {
+          if (!cell.styles?.border) {
             cell.styles = {
               ...cell.styles,
-              borderStyle: 'solid',
-              borderWidth: `${borderPx}px`,
+              border: '1px solid',
             };
           }
         }
