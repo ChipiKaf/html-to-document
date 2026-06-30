@@ -413,46 +413,34 @@ export class DocxStyleMapper {
       ...(Object.fromEntries(
         (['top', 'right', 'bottom', 'left'] as const).flatMap((dir) => {
           const capDir = capitalize(dir);
-          // For table / table-cell elements, borders are applied via the `borders`
-          // key (consumed by TableCell / Table). Emitting `border` as well would
-          // create a visible Paragraph border on every child paragraph inside the
-          // cell, producing an unwanted 3-sided inner-cell box in Word.
-          const isCellLike = (el: DocumentElement) =>
-            el.type === 'table-cell' || el.type === 'table';
           return [
             [
               `border${capDir}Color` satisfies StyleKey,
-              (v: string, el: DocumentElement) => ({
+              (v: string) => ({
                 borders: { [dir]: { color: colorConversion(v) } },
-                ...(isCellLike(el)
-                  ? {}
-                  : { border: { [dir]: { color: colorConversion(v) } } }),
+                border: { [dir]: { color: colorConversion(v) } },
               }),
             ],
             [
               `border${capDir}Style` satisfies StyleKey,
-              (v: string, el: DocumentElement) => {
+              (v: string) => {
                 const style = mapBorderStyle(v);
                 const size = style === BorderStyle.NONE ? { size: 0 } : {};
                 return {
                   borders: { [dir]: { style, ...size } },
-                  ...(isCellLike(el)
-                    ? {}
-                    : { border: { [dir]: { style, ...size } } }),
+                  border: { [dir]: { style, ...size } },
                 };
               },
             ],
             [
               `border${capDir}Width` satisfies StyleKey,
-              (v: string, el: DocumentElement) => {
+              (v: string) => {
                 const size = lengthToBorderSize(v);
                 return size === undefined
                   ? {}
                   : {
                       borders: { [dir]: { size } },
-                      ...(isCellLike(el)
-                        ? {}
-                        : { border: { [dir]: { size } } }),
+                      border: { [dir]: { size } },
                     };
               },
             ],

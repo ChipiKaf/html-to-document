@@ -1,4 +1,5 @@
 import {
+  cascadeStyles,
   DocumentElement,
   ListItemElement,
   Styles,
@@ -19,6 +20,7 @@ export class ListItemConverter implements IBlockConverter<DocumentElementType> {
       converter,
       defaultStyles,
       stylesheet,
+      styleMeta,
     }: ElementConverterDependencies,
     element: ListItemElement,
     cascadedStyles: Styles = {}
@@ -27,15 +29,20 @@ export class ListItemConverter implements IBlockConverter<DocumentElementType> {
       ...defaultStyles?.[element.type],
       ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
+    const cascadingStyles = cascadeStyles(
+      mergedStyles,
+      element.scope,
+      styleMeta
+    );
 
     return converter.convertToBlocks({
       stylesheet,
-      cascadedStyles: mergedStyles,
+      cascadedStyles: cascadingStyles,
       inlineParagraphs: true,
       element,
       convertBlock: (dependencies, childBlock) => {
         const { converter: conv } = dependencies;
-        return conv.convertBlock(childBlock, stylesheet, mergedStyles);
+        return conv.convertBlock(childBlock, stylesheet, cascadingStyles);
       },
       wrapInlineElements: (inlines) => {
         const styles = styleMapper.mapStyles(mergedStyles, element);

@@ -1,3 +1,4 @@
+import { createBaseParagraphElement } from '../../docx-stylesheet';
 import {
   BorderStyle,
   type FileChild,
@@ -13,6 +14,7 @@ import {
   cascadeStyles,
   computeInheritedStyles,
   type DocumentElement,
+  filterForScope,
   type GridCell,
   type Styles,
   type TableElement,
@@ -260,8 +262,8 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
                     new Paragraph({
                       children: inlines,
                       ...styleMapper.mapStyles(
-                        cascadedCellStyles,
-                        originalCell
+                        filterForScope(cascadedCellStyles, 'block', styleMeta),
+                        createBaseParagraphElement()
                       ),
                     }),
                   ];

@@ -895,6 +895,37 @@ describe('Docx.adapter.convert', () => {
       expect(paragraphs[1]['w:r']['w:rPr']).toHaveProperty('w:i');
       expect(paragraphs[1]['w:r']['w:t']['#text']).toBe('Hello here');
     });
+    it('should not pass paragraph borders down to nested paragraphs', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Outer',
+            },
+            {
+              type: 'paragraph',
+              text: 'Inner',
+            },
+          ],
+          styles: {
+            border: '1px solid #000000',
+            fontWeight: 'bold',
+          },
+          attributes: {},
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const paragraphs = jsonDocument['w:document']['w:body']['w:p'];
+
+      expect(paragraphs).toHaveLength(2);
+      expect(paragraphs[0]['w:pPr']['w:pBdr']).toBeDefined();
+      expect(paragraphs[1]['w:pPr']?.['w:pBdr']).toBeUndefined();
+      expect(paragraphs[1]['w:r']['w:rPr']).toHaveProperty('w:b');
+    });
     it('should render italic paragraph', async () => {
       const elements: DocumentElement[] = [
         {
@@ -2018,6 +2049,41 @@ describe('Docx.adapter.convert', () => {
       expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
       expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
       expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+    });
+
+    it('does not serialize table-cell borders onto wrapped paragraphs inside the cell', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'table',
+          attributes: {},
+          styles: {},
+          rows: [
+            {
+              type: 'table-row',
+              attributes: {},
+              styles: {},
+              cells: [
+                {
+                  type: 'table-cell',
+                  attributes: {},
+                  styles: { border: '1px solid #000000' },
+                  content: [{ type: 'text', text: 'Bordered cell' }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const cell = toArray(row?.['w:tc'])[0];
+      const paragraph = toArray(cell?.['w:p'])[0];
+
+      expect(cell?.['w:tcPr']?.['w:tcBorders']).toBeDefined();
+      expect(paragraph?.['w:pPr']?.['w:pBdr']).toBeUndefined();
     });
 
     it('should export hidden cell borders by disabling table grid and using explicit cell borders', async () => {

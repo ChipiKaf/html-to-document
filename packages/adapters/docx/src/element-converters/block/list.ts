@@ -1,5 +1,6 @@
 import { FileChild } from 'docx';
 import {
+  cascadeStyles,
   DocumentElement,
   filterForScope,
   ListElement,
@@ -20,13 +21,18 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
     element: DocumentElementType,
     cascadedStyles: Styles = {}
   ): FileChild[] | Promise<FileChild[]> {
-    const { defaultStyles, stylesheet } = dependencies;
+    const { defaultStyles, stylesheet, styleMeta } = dependencies;
     const inherited = filterForScope(cascadedStyles, element.scope);
     // Paragraph element must only have inline children or else it could corrupt the document structure.
     const mergedStyles = {
       ...defaultStyles?.[element.type],
       ...stylesheet.getComputedStyles(element, inherited),
     };
+    const cascadingStyles = cascadeStyles(
+      mergedStyles,
+      element.scope,
+      styleMeta
+    );
 
     return promiseAllFlat(
       element.content.map((child) => {
@@ -37,7 +43,7 @@ export class ListConverter implements IBlockConverter<DocumentElementType> {
         return dependencies.converter.convertBlock(
           child,
           dependencies.stylesheet,
-          mergedStyles
+          cascadingStyles
         );
       })
     );
