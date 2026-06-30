@@ -207,6 +207,20 @@ describe('DocxStyleMapper', () => {
     expect(bwp.border.left.size).toBe(576);
   });
 
+  it('maps border colors from common CSS color formats', () => {
+    const cell = { type: 'table-cell' } as DocumentElement;
+    expect(mapper.mapStyles({ borderTopColor: '#abc' }, cell)).toEqual({
+      borders: { top: { color: 'AABBCC' } },
+      border: { top: { color: 'AABBCC' } },
+    });
+    expect(
+      mapper.mapStyles({ borderTopColor: 'rgb(255, 0, 17)' }, cell)
+    ).toEqual({
+      borders: { top: { color: 'FF0011' } },
+      border: { top: { color: 'FF0011' } },
+    });
+  });
+
   it('maps letterSpacing with shared length conversion', () => {
     const el = { type: 'paragraph' } as DocumentElement;
     expect(mapper.mapStyles({ letterSpacing: '12pt' }, el)).toEqual({
