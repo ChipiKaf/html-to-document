@@ -1226,10 +1226,10 @@ describe('Docx.adapter.convert', () => {
       expect(Number(spacing['@_w:before'])).toBe(75);
       expect(Number(spacing['@_w:after'])).toBe(75);
 
-      // 1D) Indent: padding 15px→15*15=225 twips on left/right
+      // 1D) Indent: margin shorthand expands to left/right longhands, so 20px→20*15=300 twips
       const ind = para['w:pPr']['w:ind'];
-      expect(Number(ind['@_w:left'])).toBe(225);
-      expect(Number(ind['@_w:right'])).toBe(225);
+      expect(Number(ind['@_w:left'])).toBe(300);
+      expect(Number(ind['@_w:right'])).toBe(300);
     });
 
     it('should render three runs and combine line‑through + underline on the second run', async () => {
@@ -1280,6 +1280,31 @@ describe('Docx.adapter.convert', () => {
         'example with both strike‑through and underline.'
       );
       expect(runs[2]['w:rPr']).toBeUndefined();
+    });
+
+    it('should expand two-value paragraph margin shorthand into vertical spacing and zero horizontal indent', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          text: 'margin shorthand',
+          styles: {
+            margin: '20px 0',
+          },
+          attributes: {},
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const json = await parseDocxDocument(buffer);
+      const para = json['w:document']['w:body']['w:p'];
+
+      const spacing = para['w:pPr']['w:spacing'];
+      expect(Number(spacing['@_w:before'])).toBe(300);
+      expect(Number(spacing['@_w:after'])).toBe(300);
+
+      const ind = para['w:pPr']['w:ind'];
+      expect(Number(ind['@_w:left'])).toBe(0);
+      expect(Number(ind['@_w:right'])).toBe(0);
     });
   });
   describe('Links', () => {
@@ -2084,6 +2109,53 @@ describe('Docx.adapter.convert', () => {
 
       expect(cell?.['w:tcPr']?.['w:tcBorders']).toBeDefined();
       expect(paragraph?.['w:pPr']?.['w:pBdr']).toBeUndefined();
+    });
+
+    it('should expand two-value paragraph margin shorthand inside a table cell', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'table',
+          attributes: {},
+          styles: {},
+          rows: [
+            {
+              type: 'table-row',
+              attributes: {},
+              styles: {},
+              cells: [
+                {
+                  type: 'table-cell',
+                  attributes: {},
+                  styles: {},
+                  content: [
+                    {
+                      type: 'paragraph',
+                      text: 'Cell paragraph',
+                      styles: { margin: '20px 0' },
+                      attributes: {},
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const cell = toArray(row?.['w:tc'])[0];
+      const paragraph = toArray(cell?.['w:p'])[0];
+
+      const spacing = paragraph?.['w:pPr']?.['w:spacing'];
+      expect(Number(spacing?.['@_w:before'])).toBe(300);
+      expect(Number(spacing?.['@_w:after'])).toBe(300);
+
+      const ind = paragraph?.['w:pPr']?.['w:ind'];
+      expect(Number(ind?.['@_w:left'])).toBe(0);
+      expect(Number(ind?.['@_w:right'])).toBe(0);
     });
 
     it('should export hidden cell borders by disabling table grid and using explicit cell borders', async () => {

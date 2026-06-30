@@ -19,6 +19,7 @@ import {
   type Styles,
 } from 'html-to-document-core';
 import { lengthToTwips, parseWidth } from './utils/parse';
+import { splitQuadShorthand } from './utils/css-shorthands';
 import {
   twipsToEighthsOfPoint,
   twipsToEmus,
@@ -471,199 +472,77 @@ export class DocxStyleMapper {
         })
       ) satisfies DocxStyleMapping),
 
-      padding: (v, el) => {
-        if (el.type === 'table') return {};
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const twips = lengthToTwips(token);
-        if (typeof twips !== 'number') return {};
+      padding: () => {
+        // Handled by expanded padding longhands in expandShorthands().
+        return {};
+      },
+      margin: () => {
+        // Handled by expanded margin longhands in expandShorthands().
+        return {};
+      },
+      ...(Object.fromEntries(
+        (['top', 'right', 'bottom', 'left'] as const).map((dir) => {
+          const capDir = capitalize(dir);
+          const wrapMarginKey =
+            dir === 'top'
+              ? 'distT'
+              : dir === 'right'
+                ? 'distR'
+                : dir === 'bottom'
+                  ? 'distB'
+                  : 'distL';
+          const paragraphMarginKey =
+            dir === 'top' ? 'before' : dir === 'bottom' ? 'after' : dir;
 
-        if (el.type === 'table-cell') {
-          return {
-            margins: { top: twips, bottom: twips, left: twips, right: twips },
-          };
-        }
+          return [
+            `margin${capDir}` satisfies StyleKey,
+            (v: string, el: DocumentElement) => {
+              const token = v.trim().split(/\s+/)[0] ?? '';
+              const twips = lengthToTwips(token);
+              if (typeof twips !== 'number') return {};
 
-        // treat padding on paragraphs as extra spacing + indentation
-        return {
-          spacing: {
-            before: twips,
-            after: twips,
-          },
-          indent: {
-            left: twips,
-            right: twips,
-          },
-        };
-      },
-      margin: (v: string, el: DocumentElement) => {
-        const raw = v.trim();
-        const token = raw.split(/\s+/)[0] ?? '';
-        const twips = lengthToTwips(token);
-        if (typeof twips !== 'number') return {};
-        // Only apply wrap margins if image is floated
-        const floatDir = (el.styles as Styles & { float?: string })?.float;
-        if (
-          el.type === 'image' &&
-          (floatDir === 'left' || floatDir === 'right')
-        ) {
-          return {
-            floating: {
-              wrap: {
-                margins: {
-                  distL: twips,
-                  distR: twips,
-                  distT: twips,
-                  distB: twips,
-                },
-              },
-            },
-          };
-        }
-        // Tables: ignore
-        if (el.type === 'table') return {};
-        // Table cells: direct cell margins
-        if (el.type === 'table-cell') {
-          return {
-            margins: { top: twips, bottom: twips, left: twips, right: twips },
-          };
-        }
-        // Paragraphs: spacing + indent
-        const before = twips;
-        const after = twips;
-        const horiz = twips;
-        return {
-          spacing: { before, after },
-          indent: { left: horiz, right: horiz },
-        };
-      },
-      marginTop: (v: string, el: DocumentElement) => {
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const twips = lengthToTwips(token);
-        if (typeof twips !== 'number') return {};
-        // Only apply top wrap margin if image is floated
-        const floatDir = (el.styles as Styles & { float?: string })?.float;
-        if (
-          el.type === 'image' &&
-          (floatDir === 'left' || floatDir === 'right')
-        ) {
-          return { floating: { wrap: { margins: { distT: twips } } } };
-        }
-        if (el.type === 'table') return {};
-        if (el.type === 'table-cell') {
-          return { margins: { top: twips } };
-        }
-        return { spacing: { before: twips } };
-      },
+              const floatDir = (el.styles as Styles & { float?: string })
+                ?.float;
+              if (
+                el.type === 'image' &&
+                (floatDir === 'left' || floatDir === 'right')
+              ) {
+                return {
+                  floating: { wrap: { margins: { [wrapMarginKey]: twips } } },
+                };
+              }
 
-      marginBottom: (v: string, el: DocumentElement) => {
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const twips = lengthToTwips(token);
-        if (typeof twips !== 'number') return {};
-        // Only apply bottom wrap margin if image is floated
-        const floatDir = (el.styles as Styles & { float?: string })?.float;
-        if (
-          el.type === 'image' &&
-          (floatDir === 'left' || floatDir === 'right')
-        ) {
-          return { floating: { wrap: { margins: { distB: twips } } } };
-        }
-        if (el.type === 'table') return {};
-        if (el.type === 'table-cell') {
-          return { margins: { bottom: twips } };
-        }
-        return { spacing: { after: twips } };
-      },
+              if (el.type === 'table') return {};
+              if (el.type === 'table-cell') {
+                return { margins: { [dir]: twips } };
+              }
 
-      marginLeft: (v: string, el: DocumentElement) => {
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const twips = lengthToTwips(token);
-        if (typeof twips !== 'number') return {};
-        // Only apply left wrap margin if image is floated
-        const floatDir = (el.styles as Styles & { float?: string })?.float;
-        if (
-          el.type === 'image' &&
-          (floatDir === 'left' || floatDir === 'right')
-        ) {
-          return { floating: { wrap: { margins: { distL: twips } } } };
-        }
-        if (el.type === 'table') return {};
-        if (el.type === 'table-cell') {
-          return { margins: { left: twips } };
-        }
-        return { indent: { left: twips } };
-      },
-      paddingLeft: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const space = lengthToTwips(token);
-        if (typeof space !== 'number') return {};
-        if (el.type === 'table-cell') {
-          return {
-            margins: {
-              left: space,
+              return dir === 'top' || dir === 'bottom'
+                ? { spacing: { [paragraphMarginKey]: twips } }
+                : { indent: { [paragraphMarginKey]: twips } };
             },
-          };
-        }
-        return {
-          border: {
-            left: { space },
-          },
-        };
-      },
-      paddingRight: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const space = lengthToTwips(token);
-        if (typeof space !== 'number') return {};
-        if (el.type === 'table-cell') {
-          return {
-            margins: {
-              right: space,
+          ];
+        })
+      ) satisfies DocxStyleMapping),
+      ...(Object.fromEntries(
+        (['top', 'right', 'bottom', 'left'] as const).map((dir) => {
+          const capDir = capitalize(dir);
+
+          return [
+            `padding${capDir}` satisfies StyleKey,
+            (v: string, el: DocumentElement) => {
+              if (el.type === 'table') return {};
+              const token = v.trim().split(/\s+/)[0] ?? '';
+              const space = lengthToTwips(token);
+              if (typeof space !== 'number') return {};
+
+              return el.type === 'table-cell'
+                ? { margins: { [dir]: space } }
+                : { border: { [dir]: { space } } };
             },
-          };
-        }
-        return {
-          border: {
-            right: { space },
-          },
-        };
-      },
-      paddingTop: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const space = lengthToTwips(token);
-        if (typeof space !== 'number') return {};
-        if (el.type === 'table-cell') {
-          return {
-            margins: {
-              top: space,
-            },
-          };
-        }
-        return {
-          border: {
-            top: { space },
-          },
-        };
-      },
-      paddingBottom: (v: string, el: DocumentElement) => {
-        if (el.type === 'table') return {};
-        const token = v.trim().split(/\s+/)[0] ?? '';
-        const space = lengthToTwips(token);
-        if (typeof space !== 'number') return {};
-        if (el.type === 'table-cell') {
-          return {
-            margins: {
-              bottom: space,
-            },
-          };
-        }
-        return {
-          border: {
-            bottom: { space },
-          },
-        };
-      },
+          ];
+        })
+      ) satisfies DocxStyleMapping),
       listStyleType: (v) =>
         v === 'decimal'
           ? { numbering: 'decimal' }
@@ -687,6 +566,12 @@ export class DocxStyleMapper {
     const borderDirections = capitalizedDirections.map(
       (dir) => `border${dir}` satisfies StyleKey
     );
+    const boxShorthandProps = ['margin', 'padding'] as const;
+    const borderQuadShorthandProps = [
+      ['borderWidth', 'Width'],
+      ['borderStyle', 'Style'],
+      ['borderColor', 'Color'],
+    ] as const;
 
     const borderShorthand = (
       prop: string | number
@@ -744,27 +629,33 @@ export class DocxStyleMapper {
       mappedStyles[colorProp] ??= color;
     });
 
-    if (mappedStyles.borderWidth) {
-      const widthValue = mappedStyles.borderWidth;
-      capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Width` satisfies StyleKey;
-        mappedStyles[prop] ??= widthValue;
+    boxShorthandProps.forEach((prop) => {
+      const value = mappedStyles[prop];
+      const expanded = splitQuadShorthand(value);
+      if (!expanded) return;
+
+      directions.forEach((side, index) => {
+        const dir = capitalizedDirections[index]!;
+        const sideProp = `${prop}${dir}` satisfies StyleKey;
+        mappedStyles[sideProp] ??= expanded[side];
       });
-    }
-    if (mappedStyles.borderStyle) {
-      const styleValue = mappedStyles.borderStyle;
-      capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Style` satisfies StyleKey;
-        mappedStyles[prop] ??= styleValue;
+
+      delete mappedStyles[prop];
+    });
+
+    borderQuadShorthandProps.forEach(([prop, suffix]) => {
+      const value = mappedStyles[prop];
+      const expanded = splitQuadShorthand(value);
+      if (!expanded) return;
+
+      directions.forEach((side, index) => {
+        const dir = capitalizedDirections[index]!;
+        const sideProp = `border${dir}${suffix}` satisfies StyleKey;
+        mappedStyles[sideProp] ??= expanded[side];
       });
-    }
-    if (mappedStyles.borderColor) {
-      const colorValue = mappedStyles.borderColor;
-      capitalizedDirections.forEach((dir) => {
-        const prop = `border${dir}Color` satisfies StyleKey;
-        mappedStyles[prop] ??= colorValue;
-      });
-    }
+
+      delete mappedStyles[prop];
+    });
 
     return mappedStyles;
   }
