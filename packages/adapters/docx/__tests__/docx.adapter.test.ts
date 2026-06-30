@@ -1,4 +1,5 @@
-import { AlignmentType, NumberFormat, type ISectionOptions } from 'docx';
+import { AlignmentType, type ISectionOptions, NumberFormat } from 'docx';
+import type { StylesheetStatement } from 'html-to-document-core';
 import {
   createBaseStylesheet,
   createStylesheet,
@@ -16,9 +17,8 @@ import {
 } from '../../../core/__tests__/utils/parser.helper';
 import { DocxAdapter } from '../src/docx.adapter';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
-import type { StylesheetStatement } from 'html-to-document-core';
 import { DocxStylesheet } from '../src/docx-stylesheet';
-import { TWIPS_PER_INCH, TWIPS_PER_MM } from '../src/utils/unit-conversion';
+import { CompiledStyleRule } from '../../../core/src/styles';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
@@ -119,7 +119,7 @@ describe('Docx.adapter.convert', () => {
           kind: 'style',
           selectors: ['h1'],
           declarations: { color: 'blue' },
-          declarationMeta: { origin: DOCX_DEFAULT_DECLARATION_ORIGIN },
+          // declarationMeta: { origin: DOCX_DEFAULT_DECLARATION_ORIGIN },
         },
         {
           kind: 'style',
@@ -208,7 +208,6 @@ describe('Docx.adapter.convert', () => {
       ]).buffer; // This represents a PNG header.
 
       beforeEach(() => {
-        // @ts-expect-error
         global.fetch = vi.fn().mockResolvedValue({
           ok: true,
           arrayBuffer: async () => fakeArrayBuffer,
@@ -748,11 +747,11 @@ describe('Docx.adapter.convert', () => {
       ) as Record<string, unknown> | undefined;
 
       expect(headingStyle).toBeDefined();
-      expect(headingStyle['w:rPr']['w:i']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:iCs']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:b']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:bCs']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:color']['@_w:val']).toBe('3366FF');
+      expect(headingStyle?.['w:rPr']?.['w:i']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:iCs']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:b']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:bCs']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:color']['@_w:val']).toBe('3366FF');
     });
 
     it('should render a heading with extra bold and italic styling', async () => {
