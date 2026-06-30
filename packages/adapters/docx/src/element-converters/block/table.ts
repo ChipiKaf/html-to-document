@@ -237,31 +237,30 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
                 ...stylesheet.getMatchedStyles(originalCell),
               }
             : {};
+          const cascadedCellStyles = originalCell
+            ? computeInheritedStyles({
+                parentStyles: {
+                  ...originalCellMatchedStyles,
+                  ...stylesCol[j],
+                  ...originalCell.styles,
+                },
+                parentScope: 'tableCell',
+                childScope: 'block',
+                metaRegistry: styleMeta,
+              })
+            : {};
 
           const cellContent = originalCell
             ? converter.convertToBlocks({
                 element: originalCell,
                 stylesheet,
-                cascadedStyles: computeInheritedStyles({
-                  parentStyles: {
-                    ...originalCellMatchedStyles,
-                    ...stylesCol[j],
-                    ...originalCell.styles,
-                  },
-                  parentScope: 'tableCell',
-                  childScope: 'block',
-                  metaRegistry: styleMeta,
-                }),
+                cascadedStyles: cascadedCellStyles,
                 wrapInlineElements: (inlines) => {
                   return [
                     new Paragraph({
                       children: inlines,
                       ...styleMapper.mapStyles(
-                        {
-                          ...originalCellMatchedStyles,
-                          ...stylesCol[j],
-                          ...originalCell.styles,
-                        },
+                        cascadedCellStyles,
                         originalCell
                       ),
                     }),

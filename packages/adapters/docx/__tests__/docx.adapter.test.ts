@@ -2328,6 +2328,31 @@ describe('Docx.adapter.convert', () => {
       expect(visibleCellBorders['w:bottom']?.['@_w:val']).toBe('single');
     });
 
+    it('should not emit paragraph borders for inline cell content from table border attribute', async () => {
+      const elements = new Parser([], new JSDOMParser()).parse(
+        '<table border="1"><tr><td>Cell 1</td><td><span>Cell 2</span></td></tr></table>'
+      );
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const [firstCell, secondCell] = toArray(row?.['w:tc']);
+      const firstCellBorders = firstCell?.['w:tcPr']?.['w:tcBorders'];
+      const secondCellBorders = secondCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(firstCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(firstCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(firstCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(firstCellBorders['w:left']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:left']?.['@_w:val']).toBe('single');
+      expect(firstCell?.['w:p']?.['w:pPr']?.['w:pBdr']).toBeUndefined();
+      expect(secondCell?.['w:p']?.['w:pPr']?.['w:pBdr']).toBeUndefined();
+    });
+
     it('should convert a table with multiple rows and columns', async () => {
       const table: DocumentElement = {
         type: 'table',
