@@ -1,5 +1,4 @@
-import type { ISectionOptions } from 'docx';
-import { AlignmentType, NumberFormat } from 'docx';
+import { AlignmentType, NumberFormat, type ISectionOptions } from 'docx';
 import {
   createBaseStylesheet,
   createStylesheet,
@@ -17,17 +16,8 @@ import {
 } from '../../../core/__tests__/utils/parser.helper';
 import { DocxAdapter } from '../src/docx.adapter';
 import { DocxStyleMapper } from '../src/docx-style-mapper';
-import JSZip from 'jszip';
-import { AlignmentType, NumberFormat } from 'docx';
-import type { ISectionOptions } from 'docx';
-import type {
-  CompiledStyleRule,
-  StylesheetStatement,
-} from 'html-to-document-core';
-import {
-  DOCX_DEFAULT_DECLARATION_ORIGIN,
-  DocxStylesheet,
-} from '../src/docx-stylesheet';
+import type { StylesheetStatement } from 'html-to-document-core';
+import { DocxStylesheet } from '../src/docx-stylesheet';
 import { TWIPS_PER_INCH, TWIPS_PER_MM } from '../src/utils/unit-conversion';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
@@ -2161,7 +2151,7 @@ describe('Docx.adapter.convert', () => {
       expect(solidCellBorders['w:bottom']?.['@_w:val']).toBe('single');
     });
 
-    it.skip('should keep table outer edges hidden while unstyled inner cells stay borderless', async () => {
+    it('should keep table outer edges hidden', async () => {
       const table: DocumentElement = {
         type: 'table',
         styles: { borderStyle: 'hidden' },
@@ -2181,13 +2171,17 @@ describe('Docx.adapter.convert', () => {
               {
                 type: 'table-cell',
                 content: [{ type: 'text', text: 'Visible' }],
-                styles: {},
+                styles: {
+                  border: '1px solid #000000',
+                },
                 attributes: {},
               },
               {
                 type: 'table-cell',
                 content: [{ type: 'text', text: 'Visible 2' }],
-                styles: {},
+                styles: {
+                  border: '1px solid #000000',
+                },
                 attributes: {},
               },
             ],
@@ -2205,10 +2199,12 @@ describe('Docx.adapter.convert', () => {
 
       expect(middleBorders['w:top']?.['@_w:val']).toBe('none');
       expect(middleBorders['w:bottom']?.['@_w:val']).toBe('none');
-      expect(middleBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(middleBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(middleBorders['w:left']?.['@_w:val']).toBe('none');
       expect(rightBorders['w:top']?.['@_w:val']).toBe('none');
       expect(rightBorders['w:right']?.['@_w:val']).toBe('none');
       expect(rightBorders['w:bottom']?.['@_w:val']).toBe('none');
+      expect(rightBorders['w:left']?.['@_w:val']).toBe('single');
     });
 
     it('should set explicit none borders on a cell with border-style: none', async () => {
@@ -2409,7 +2405,7 @@ describe('Docx.adapter.convert', () => {
       expect(cell4Text).toBe('Cell 4');
     });
 
-    it.skip('should export a plain HTML table with explicit none table borders', async () => {
+    it('should export a plain HTML table with implicit none table borders', async () => {
       const table: DocumentElement = {
         type: 'table',
         rows: [

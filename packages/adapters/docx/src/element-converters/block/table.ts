@@ -32,6 +32,7 @@ const isBorderSideHidden = (
 ): boolean => {
   const sideVal = styles[`border${side}Style` as keyof Styles];
   if (sideVal !== undefined) return sideVal === 'hidden';
+  // Consider removing the following checks as we may assume the styles to already be expanded
   const globalVal = styles.borderStyle;
   if (globalVal !== undefined) return globalVal === 'hidden';
   const border = styles.border;
