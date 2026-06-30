@@ -2246,6 +2246,82 @@ describe('Docx.adapter.convert', () => {
       expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
     });
 
+    it('should export none borders when every cell has border-width: 0 and border-style: none', async () => {
+      const elements = new Parser([], new JSDOMParser()).parse(
+        '<table><tr><td style="border-width: 0; border-style: none">A1</td><td style="border-width: 0; border-style: none">A2</td></tr><tr><td style="border-width: 0; border-style: none">B1</td><td style="border-width: 0; border-style: none">B2</td></tr></table>'
+      );
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideH']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:sz']).toBe('0');
+
+      const rows = toArray(tbl['w:tr']);
+      const cells = rows.flatMap((row) => toArray(row?.['w:tc']));
+
+      expect(cells).toHaveLength(4);
+
+      for (const cell of cells) {
+        const cellBorders = cell?.['w:tcPr']?.['w:tcBorders'];
+
+        expect(cellBorders).toBeDefined();
+        expect(cellBorders['w:top']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:top']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:right']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:right']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:bottom']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+      }
+    });
+
+    it('should export none borders when every cell has border-width: 0 and border-style: none over stylesheet cell borders', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('th, td', { border: '1px solid #000000' });
+
+      const elements = new Parser([], new JSDOMParser()).parse(
+        '<table><tr><td style="border-width: 0; border-style: none">A1</td><td style="border-width: 0; border-style: none">A2</td></tr><tr><td style="border-width: 0; border-style: none">B1</td><td style="border-width: 0; border-style: none">B2</td></tr></table>'
+      );
+      const styledAdapter = new DocxAdapter({ stylesheet });
+
+      const buffer = await styledAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideH']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:sz']).toBe('0');
+
+      const rows = toArray(tbl['w:tr']);
+      const cells = rows.flatMap((row) => toArray(row?.['w:tc']));
+
+      expect(cells).toHaveLength(4);
+
+      for (const cell of cells) {
+        const cellBorders = cell?.['w:tcPr']?.['w:tcBorders'];
+
+        expect(cellBorders).toBeDefined();
+        expect(cellBorders['w:top']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:top']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:right']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:right']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:bottom']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+      }
+    });
+
     it('should not treat a cell border none as a hidden neighbor', async () => {
       const table: DocumentElement = {
         type: 'table',
