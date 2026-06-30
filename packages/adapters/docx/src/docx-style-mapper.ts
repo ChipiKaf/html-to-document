@@ -1,24 +1,24 @@
 import {
-  colorConversion,
-  DocumentElement,
-  Styles,
-  parseImageSizePx,
-} from 'html-to-document-core';
-import { lengthToTwips, parseWidth } from './utils/parse';
-import {
   BorderStyle,
-  ShadingType,
   // Floating image positioning and wrapping enums
   HorizontalPositionAlign,
   HorizontalPositionRelativeFrom,
+  type IImageOptions,
+  type ISpacingProperties,
+  type ITableRowOptions,
+  ShadingType,
+  TextWrappingSide,
+  TextWrappingType,
   VerticalPositionAlign,
   VerticalPositionRelativeFrom,
-  TextWrappingType,
-  TextWrappingSide,
-  IImageOptions,
-  ITableRowOptions,
-  ISpacingProperties,
 } from 'docx';
+import {
+  colorConversion,
+  type DocumentElement,
+  parseImageSizePx,
+  type Styles,
+} from 'html-to-document-core';
+import { lengthToTwips, parseWidth } from './utils/parse';
 import {
   twipsToEighthsOfPoint,
   twipsToEmus,
@@ -74,7 +74,7 @@ const mapBorderStyle = (style: string): string => {
     case 'outset':
       return BorderStyle.SINGLE;
     default:
-      return BorderStyle.SINGLE;
+      return BorderStyle.NONE;
   }
 };
 
@@ -423,10 +423,14 @@ export class DocxStyleMapper {
             ],
             [
               `border${capDir}Style` satisfies StyleKey,
-              (v: string) => ({
-                borders: { [dir]: { style: mapBorderStyle(v) } },
-                border: { [dir]: { style: mapBorderStyle(v) } },
-              }),
+              (v: string) => {
+                const style = mapBorderStyle(v);
+                const size = style === BorderStyle.NONE ? { size: 0 } : {};
+                return {
+                  borders: { [dir]: { style, ...size } },
+                  border: { [dir]: { style, ...size } },
+                };
+              },
             ],
             [
               `border${capDir}Width` satisfies StyleKey,

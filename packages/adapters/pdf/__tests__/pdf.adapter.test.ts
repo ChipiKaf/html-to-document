@@ -281,6 +281,8 @@ describe('PDFAdapter', () => {
 
   describe('Browser environment', () => {
     beforeEach(() => {
+      const dom = new JSDOM('<!DOCTYPE html>');
+
       // Mock browser environment
       Object.defineProperty(globalThis, 'window', {
         value: {},
@@ -300,6 +302,11 @@ describe('PDFAdapter', () => {
             innerHTML: '',
           }),
         },
+        writable: true,
+      });
+
+      Object.defineProperty(globalThis, 'DOMParser', {
+        value: dom.window.DOMParser,
         writable: true,
       });
     });

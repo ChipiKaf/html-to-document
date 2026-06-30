@@ -1,15 +1,7 @@
+import { createBaseParagraphElement } from '../../docx-stylesheet';
 import {
-  AttributeElement,
-  cascadeStyles,
-  computeInheritedStyles,
-  DocumentElement,
-  GridCell,
-  Styles,
-  TableElement,
-} from 'html-to-document-core';
-import { ElementConverterDependencies, IBlockConverter } from '../types';
-import {
-  FileChild,
+  BorderStyle,
+  type FileChild,
   Paragraph,
   Table,
   TableCell,
@@ -17,8 +9,38 @@ import {
   TextRun,
   VerticalAlign,
 } from 'docx';
+import {
+  type AttributeElement,
+  cascadeStyles,
+  computeInheritedStyles,
+  type DocumentElement,
+  filterForScope,
+  type GridCell,
+  type Styles,
+  type TableElement,
+} from 'html-to-document-core';
+import type { ElementConverterDependencies, IBlockConverter } from '../types';
 
 type DocumentElementType = TableElement;
+
+/**
+ * Returns true if the given CSS styles declare `hidden` on the specified border side.
+ * Per CSS, `border-style: hidden` has the highest priority in border conflict resolution
+ * and suppresses adjacent visible borders in a collapsed-border table.
+ */
+const isBorderSideHidden = (
+  styles: Styles,
+  side: 'Top' | 'Right' | 'Bottom' | 'Left'
+): boolean => {
+  const sideVal = styles[`border${side}Style` as keyof Styles];
+  if (sideVal !== undefined) return sideVal === 'hidden';
+  // Consider removing the following checks as we may assume the styles to already be expanded
+  const globalVal = styles.borderStyle;
+  if (globalVal !== undefined) return globalVal === 'hidden';
+  const border = styles.border;
+  if (border !== undefined) return /\bhidden\b/.test(String(border));
+  return false;
+};
 
 export class TableConverter implements IBlockConverter<DocumentElementType> {
   public isMatch(element: DocumentElement): element is DocumentElementType {
@@ -39,7 +61,6 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       ...defaultStyles?.[element.type],
       ...stylesheet.getComputedStyles(element, cascadedStyles),
     };
-
     const cascadingStyles = cascadeStyles(
       mergedStyles,
       element.scope,
@@ -157,6 +178,21 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
         }
       }
     }
+
+    // Helper to get the merged raw CSS styles for any grid cell (used for adjacent hidden resolution)
+    const getGridCellRawStyles = (
+      gridCell: (typeof grid)[0][0] | undefined
+    ): Styles | null => {
+      if (!gridCell?.cell) return null;
+      return {
+        ...(defaultStyles?.[gridCell.cell.type] ?? {}),
+        ...stylesheet.getMatchedStyles(gridCell.cell),
+        ...gridCell.cell.styles,
+      } as Styles;
+    };
+
+    const NONE_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' };
+
     // Build the TableRows objects
     const tableRows: TableRow[] = [];
     for (let i = 0; i < numRows; i++) {
@@ -179,7 +215,6 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
           j++;
         } else if (gridCell.horizontal) {
           j++;
-          continue;
         } else if (gridCell.verticalMerge) {
           cells.push(
             new TableCell({
@@ -204,60 +239,89 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
                 ...stylesheet.getMatchedStyles(originalCell),
               }
             : {};
+          const cascadedCellStyles = originalCell
+            ? computeInheritedStyles({
+                parentStyles: {
+                  ...originalCellMatchedStyles,
+                  ...stylesCol[j],
+                  ...originalCell.styles,
+                },
+                parentScope: 'tableCell',
+                childScope: 'block',
+                metaRegistry: styleMeta,
+              })
+            : {};
+
           const cellContent = originalCell
             ? converter.convertToBlocks({
                 element: originalCell,
                 stylesheet,
-                cascadedStyles: computeInheritedStyles({
-                  parentStyles: {
-                    ...originalCellMatchedStyles,
-                    ...stylesCol[j],
-                    ...originalCell.styles,
-                  },
-                  parentScope: 'tableCell',
-                  childScope: 'block',
-                  metaRegistry: styleMeta,
-                }),
+                cascadedStyles: cascadedCellStyles,
                 wrapInlineElements: (inlines) => {
                   return [
                     new Paragraph({
                       children: inlines,
                       ...styleMapper.mapStyles(
-                        {
-                          ...originalCellMatchedStyles,
-                          ...stylesCol[j],
-                          ...originalCell.styles,
-                        },
-                        originalCell
+                        filterForScope(cascadedCellStyles, 'block', styleMeta),
+                        createBaseParagraphElement()
                       ),
                     }),
                   ];
                 },
               })
             : [new Paragraph('')];
+          const docxCellStyles = styleMapper.mapStyles(
+            {
+              ...(originalCell
+                ? {
+                    ...stylesheet?.getMatchedStyles(originalCell),
+                    ...defaultStyles?.[originalCell.type],
+                  }
+                : {}),
+              ...originalCell?.styles,
+            },
+            originalCell!
+          ) as Record<string, unknown>;
 
-          cells.push(
-            new TableCell({
-              // TODO: make concurrent iterations
-              children: await cellContent,
-              columnSpan: colSpan > 1 ? colSpan : undefined,
-              verticalMerge: verticalMerge,
-              verticalAlign: VerticalAlign.CENTER,
-              ...stylesCol[j],
-              ...styleMapper.mapStyles(
-                {
-                  ...(originalCell
-                    ? {
-                        ...stylesheet?.getMatchedStyles(originalCell),
-                        ...defaultStyles?.[originalCell.type],
-                      }
-                    : {}),
-                  ...originalCell?.styles,
-                },
-                originalCell!
-              ),
-            })
-          );
+          // CSS collapsed border model: border-style: hidden on a neighbour always wins.
+          // If an adjacent cell declares hidden on its shared side, suppress our border there.
+          const adjacencyOverrides: Record<string, unknown> = {};
+          const rightNeighbor = getGridCellRawStyles(grid[i]?.[j + colSpan]);
+          if (rightNeighbor && isBorderSideHidden(rightNeighbor, 'Left')) {
+            adjacencyOverrides.right = NONE_BORDER;
+          }
+          const leftNeighbor =
+            j > 0 ? getGridCellRawStyles(grid[i]?.[j - 1]) : null;
+          if (leftNeighbor && isBorderSideHidden(leftNeighbor, 'Right')) {
+            adjacencyOverrides.left = NONE_BORDER;
+          }
+          const bottomNeighbor = getGridCellRawStyles(grid[i + rowSpan]?.[j]);
+          if (bottomNeighbor && isBorderSideHidden(bottomNeighbor, 'Top')) {
+            adjacencyOverrides.bottom = NONE_BORDER;
+          }
+          const topNeighbor =
+            i > 0 ? getGridCellRawStyles(grid[i - 1]?.[j]) : null;
+          if (topNeighbor && isBorderSideHidden(topNeighbor, 'Bottom')) {
+            adjacencyOverrides.top = NONE_BORDER;
+          }
+          if (Object.keys(adjacencyOverrides).length > 0) {
+            const existing = (docxCellStyles.borders ?? {}) as Record<
+              string,
+              unknown
+            >;
+            docxCellStyles.borders = { ...existing, ...adjacencyOverrides };
+          }
+
+          const newCell = new TableCell({
+            // TODO: make concurrent iterations
+            children: await cellContent,
+            columnSpan: colSpan > 1 ? colSpan : undefined,
+            verticalMerge: verticalMerge,
+            verticalAlign: VerticalAlign.CENTER,
+            ...stylesCol[j],
+            ...docxCellStyles,
+          });
+          cells.push(newCell);
           j += colSpan;
         }
       }
@@ -291,10 +355,25 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       element
     );
 
+    // HTML default: tables have no visible borders unless explicitly styled.
+    // The docx library falls back to DEFAULT_BORDER (single, size 4) for every
+    // unspecified side in TableBorders — including insideH/V — so we must
+    // always supply an explicit all-none set and let CSS values override it.
+    const tableBorders = {
+      top: NONE_BORDER,
+      bottom: NONE_BORDER,
+      left: NONE_BORDER,
+      right: NONE_BORDER,
+      insideHorizontal: NONE_BORDER,
+      insideVertical: NONE_BORDER,
+      ...((rawStyles.borders as Record<string, unknown> | undefined) ?? {}),
+    };
+
     return [
       ...captions.filter((c) => c.side === 'top').map((c) => c.paragraph),
       new Table({
         ...rawStyles,
+        borders: tableBorders,
         rows: tableRows,
       }),
       ...captions.filter((c) => c.side === 'bottom').map((c) => c.paragraph),

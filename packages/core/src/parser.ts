@@ -1,18 +1,18 @@
-import {
-  extractAttributesToMetadata,
-  parseAttributes,
-  parseStyles,
-} from './utils/html.utils';
-import {
+import type {
   DocumentElement,
   IDOMParser,
+  ListItemElement,
   TableCellElement,
   TableRowElement,
   TagHandler,
   TagHandlerObject,
   TagHandlerOptions,
-  ListItemElement,
 } from './types';
+import {
+  extractAttributesToMetadata,
+  parseAttributes,
+  parseStyles,
+} from './utils/html.utils';
 
 class NativeParser implements IDOMParser {
   parse(html: string): Document {
@@ -198,22 +198,20 @@ export class Parser {
     if (shouldWalk) {
       const { isList, newLevel } = getListLevel(tagName, options);
 
-      children = Array.from(element.childNodes)
-        .map((child) => {
-          const key = child.nodeName.toLowerCase();
-          return this._parseElement(
-            child,
-            this._tagHandlers.get(key) ?? this._defaultHandler,
-            isList
-              ? {
-                  metadata: {
-                    level: newLevel,
-                  },
-                }
-              : {}
-          );
-        })
-        .flat();
+      children = Array.from(element.childNodes).flatMap((child) => {
+        const key = child.nodeName.toLowerCase();
+        return this._parseElement(
+          child,
+          this._tagHandlers.get(key) ?? this._defaultHandler,
+          isList
+            ? {
+                metadata: {
+                  level: newLevel,
+                },
+              }
+            : {}
+        );
+      });
     }
     // Extract text
     const text =
@@ -315,16 +313,36 @@ export class Parser {
     const rows: TableRowElement[] = [];
     const content: DocumentElement[] = [];
 
+    const tableEl = element as HTMLElement;
+
     // Fetch defaults
     const defaultTableAttrs =
       this._defaultAttributes.get(
-        (
-          element as HTMLElement
-        ).tagName.toLowerCase() as keyof HTMLElementTagNameMap
+        tableEl.tagName.toLowerCase() as keyof HTMLElementTagNameMap
       ) || {};
 
+    const tableStyles = parseStyles(tableEl);
+    const tableAttrs = parseAttributes(tableEl);
+
+    // Map the deprecated HTML `border` attribute to CSS when no explicit
+    // border-style is already set via the `style` attribute.
+    // e.g. border="1" → borderStyle: 'solid', borderWidth: '1px'
+    // Per the HTML spec and browser behaviour, this also applies to all cells.
+    const borderAttr = tableAttrs['border'];
+    const borderPx = Number(borderAttr);
+    const tableBorderFromAttr =
+      borderAttr !== undefined &&
+      !tableStyles.borderStyle &&
+      !tableStyles.border &&
+      borderPx > 0;
+
+    if (tableBorderFromAttr) {
+      tableStyles.borderStyle = 'solid';
+      tableStyles.borderWidth = `${borderPx}px`;
+    }
+
     // Iterate *every* direct child of <table> in source order
-    Array.from((element as HTMLElement).childNodes).forEach((node) => {
+    Array.from(tableEl.childNodes).forEach((node) => {
       if (node.nodeType !== 1) return; // skip text/comments
       const el = node as HTMLElement;
       const tag = el.tagName.toLowerCase();
@@ -350,20 +368,36 @@ export class Parser {
         }
       }
     });
+
+    // Propagate border attribute down to cells that don't have their own border.
+    if (tableBorderFromAttr) {
+      for (const row of rows) {
+        for (const cell of row.cells) {
+          if (!cell.styles?.border) {
+            cell.styles = {
+              ...cell.styles,
+              border: '1px solid',
+            };
+          }
+        }
+      }
+    }
     return {
       type: 'table',
       rows,
       content: content.length > 0 ? content : undefined,
       styles: {
         ...options.styles,
+        ...tableStyles,
       },
       metadata: {
         ...options.metadata,
-        nested: element.parentElement?.tagName.toLowerCase() === 'td',
+        nested: tableEl.parentElement?.tagName.toLowerCase() === 'td',
       },
       attributes: {
         ...defaultTableAttrs,
         ...options.attributes,
+        ...tableAttrs,
       },
       scope: 'table',
     };

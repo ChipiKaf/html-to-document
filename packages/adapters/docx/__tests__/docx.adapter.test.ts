@@ -1,31 +1,24 @@
-import { DocxAdapter } from '../src/docx.adapter';
-import { DocxStyleMapper } from '../src/docx-style-mapper';
+import { AlignmentType, type ISectionOptions, NumberFormat } from 'docx';
+import type { StylesheetStatement } from 'html-to-document-core';
 import {
-  createStylesheet,
   createBaseStylesheet,
-  DocumentElement,
+  createStylesheet,
+  type DocumentElement,
+  type IStylesheet,
   minifyMiddleware,
   Parser,
-  IStylesheet,
 } from 'html-to-document-core';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import JSZip from 'jszip';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   JSDOMParser,
   parseDocxDocument,
   parseDocxXml,
 } from '../../../core/__tests__/utils/parser.helper';
-import JSZip from 'jszip';
-import { AlignmentType, NumberFormat } from 'docx';
-import type { ISectionOptions } from 'docx';
-import type {
-  CompiledStyleRule,
-  StylesheetStatement,
-} from 'html-to-document-core';
-import {
-  DOCX_DEFAULT_DECLARATION_ORIGIN,
-  DocxStylesheet,
-} from '../src/docx-stylesheet';
-import { TWIPS_PER_INCH, TWIPS_PER_MM } from '../src/utils/unit-conversion';
+import { DocxAdapter } from '../src/docx.adapter';
+import { DocxStyleMapper } from '../src/docx-style-mapper';
+import { DocxStylesheet } from '../src/docx-stylesheet';
+import { CompiledStyleRule } from '../../../core/src/styles';
 
 // Helper function to recursively find a drawing element in the DOCX JSON structure.
 const findDrawingInObject = (obj: any): boolean => {
@@ -126,7 +119,7 @@ describe('Docx.adapter.convert', () => {
           kind: 'style',
           selectors: ['h1'],
           declarations: { color: 'blue' },
-          declarationMeta: { origin: DOCX_DEFAULT_DECLARATION_ORIGIN },
+          // declarationMeta: { origin: DOCX_DEFAULT_DECLARATION_ORIGIN },
         },
         {
           kind: 'style',
@@ -215,7 +208,6 @@ describe('Docx.adapter.convert', () => {
       ]).buffer; // This represents a PNG header.
 
       beforeEach(() => {
-        // @ts-ignore
         global.fetch = vi.fn().mockResolvedValue({
           ok: true,
           arrayBuffer: async () => fakeArrayBuffer,
@@ -755,11 +747,11 @@ describe('Docx.adapter.convert', () => {
       ) as Record<string, unknown> | undefined;
 
       expect(headingStyle).toBeDefined();
-      expect(headingStyle['w:rPr']['w:i']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:iCs']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:b']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:bCs']).toBeDefined();
-      expect(headingStyle['w:rPr']['w:color']['@_w:val']).toBe('3366FF');
+      expect(headingStyle?.['w:rPr']?.['w:i']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:iCs']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:b']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:bCs']).toBeDefined();
+      expect(headingStyle?.['w:rPr']?.['w:color']['@_w:val']).toBe('3366FF');
     });
 
     it('should render a heading with extra bold and italic styling', async () => {
@@ -902,6 +894,37 @@ describe('Docx.adapter.convert', () => {
       expect(paragraphs[1]['w:r']['w:rPr']).toHaveProperty('w:b');
       expect(paragraphs[1]['w:r']['w:rPr']).toHaveProperty('w:i');
       expect(paragraphs[1]['w:r']['w:t']['#text']).toBe('Hello here');
+    });
+    it('should not pass paragraph borders down to nested paragraphs', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Outer',
+            },
+            {
+              type: 'paragraph',
+              text: 'Inner',
+            },
+          ],
+          styles: {
+            border: '1px solid #000000',
+            fontWeight: 'bold',
+          },
+          attributes: {},
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const paragraphs = jsonDocument['w:document']['w:body']['w:p'];
+
+      expect(paragraphs).toHaveLength(2);
+      expect(paragraphs[0]['w:pPr']['w:pBdr']).toBeDefined();
+      expect(paragraphs[1]['w:pPr']?.['w:pBdr']).toBeUndefined();
+      expect(paragraphs[1]['w:r']['w:rPr']).toHaveProperty('w:b');
     });
     it('should render italic paragraph', async () => {
       const elements: DocumentElement[] = [
@@ -1985,6 +2008,493 @@ describe('Docx.adapter.convert', () => {
       expect(tblW['@_w:type']).toBe('pct');
     });
 
+    it('should export hidden border styles as none for the table and cells', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('td, th', {
+        border: '1px solid #000000',
+      });
+      stylesheet.addRule('table', {
+        border: '1px solid #000000',
+      });
+
+      const html = `<table style="border-style: hidden"><tr><td style="border-style: hidden">Hidden border cell</td></tr></table>`;
+      const elements = new Parser([], new JSDOMParser()).parse(html);
+      const styledAdapter = new DocxAdapter({ stylesheet });
+
+      const buffer = await styledAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:top']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:right']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:bottom']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:bottom']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:left']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:left']?.['@_w:sz']).toBe('0');
+
+      const row = toArray(tbl['w:tr'])[0];
+      const cell = toArray(row?.['w:tc'])[0];
+      const cellBorders = cell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(cellBorders).toBeDefined();
+      expect(cellBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:top']?.['@_w:sz']).toBe('0');
+      expect(cellBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:right']?.['@_w:sz']).toBe('0');
+      expect(cellBorders['w:bottom']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
+      expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+    });
+
+    it('does not serialize table-cell borders onto wrapped paragraphs inside the cell', async () => {
+      const elements: DocumentElement[] = [
+        {
+          type: 'table',
+          attributes: {},
+          styles: {},
+          rows: [
+            {
+              type: 'table-row',
+              attributes: {},
+              styles: {},
+              cells: [
+                {
+                  type: 'table-cell',
+                  attributes: {},
+                  styles: { border: '1px solid #000000' },
+                  content: [{ type: 'text', text: 'Bordered cell' }],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const cell = toArray(row?.['w:tc'])[0];
+      const paragraph = toArray(cell?.['w:p'])[0];
+
+      expect(cell?.['w:tcPr']?.['w:tcBorders']).toBeDefined();
+      expect(paragraph?.['w:pPr']?.['w:pBdr']).toBeUndefined();
+    });
+
+    it('should export hidden cell borders by disabling table grid and using explicit cell borders', async () => {
+      const hiddenCell = (text: string): DocumentElement => ({
+        type: 'table-cell',
+        content: [{ type: 'text', text }],
+        styles: { borderStyle: 'hidden' },
+        attributes: {},
+      });
+
+      const table: DocumentElement = {
+        type: 'table',
+        styles: {},
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [hiddenCell('A1') as any, hiddenCell('A2') as any],
+          },
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [hiddenCell('B1') as any, hiddenCell('B2') as any],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideH']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:sz']).toBe('0');
+
+      const firstRow = toArray(tbl['w:tr'])[0];
+      const firstCell = toArray(firstRow?.['w:tc'])[0];
+      const firstCellBorders = firstCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(firstCellBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(firstCellBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(firstCellBorders['w:bottom']?.['@_w:val']).toBe('none');
+      expect(firstCellBorders['w:left']?.['@_w:val']).toBe('none');
+    });
+
+    it('should suppress the shared border on a neighbour of a hidden-border cell', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        styles: {},
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Hidden' }],
+                styles: { borderStyle: 'hidden' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Visible' }],
+                styles: {
+                  border: '1px solid #000000',
+                  borderLeft: '1px solid #000000',
+                },
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
+
+      const row = toArray(tbl['w:tr'])[0];
+      const [hiddenCell, visibleCell] = toArray(row?.['w:tc']);
+      const hiddenCellBorders = hiddenCell?.['w:tcPr']?.['w:tcBorders'];
+      const visibleCellBorders = visibleCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(hiddenCellBorders['w:right']?.['@_w:val']).toBe('none');
+      // The adjacent cell's shared (left) border is suppressed by the hidden neighbour
+      expect(visibleCellBorders['w:left']?.['@_w:val']).toBe('none');
+      // Non-shared sides of the visible cell keep their explicit solid borders.
+      expect(visibleCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+    });
+
+    it('should suppress a stylesheet-defined solid border on the side shared with a hidden-border cell', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('td, th', { border: '1px solid #000000' });
+      stylesheet.addRule('table', { border: '1px solid #000000' });
+
+      const html = `<table><tr><td style="border-style: hidden">Hidden</td><td>Solid</td></tr></table>`;
+      const elements = new Parser([], new JSDOMParser()).parse(html);
+      const styledAdapter = new DocxAdapter({ stylesheet });
+
+      const buffer = await styledAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const [hiddenCellEl, solidCellEl] = toArray(row?.['w:tc']);
+      const hiddenCellBorders2 = hiddenCellEl?.['w:tcPr']?.['w:tcBorders'];
+      const solidCellBorders = solidCellEl?.['w:tcPr']?.['w:tcBorders'];
+
+      // The hidden cell's own borders are all none
+      expect(hiddenCellBorders2['w:right']?.['@_w:val']).toBe('none');
+      // CSS hidden wins: the adjacent solid cell's shared (left) border is suppressed
+      expect(solidCellBorders['w:left']?.['@_w:val']).toBe('none');
+      // The non-shared borders of the solid cell remain visible
+      expect(solidCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(solidCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(solidCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+    });
+
+    it('should suppress only the border side shared with a hidden cell', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        styles: { borderStyle: 'hidden' },
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Hidden' }],
+                styles: { borderStyle: 'hidden' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Visible' }],
+                styles: {
+                  border: '1px solid #000000',
+                },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Visible 2' }],
+                styles: {
+                  border: '1px solid #000000',
+                },
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const [, middleCell, rightCell] = toArray(row?.['w:tc']);
+      const middleBorders = middleCell?.['w:tcPr']?.['w:tcBorders'];
+      const rightBorders = rightCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(middleBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(middleBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(middleBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(middleBorders['w:left']?.['@_w:val']).toBe('none');
+      expect(rightBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(rightBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(rightBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(rightBorders['w:left']?.['@_w:val']).toBe('single');
+    });
+
+    it('should set explicit none borders on a cell with border-style: none', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        styles: {},
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'No border' }],
+                styles: { borderStyle: 'none' },
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const cell = toArray(row?.['w:tc'])[0];
+      const cellBorders = cell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(cellBorders).toBeDefined();
+      expect(cellBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:top']?.['@_w:sz']).toBe('0');
+      expect(cellBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:right']?.['@_w:sz']).toBe('0');
+      expect(cellBorders['w:bottom']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
+      expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
+      expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+    });
+
+    it('should export none borders when every cell has border-width: 0 and border-style: none', async () => {
+      const elements = new Parser([], new JSDOMParser()).parse(
+        '<table><tr><td style="border-width: 0; border-style: none">A1</td><td style="border-width: 0; border-style: none">A2</td></tr><tr><td style="border-width: 0; border-style: none">B1</td><td style="border-width: 0; border-style: none">B2</td></tr></table>'
+      );
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideH']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:sz']).toBe('0');
+
+      const rows = toArray(tbl['w:tr']);
+      const cells = rows.flatMap((row) => toArray(row?.['w:tc']));
+
+      expect(cells).toHaveLength(4);
+
+      for (const cell of cells) {
+        const cellBorders = cell?.['w:tcPr']?.['w:tcBorders'];
+
+        expect(cellBorders).toBeDefined();
+        expect(cellBorders['w:top']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:top']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:right']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:right']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:bottom']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+      }
+    });
+
+    it('should export none borders when every cell has border-width: 0 and border-style: none over stylesheet cell borders', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('th, td', { border: '1px solid #000000' });
+
+      const elements = new Parser([], new JSDOMParser()).parse(
+        '<table><tr><td style="border-width: 0; border-style: none">A1</td><td style="border-width: 0; border-style: none">A2</td></tr><tr><td style="border-width: 0; border-style: none">B1</td><td style="border-width: 0; border-style: none">B2</td></tr></table>'
+      );
+      const styledAdapter = new DocxAdapter({ stylesheet });
+
+      const buffer = await styledAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideH']?.['@_w:sz']).toBe('0');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:sz']).toBe('0');
+
+      const rows = toArray(tbl['w:tr']);
+      const cells = rows.flatMap((row) => toArray(row?.['w:tc']));
+
+      expect(cells).toHaveLength(4);
+
+      for (const cell of cells) {
+        const cellBorders = cell?.['w:tcPr']?.['w:tcBorders'];
+
+        expect(cellBorders).toBeDefined();
+        expect(cellBorders['w:top']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:top']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:right']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:right']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:bottom']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:bottom']?.['@_w:sz']).toBe('0');
+        expect(cellBorders['w:left']?.['@_w:val']).toBe('none');
+        expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
+      }
+    });
+
+    it('should not treat a cell border none as a hidden neighbor', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        styles: {},
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'None' }],
+                styles: { borderStyle: 'none' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Solid' }],
+                styles: { borderStyle: 'solid' },
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const [, visibleCell] = toArray(row?.['w:tc']);
+      const visibleCellBorders = visibleCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(visibleCellBorders['w:left']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+    });
+
+    it('should not treat table border none as hidden when explicit cell borders are resolved', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        styles: { borderStyle: 'none' },
+        attributes: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Hidden' }],
+                styles: { borderStyle: 'hidden' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Solid' }],
+                styles: { borderStyle: 'solid' },
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const [, visibleCell] = toArray(row?.['w:tc']);
+      const visibleCellBorders = visibleCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(visibleCellBorders['w:left']?.['@_w:val']).toBe('none'); // hidden neighbour wins on shared side
+      expect(visibleCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(visibleCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+    });
+
+    it('should not emit paragraph borders for inline cell content from table border attribute', async () => {
+      const elements = new Parser([], new JSDOMParser()).parse(
+        '<table border="1"><tr><td>Cell 1</td><td><span>Cell 2</span></td></tr></table>'
+      );
+
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const row = toArray(tbl['w:tr'])[0];
+      const [firstCell, secondCell] = toArray(row?.['w:tc']);
+      const firstCellBorders = firstCell?.['w:tcPr']?.['w:tcBorders'];
+      const secondCellBorders = secondCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(firstCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(firstCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(firstCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(firstCellBorders['w:left']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:top']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:right']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(secondCellBorders['w:left']?.['@_w:val']).toBe('single');
+      expect(firstCell?.['w:p']?.['w:pPr']?.['w:pBdr']).toBeUndefined();
+      expect(secondCell?.['w:p']?.['w:pPr']?.['w:pBdr']).toBeUndefined();
+    });
+
     it('should convert a table with multiple rows and columns', async () => {
       const table: DocumentElement = {
         type: 'table',
@@ -2059,6 +2569,45 @@ describe('Docx.adapter.convert', () => {
         : row2[1]['w:p']['w:r']['w:t']['#text'];
       expect(cell3Text).toBe('Cell 3');
       expect(cell4Text).toBe('Cell 4');
+    });
+
+    it('should export a plain HTML table with implicit none table borders', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        rows: [
+          {
+            attributes: {},
+            type: 'table-row',
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell 1' }],
+                styles: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'Cell 2' }],
+                styles: {},
+              },
+            ],
+            styles: {},
+          },
+        ],
+        styles: {},
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const tblBorders = tbl['w:tblPr']?.['w:tblBorders'];
+
+      expect(tblBorders).toBeDefined();
+      expect(tblBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:bottom']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:left']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideH']?.['@_w:val']).toBe('none');
+      expect(tblBorders['w:insideV']?.['@_w:val']).toBe('none');
     });
 
     it('should convert a table with a cell having colspan', async () => {
