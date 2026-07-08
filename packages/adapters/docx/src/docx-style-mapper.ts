@@ -273,6 +273,14 @@ export class DocxStyleMapper {
       // Line height and spacing
       lineHeight: (v, el) => {
         const raw = v.trim().toLowerCase();
+        if (raw === 'normal') {
+          return {
+            spacing: {
+              line: 240, // <-- 240 matches a single line in docx.
+              lineRule: 'auto',
+            } satisfies ISpacingProperties,
+          };
+        }
         const match = raw.match(/^([+-]?\d*\.?\d+)([a-z%]*)$/);
         if (!match) return {};
         const num = Number(match[1]);
@@ -281,7 +289,7 @@ export class DocxStyleMapper {
         if (!unit) {
           return {
             spacing: {
-              line: Math.round(num * 240), // 1 = 240 twips, which is single line spacing
+              line: Math.round(num * 240), // TODO: this conversion might actually be wrong. A line-height of 1 in html does not look like single line spacing in docx
               lineRule: 'auto',
             } satisfies ISpacingProperties,
           };

@@ -83,6 +83,9 @@ describe('DocxStyleMapper', () => {
     expect(mapper.mapStyles({ lineHeight: '2' }, el)).toEqual({
       spacing: { line: Math.round(2 * 240), lineRule: 'auto' },
     });
+    expect(mapper.mapStyles({ lineHeight: 'normal' }, el)).toEqual({
+      spacing: { line: 240, lineRule: 'auto' },
+    });
     expect(mapper.mapStyles({ lineHeight: '24px' }, el)).toEqual({
       spacing: { line: Math.round(24 * 15), lineRule: 'exact' },
     });
