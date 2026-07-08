@@ -40,6 +40,26 @@ const DEFAULT_STYLE_META: Partial<
     scopes: ['block', 'inline', 'tableCell'],
     cascadeTo: ['block', 'inline'],
   },
+  lineHeight: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
+  letterSpacing: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
+  textDecoration: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
+  textTransform: {
+    inherits: true,
+    scopes: ['block', 'inline', 'tableCell'],
+    cascadeTo: ['block', 'inline'],
+  },
   whiteSpace: {
     inherits: true,
     scopes: ['block', 'inline', 'tableCell'],

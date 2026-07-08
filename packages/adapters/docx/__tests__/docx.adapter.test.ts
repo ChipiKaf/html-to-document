@@ -1102,6 +1102,25 @@ describe('Docx.adapter.convert', () => {
       expect(para['w:r']['w:rPr']['w:sz']['@_w:val']).toBe('24');
       expect(para['w:r']['w:t']['#text']).toBe('Sized text');
     });
+
+    it('should map negative letter-spacing to DOCX character spacing', async () => {
+      let html = `<p data-id="a0ed3ff6-36d4-4d30-8375-b249f96515ff" id="a0ed3ff6-36d4-4d30-8375-b249f96515ff" style="letter-spacing: -0.8pt;"><strong>Genpart af en testamentarisk disposition eller tilkendegivelse om forældremyndighed</strong></p> `;
+
+      html = await minifyMiddleware(html);
+      const elements = parser.parse(html);
+      const buffer = await adapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const para = jsonDocument['w:document']['w:body']['w:p'];
+      const runProps = para['w:r']['w:rPr'];
+
+      expect(para['w:r']['w:t']['#text']).toBe(
+        'Genpart af en testamentarisk disposition eller tilkendegivelse om forældremyndighed'
+      );
+      expect(runProps).toHaveProperty('w:b');
+      expect(runProps).toHaveProperty('w:bCs');
+      expect(runProps['w:spacing']['@_w:val']).toBe('-16');
+    });
+
     it('should flatten nested inline spans into separate text runs with correct styles', async () => {
       let html = `<p style="font-weight:bold" data-custom="x">
       <span style="color: red;">Hello
