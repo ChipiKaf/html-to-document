@@ -11,6 +11,10 @@ describe('style-inheritance', () => {
       const parentStyles: Styles = {
         fontFamily: 'Arial',
         color: 'red',
+        lineHeight: 1.5,
+        letterSpacing: '1pt',
+        textDecoration: 'underline',
+        textTransform: 'uppercase',
       };
 
       const result = computeInheritedStyles({
@@ -22,6 +26,10 @@ describe('style-inheritance', () => {
       expect(result).toEqual({
         fontFamily: 'Arial',
         color: 'red',
+        lineHeight: 1.5,
+        letterSpacing: '1pt',
+        textDecoration: 'underline',
+        textTransform: 'uppercase',
       });
     });
 
