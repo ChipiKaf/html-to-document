@@ -1,6 +1,7 @@
 import { basicContentHtml } from './test-content/basic';
 import { complexLayoutHtml } from './test-content/complex-layout';
 import { pageStructureHtml } from './test-content/page-structure';
+import { rowspanBorderHtml } from './test-content/rowspan-border';
 import { styleInheritanceHtml } from './test-content/style-inheritance';
 
 export interface TestCase {
@@ -37,6 +38,13 @@ export const testCases: TestCase[] = [
     description:
       'Verifies correct border behavior. Default: Borders on cell only. Custom: Borders on paragraphs too (if configured).',
     content: styleInheritanceHtml,
+  },
+  {
+    id: 'rowspan-border',
+    title: 'Rowspan Border Regression',
+    description:
+      'Reproduces the missing lower right border on a vertically merged table cell.',
+    content: rowspanBorderHtml,
   },
   {
     id: 'forced-inheritance',
