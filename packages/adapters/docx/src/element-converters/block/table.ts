@@ -193,6 +193,66 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
 
     const NONE_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' };
 
+    const getCellDocxStyles = (
+      originalCell: GridCell['cell'],
+      columnIndex: number,
+      rowIndex: number,
+      rowSpan: number,
+      colSpan: number
+    ): Record<string, unknown> => {
+      const docxCellStyles = styleMapper.mapStyles(
+        {
+          ...(originalCell
+            ? {
+                ...stylesheet.getMatchedStyles(originalCell),
+                ...defaultStyles?.[originalCell.type],
+              }
+            : {}),
+          ...originalCell?.styles,
+        },
+        originalCell!
+      ) as Record<string, unknown>;
+
+      // CSS collapsed border model: border-style: hidden on a neighbour always wins.
+      // If an adjacent cell declares hidden on its shared side, suppress our border there.
+      const adjacencyOverrides: Record<string, unknown> = {};
+      const rightNeighbor = getGridCellRawStyles(
+        grid[rowIndex]?.[columnIndex + colSpan]
+      );
+      if (rightNeighbor && isBorderSideHidden(rightNeighbor, 'Left')) {
+        adjacencyOverrides.right = NONE_BORDER;
+      }
+      const leftNeighbor =
+        columnIndex > 0
+          ? getGridCellRawStyles(grid[rowIndex]?.[columnIndex - 1])
+          : null;
+      if (leftNeighbor && isBorderSideHidden(leftNeighbor, 'Right')) {
+        adjacencyOverrides.left = NONE_BORDER;
+      }
+      const bottomNeighbor = getGridCellRawStyles(
+        grid[rowIndex + rowSpan]?.[columnIndex]
+      );
+      if (bottomNeighbor && isBorderSideHidden(bottomNeighbor, 'Top')) {
+        adjacencyOverrides.bottom = NONE_BORDER;
+      }
+      const topNeighbor =
+        rowIndex > 0
+          ? getGridCellRawStyles(grid[rowIndex - 1]?.[columnIndex])
+          : null;
+      if (topNeighbor && isBorderSideHidden(topNeighbor, 'Bottom')) {
+        adjacencyOverrides.top = NONE_BORDER;
+      }
+      if (Object.keys(adjacencyOverrides).length > 0) {
+        const existing = (docxCellStyles.borders ?? {}) as Record<
+          string,
+          unknown
+        >;
+        docxCellStyles.borders = { ...existing, ...adjacencyOverrides };
+      }
+
+      return docxCellStyles;
+    };
+
     // Build the TableRows objects
     const tableRows: TableRow[] = [];
     for (let i = 0; i < numRows; i++) {
@@ -216,10 +276,35 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
         } else if (gridCell.horizontal) {
           j++;
         } else if (gridCell.verticalMerge) {
+          const originalCell = gridCell.cell;
+          const colSpan = originalCell?.colspan || 1;
+          const continuationStyles = getCellDocxStyles(
+            originalCell,
+            j,
+            i,
+            1,
+            colSpan
+          );
+          const existingBorders = (continuationStyles.borders ?? {}) as Record<
+            string,
+            unknown
+          >;
+          const continuesFurther =
+            grid[i + 1]?.[j]?.cell === originalCell &&
+            grid[i + 1]?.[j]?.verticalMerge;
+
           cells.push(
             new TableCell({
               verticalMerge: 'continue',
+              columnSpan: colSpan > 1 ? colSpan : undefined,
               verticalAlign: VerticalAlign.CENTER,
+              ...stylesCol[j],
+              ...continuationStyles,
+              borders: {
+                ...existingBorders,
+                top: NONE_BORDER,
+                ...(continuesFurther ? { bottom: NONE_BORDER } : {}),
+              },
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: '' })],
@@ -227,7 +312,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
               ],
             })
           );
-          j++;
+          j += colSpan;
         } else {
           const originalCell = gridCell.cell;
           const colSpan = originalCell?.colspan ? originalCell.colspan : 1;
@@ -270,46 +355,22 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
                 },
               })
             : [new Paragraph('')];
-          const docxCellStyles = styleMapper.mapStyles(
-            {
-              ...(originalCell
-                ? {
-                    ...stylesheet?.getMatchedStyles(originalCell),
-                    ...defaultStyles?.[originalCell.type],
-                  }
-                : {}),
-              ...originalCell?.styles,
-            },
-            originalCell!
-          ) as Record<string, unknown>;
-
-          // CSS collapsed border model: border-style: hidden on a neighbour always wins.
-          // If an adjacent cell declares hidden on its shared side, suppress our border there.
-          const adjacencyOverrides: Record<string, unknown> = {};
-          const rightNeighbor = getGridCellRawStyles(grid[i]?.[j + colSpan]);
-          if (rightNeighbor && isBorderSideHidden(rightNeighbor, 'Left')) {
-            adjacencyOverrides.right = NONE_BORDER;
-          }
-          const leftNeighbor =
-            j > 0 ? getGridCellRawStyles(grid[i]?.[j - 1]) : null;
-          if (leftNeighbor && isBorderSideHidden(leftNeighbor, 'Right')) {
-            adjacencyOverrides.left = NONE_BORDER;
-          }
-          const bottomNeighbor = getGridCellRawStyles(grid[i + rowSpan]?.[j]);
-          if (bottomNeighbor && isBorderSideHidden(bottomNeighbor, 'Top')) {
-            adjacencyOverrides.bottom = NONE_BORDER;
-          }
-          const topNeighbor =
-            i > 0 ? getGridCellRawStyles(grid[i - 1]?.[j]) : null;
-          if (topNeighbor && isBorderSideHidden(topNeighbor, 'Bottom')) {
-            adjacencyOverrides.top = NONE_BORDER;
-          }
-          if (Object.keys(adjacencyOverrides).length > 0) {
-            const existing = (docxCellStyles.borders ?? {}) as Record<
-              string,
-              unknown
-            >;
-            docxCellStyles.borders = { ...existing, ...adjacencyOverrides };
+          const docxCellStyles = getCellDocxStyles(
+            originalCell,
+            j,
+            i,
+            rowSpan,
+            colSpan
+          );
+          const existingBorders = (docxCellStyles.borders ?? {}) as Record<
+            string,
+            unknown
+          >;
+          if (rowSpan > 1) {
+            docxCellStyles.borders = {
+              ...existingBorders,
+              bottom: NONE_BORDER,
+            };
           }
 
           const newCell = new TableCell({

@@ -2842,6 +2842,79 @@ describe('Docx.adapter.convert', () => {
       expect(secondCellRow2Text).toBe('Cell C');
     });
 
+    it('should keep side borders on vertical merge continuation cells', async () => {
+      const table: DocumentElement = {
+        type: 'table',
+        attributes: {},
+        styles: {},
+        rows: [
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'A1' }],
+                styles: { border: '1px solid #000000' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'A2' }],
+                rowspan: 2,
+                styles: { border: '1px solid #000000' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'A3' }],
+                styles: { border: '1px solid #000000' },
+                attributes: {},
+              },
+            ],
+          },
+          {
+            type: 'table-row',
+            attributes: {},
+            styles: {},
+            cells: [
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'B1' }],
+                styles: { border: '1px solid #000000' },
+                attributes: {},
+              },
+              {
+                type: 'table-cell',
+                content: [{ type: 'text', text: 'B3' }],
+                styles: { border: '1px solid #000000' },
+                attributes: {},
+              },
+            ],
+          },
+        ],
+      };
+
+      const buffer = await adapter.convert([table]);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const rows = Array.isArray(tbl['w:tr']) ? tbl['w:tr'] : [tbl['w:tr']];
+      const row2 = Array.isArray(rows[1]['w:tc'])
+        ? rows[1]['w:tc']
+        : [rows[1]['w:tc']];
+      const mergedCell = row2[1];
+      const borders = mergedCell?.['w:tcPr']?.['w:tcBorders'];
+
+      expect(mergedCell?.['w:tcPr']?.['w:vMerge']?.['@_w:val']).toBe(
+        'continue'
+      );
+      expect(borders?.['w:left']?.['@_w:val']).toBe('single');
+      expect(borders?.['w:right']?.['@_w:val']).toBe('single');
+      expect(borders?.['w:top']?.['@_w:val']).toBe('none');
+      expect(borders?.['w:bottom']?.['@_w:val']).toBe('single');
+    });
+
     it('should convert a table with combined colspan and rowspan', async () => {
       const table: DocumentElement = {
         type: 'table',
@@ -2889,18 +2962,14 @@ describe('Docx.adapter.convert', () => {
         : combinedCell['w:p']['w:r']['w:t']['#text'];
       expect(combinedCellText).toBe('Combined Cell');
 
-      // Second row: expect a vertical merge placeholder and an automatically added empty cell.
+      // Second row: expect a vertically merged continuation cell carrying the colspan.
       const row2 = Array.isArray(rows[1]['w:tc'])
         ? rows[1]['w:tc']
         : [rows[1]['w:tc']];
-      expect(row2.length).toBe(2);
+      expect(row2.length).toBe(1);
       const vmCell = row2[0];
       expect(vmCell['w:tcPr']['w:vMerge']['@_w:val']).toBe('continue');
-
-      const gapCell = row2[1];
-      const gapCellText =
-        gapCell?.['w:p']?.[0]?.['w:r']?.['w:t']?.['#text'] || '';
-      expect(gapCellText).toBe('');
+      expect(vmCell['w:tcPr']['w:gridSpan']['@_w:val']).toBe('2');
     });
     it('should render a table cell with centered text alignment', async () => {
       const table: DocumentElement = {
