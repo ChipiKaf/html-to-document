@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import colornames from 'colornames';
+import { convert, utils } from '@asamuzakjp/css-color';
 import { AttributeElement, DocumentElement } from '../types';
 
 export function parseStyles(
@@ -37,6 +38,9 @@ export function parseAttributes(
 }
 
 export function colorConversion(color: string): string {
+  const parsed = utils.isColor(color) ? convert.colorToHex(color) : null;
+  if (parsed) return parsed.slice(1).toUpperCase();
+
   const v = color.trim().toLowerCase();
 
   // 1) If it comes in as a 6- or 8-digit hex already, strip the '#'.

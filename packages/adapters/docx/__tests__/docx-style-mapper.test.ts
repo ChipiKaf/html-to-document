@@ -48,6 +48,74 @@ describe('DocxStyleMapper', () => {
     });
   });
 
+  it.each([
+    ['black', 'black'],
+    ['blue', 'blue'],
+    ['cyan', 'cyan'],
+    ['lime', 'green'],
+    ['magenta', 'magenta'],
+    ['red', 'red'],
+    ['yellow', 'yellow'],
+    ['white', 'white'],
+    ['navy', 'darkBlue'],
+    ['teal', 'darkCyan'],
+    ['green', 'darkGreen'],
+    ['purple', 'darkMagenta'],
+    ['maroon', 'darkRed'],
+    ['olive', 'darkYellow'],
+    ['gray', 'darkGray'],
+    ['silver', 'lightGray'],
+  ] as const)(
+    'maps the CSS color %s to the %s mark highlight',
+    (color, highlight) => {
+      const mark = {
+        type: 'text',
+        metadata: { tagName: 'mark' },
+      } as DocumentElement;
+
+      expect(mapper.mapStyles({ backgroundColor: color }, mark)).toEqual({
+        highlight,
+      });
+    }
+  );
+
+  it.each([
+    'rgb(255, 255, 0)',
+    'rgb(255 255 0)',
+    'rgba(255, 255, 0, 1)',
+    'rgb(255 255 0 / 100%)',
+    'hsl(60 100% 50%)',
+    'lab(97.6071% -15.7529 93.3885)',
+    'oklch(0.967982 0.211006 109.769)',
+  ])('maps the CSS color syntax %s to a mark highlight', (color) => {
+    const mark = {
+      type: 'text',
+      metadata: { tagName: 'mark' },
+    } as DocumentElement;
+
+    expect(mapper.mapStyles({ backgroundColor: color }, mark)).toEqual({
+      highlight: 'yellow',
+    });
+  });
+
+  it('keeps nonmatching and translucent mark colors as shading', () => {
+    const mark = {
+      type: 'text',
+      metadata: { tagName: 'mark' },
+    } as DocumentElement;
+
+    expect(
+      mapper.mapStyles({ backgroundColor: 'rebeccapurple' }, mark)
+    ).toEqual({
+      shading: { type: ShadingType.CLEAR, fill: '663399', color: 'auto' },
+    });
+    expect(
+      mapper.mapStyles({ backgroundColor: 'rgb(255 255 0 / 50%)' }, mark)
+    ).toEqual({
+      shading: { type: ShadingType.CLEAR, fill: 'FFFF00', color: 'auto' },
+    });
+  });
+
   it('maps fontSize and lineHeight', () => {
     const el = { type: 'paragraph' } as DocumentElement;
     expect(mapper.mapStyles({ fontSize: '20px' }, el)).toEqual({

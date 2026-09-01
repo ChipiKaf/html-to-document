@@ -65,6 +65,11 @@ describe('html.utils', () => {
       expect(colorConversion('rgba(100% 50% 0% / 0.5)')).toBe('FF8000');
     });
 
+    it('converts CSS color functions', () => {
+      expect(colorConversion('rgb(255, 255, 0)')).toBe('FFFF00');
+      expect(colorConversion('rgb(255 255 0 / 50%)')).toBe('FFFF00');
+    });
+
     it('falls back to black on unknown color', () => {
       expect(colorConversion('notacolor')).toBe('000000');
     });
