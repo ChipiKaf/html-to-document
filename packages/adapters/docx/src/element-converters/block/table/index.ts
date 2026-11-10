@@ -1,0 +1,83 @@
+import { type FileChild, Table, TableCell, TableRow } from 'docx';
+import type {
+  DocumentElement,
+  Styles,
+  TableElement,
+} from 'html-to-document-core';
+import type {
+  ElementConverterDependencies,
+  IBlockConverter,
+} from '../../types';
+import { CollapsedBorders } from './borders';
+import { TableCaptions } from './captions';
+import { TableCellBuilder } from './cells';
+import { TableColumns } from './columns';
+import { TableGrid } from './grid';
+import { TableStyles } from './styles';
+
+type DocumentElementType = TableElement;
+
+/**
+ * Converts a table by combining:
+ * - `TableGrid` (`grid.ts`): the layout, which cell covers each slot, following
+ *   the HTML table model.
+ * - `TableStyles` (`styles.ts`): the CSS styles of the table, rows and cells, and
+ *   their DOCX options.
+ * - `CollapsedBorders` (`borders.ts`): the edges a cell shares with its
+ *   neighbours, following the CSS collapsed border model.
+ * - `TableColumns` (`columns.ts`): the column options from `<colgroup>`.
+ * - `TableCellBuilder` (`cells.ts`): the `TableCell` for each slot of a row.
+ * - `TableCaptions` (`captions.ts`): the captions above and below the table.
+ */
+export class TableConverter implements IBlockConverter<DocumentElementType> {
+  public isMatch(element: DocumentElement): element is DocumentElementType {
+    return element.type === 'table';
+  }
+
+  public async convertElement(
+    dependencies: ElementConverterDependencies,
+    element: TableElement,
+    cascadedStyles?: Styles
+  ): Promise<FileChild[]> {
+    const styles = new TableStyles(dependencies, element, cascadedStyles);
+    const grid = new TableGrid(element.rows);
+    const cellBuilder = new TableCellBuilder(
+      dependencies,
+      styles,
+      new CollapsedBorders(grid, styles),
+      new TableColumns(dependencies, element, styles)
+    );
+    const captions = await new TableCaptions(
+      dependencies,
+      element,
+      styles
+    ).convert();
+
+    const rows: TableRow[] = [];
+    for (const [rowIndex, rowElement] of element.rows.entries()) {
+      const cells: TableCell[] = [];
+      // Converted one at a time, in document order
+      for (const slot of grid.getRowSlots(rowIndex)) {
+        cells.push(await cellBuilder.build(slot, rowIndex));
+      }
+      rows.push(
+        new TableRow({
+          children: cells,
+          ...styles.getRowOptions(rowElement),
+        })
+      );
+    }
+
+    if (rows.length === 0) {
+      // Word can't open a table without rows, so only the captions are written,
+      // as in HTML, where a table without rows still shows its caption
+      return [...captions.top, ...captions.bottom];
+    }
+
+    return [
+      ...captions.top,
+      new Table({ ...styles.getTableOptions(), rows }),
+      ...captions.bottom,
+    ];
+  }
+}

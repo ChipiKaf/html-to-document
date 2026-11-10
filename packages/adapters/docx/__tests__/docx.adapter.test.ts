@@ -2415,13 +2415,15 @@ describe('Docx.adapter.convert', () => {
       const middleBorders = middleCell?.['w:tcPr']?.['w:tcBorders'];
       const rightBorders = rightCell?.['w:tcPr']?.['w:tcBorders'];
 
-      expect(middleBorders['w:top']?.['@_w:val']).toBe('single');
-      expect(middleBorders['w:bottom']?.['@_w:val']).toBe('single');
+      // The table's hidden border suppresses the cells' borders along the
+      // table's edge, as hidden wins over every other border in CSS
+      expect(middleBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(middleBorders['w:bottom']?.['@_w:val']).toBe('none');
       expect(middleBorders['w:right']?.['@_w:val']).toBe('single');
       expect(middleBorders['w:left']?.['@_w:val']).toBe('none');
-      expect(rightBorders['w:top']?.['@_w:val']).toBe('single');
-      expect(rightBorders['w:right']?.['@_w:val']).toBe('single');
-      expect(rightBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(rightBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(rightBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(rightBorders['w:bottom']?.['@_w:val']).toBe('none');
       expect(rightBorders['w:left']?.['@_w:val']).toBe('single');
     });
 

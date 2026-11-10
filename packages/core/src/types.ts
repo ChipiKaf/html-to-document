@@ -239,20 +239,6 @@ export interface TableCellElement extends BaseElement {
 }
 
 /**
- * Represents a cell in the table grid, including merge information for rendering.
- */
-export interface GridCell {
-  /** The underlying cell element, if present */
-  cell?: TableCellElement;
-  /** True if this is a horizontally merged cell */
-  horizontal?: boolean; // placeholder for a horizontally merged cell
-  /** True if this is a vertically merged cell */
-  verticalMerge?: boolean; // placeholder for a vertically merged cell
-  /** True if this is the starting (master) cell for a merge */
-  isMaster?: boolean; // indicates the starting (master) cell
-}
-
-/**
  * Middleware function type for processing HTML strings asynchronously.
  */
 export type Middleware = (html: string) => Promise<string>;
