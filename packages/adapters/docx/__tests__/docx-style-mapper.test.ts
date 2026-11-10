@@ -164,6 +164,24 @@ describe('DocxStyleMapper', () => {
     expect(marP.indent).toBeDefined();
   });
 
+  it("maps a table's margin-left to its indent, with a percentage of its container's content", () => {
+    const table = { type: 'table' } as DocumentElement;
+
+    expect(mapper.mapStyles({ marginLeft: '1cm' }, table)).toEqual({
+      indent: { size: lengthToTwips('1cm'), type: 'dxa' },
+    });
+    expect(
+      mapper.mapStyles({ margin: '0 0 0 10%' }, table, {
+        containerContentWidth: 9000,
+      })
+    ).toEqual({ indent: { size: 900, type: 'dxa' } });
+    // A percentage can't be resolved without the width of the container
+    expect(mapper.mapStyles({ marginLeft: '10%' }, table)).toEqual({});
+    expect(
+      mapper.mapStyles({ marginTop: '1cm', marginRight: '1cm' }, table)
+    ).toEqual({});
+  });
+
   it('expands padding shorthand through longhand mappers without overwriting explicit longhands', () => {
     const cell = { type: 'table-cell' } as DocumentElement;
     const pad = mapper.mapStyles(

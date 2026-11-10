@@ -11,6 +11,7 @@ import {
   TextWrappingType,
   VerticalPositionAlign,
   VerticalPositionRelativeFrom,
+  WidthType,
 } from 'docx';
 import {
   colorConversion,
@@ -18,7 +19,11 @@ import {
   parseImageSizePx,
   type Styles,
 } from 'html-to-document-core';
-import { lengthToTwips, parseWidth } from './utils/parse';
+import {
+  lengthOrPercentageToTwips,
+  lengthToTwips,
+  parseWidth,
+} from './utils/parse';
 import { splitQuadShorthand } from './utils/css-shorthands';
 import {
   twipsToEighthsOfPoint,
@@ -28,8 +33,25 @@ import {
 
 type StyleKey = keyof Styles;
 
+/** What a style mapping may need beyond the element and its styles. */
+export type StyleMappingContext = {
+  /**
+   * The width of the content of the element's container, in twips, which
+   * percentages of widths and margins resolve against. Without it, they can't
+   * be resolved.
+   */
+  containerContentWidth?: number;
+};
+
 export type DocxStyleMapping = Partial<
-  Record<StyleKey, (value: string, el: DocumentElement) => unknown>
+  Record<
+    StyleKey,
+    (
+      value: string,
+      el: DocumentElement,
+      context: StyleMappingContext
+    ) => unknown
+  >
 >;
 
 type DeepPartial<T> = {
@@ -536,8 +558,31 @@ export class DocxStyleMapper {
 
           return [
             `margin${capDir}` satisfies StyleKey,
-            (v: string, el: DocumentElement) => {
+            (
+              v: string,
+              el: DocumentElement,
+              { containerContentWidth }: StyleMappingContext
+            ) => {
               const token = v.trim().split(/\s+/)[0] ?? '';
+              if (el.type === 'table') {
+                // A table's left margin indents it, while its other margins
+                // have nothing to map to
+                if (dir !== 'left') return {};
+                // The indent is always written in twips (`dxa`), with a
+                // percentage resolved against the container's content here.
+                // A percentage indent (`pct`) has no effect in Word or
+                // LibreOffice, so the indent doesn't follow later changes to
+                // the page's margins, as percentage widths do.
+                const indent = token.endsWith('%')
+                  ? containerContentWidth !== undefined
+                    ? lengthOrPercentageToTwips(token, containerContentWidth)
+                    : undefined
+                  : lengthToTwips(token);
+                return indent === undefined
+                  ? {}
+                  : { indent: { size: indent, type: WidthType.DXA } };
+              }
+
               const twips = lengthToTwips(token);
               if (typeof twips !== 'number') return {};
 
@@ -552,7 +597,6 @@ export class DocxStyleMapper {
                 };
               }
 
-              if (el.type === 'table') return {};
               if (el.type === 'table-cell') {
                 return { margins: { [dir]: twips } };
               }
@@ -703,14 +747,19 @@ export class DocxStyleMapper {
   // Method to map raw styles to a generic style object
   public mapStyles(
     rawStyles: Partial<Record<StyleKey, string | number>>,
-    el: DocumentElement
+    el: DocumentElement,
+    context: StyleMappingContext = {}
   ): Record<string, unknown> {
     const expandedStyles = this.expandShorthands(rawStyles, el);
     const mapped = (Object.keys(expandedStyles) as StyleKey[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper && typeof expandedStyles[cssProp] === 'string') {
-          const newStyle = mapper(expandedStyles[cssProp], el) as object;
+          const newStyle = mapper(
+            expandedStyles[cssProp],
+            el,
+            context
+          ) as object;
           // Deep merge the new style into the accumulator
           return deepMerge(acc, newStyle);
         }

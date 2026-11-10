@@ -40,10 +40,10 @@ export class TableStyles {
 
   /** The table's DOCX options. */
   public getTableOptions(): Record<string, unknown> {
-    const options = this.dependencies.styleMapper.mapStyles(
-      this.table,
-      this.element
-    );
+    const { styleMapper, containerContentWidth } = this.dependencies;
+    const options = styleMapper.mapStyles(this.table, this.element, {
+      containerContentWidth,
+    });
 
     // HTML default: tables have no visible borders unless explicitly styled.
     // The docx library falls back to DEFAULT_BORDER (single, size 4) for every

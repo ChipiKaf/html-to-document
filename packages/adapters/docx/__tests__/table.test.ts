@@ -549,6 +549,60 @@ describe('TableConverter', () => {
     });
   });
 
+  // Word puts a table's indent at its left border, as CSS does its margin, since
+  // the document is in Word 2013's compatibility mode
+  describe('indent', () => {
+    /** The table's `w:tblInd`, as its `w:w` and `w:type`, or `-` without one. */
+    const describeIndent = (tbl: any): string => {
+      const indent = tbl['w:tblPr']['w:tblInd'];
+      return indent ? `${indent['@_w:w']} ${indent['@_w:type']}` : '-';
+    };
+
+    it('indents a table by its margin-left', async () => {
+      const longhand = await convertTable(
+        '<table style="margin-left: 1cm"><tr><td>A</td></tr></table>'
+      );
+      const shorthand = await convertTable(
+        '<table style="margin: 0 0 0 2cm"><tr><td>A</td></tr></table>'
+      );
+      const none = await convertTable('<table><tr><td>A</td></tr></table>');
+
+      // 1cm is 567 twips, and 2cm 1134
+      expect(describeIndent(longhand)).toBe('567 dxa');
+      expect(describeIndent(shorthand)).toBe('1134 dxa');
+      expect(describeIndent(none)).toBe('-');
+    });
+
+    it("resolves a percentage against the page's width between its @page margins", async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addAtRule({
+        kind: 'at-rule',
+        name: 'page',
+        descriptors: { margin: '2.5cm 4.5cm 2.5cm 2.5cm' },
+      });
+      const tbl = await convertTable(
+        '<table style="width: 100%; margin-left: 10%"><tr><td>A</td></tr></table>',
+        new DocxAdapter({ stylesheet })
+      );
+
+      // 10% of 21cm - 2.5cm - 4.5cm is 1.4cm
+      expect(describeIndent(tbl)).toBe('794 dxa');
+    });
+
+    it('resolves the percentage of a nested table against the width of its cell', async () => {
+      const tbl = await convertTable(`<table style="width: 800px">
+        <colgroup><col style="width: 25%"><col style="width: 75%"></colgroup>
+        <tr><td>A</td><td>
+          <table style="margin-left: 10%"><tr><td>B</td></tr></table>
+        </td></tr>
+      </table>`);
+      const nested = toArray(toArray(tbl['w:tr'])[0]['w:tc'])[1]['w:tbl'];
+
+      // 10% of 75% of 800px, which is 12000 twips
+      expect(describeIndent(nested)).toBe('900 dxa');
+    });
+  });
+
   it('does not merge a cell whose rowspan reaches past the last row', async () => {
     const tbl = await convertTable(`<table>
       <tr><td rowspan="3" style="border: 1px solid #000">A</td><td>B</td></tr>
