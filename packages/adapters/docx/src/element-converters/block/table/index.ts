@@ -3,6 +3,7 @@ import type {
   DocumentElement,
   Styles,
   TableElement,
+  TableRowElement,
 } from 'html-to-document-core';
 import type {
   ElementConverterDependencies,
@@ -60,6 +61,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       styles
     ).convert();
 
+    const headerRowCount = TableConverter.countHeaderRows(element.rows);
     const rows: TableRow[] = [];
     for (const [rowIndex, rowElement] of element.rows.entries()) {
       const cells: TableCell[] = [];
@@ -71,6 +73,7 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
         new TableRow({
           children: cells,
           ...styles.getRowOptions(rowElement),
+          ...(rowIndex < headerRowCount ? { tableHeader: true } : {}),
         })
       );
     }
@@ -92,5 +95,20 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
       }),
       ...captions.bottom,
     ];
+  }
+
+  /**
+   * Counts the header rows that start the table: rows in a `<thead>`, or rows of
+   * only `<th>` cells. Word repeats header rows at the top of every page the
+   * table continues on, but only those that start the table, so the first row
+   * that isn't one ends them.
+   */
+  private static countHeaderRows(rows: TableRowElement[]): number {
+    const isHeaderRow = (row: TableRowElement) =>
+      row.metadata?.section === 'thead' ||
+      (row.cells.length > 0 &&
+        row.cells.every((cell) => cell.metadata?.tagName === 'th'));
+    const count = rows.findIndex((row) => !isHeaderRow(row));
+    return count === -1 ? rows.length : count;
   }
 }

@@ -603,6 +603,38 @@ describe('TableConverter', () => {
     });
   });
 
+  // Word repeats header rows at the top of every page the table continues on,
+  // but only the ones that start the table
+  describe('header rows', () => {
+    /** Whether each row is marked as a header row (`w:tblHeader`). */
+    const describeHeaderRows = (tbl: any): boolean[] =>
+      toArray(tbl['w:tr']).map(
+        (tr: any) => tr['w:trPr']?.['w:tblHeader'] !== undefined
+      );
+
+    it('marks the rows of a <thead> and the rows of only <th> cells that start the table', async () => {
+      const tbl = await convertTable(`<table>
+        <thead><tr><td>Head</td><td>Head</td></tr></thead>
+        <tbody>
+          <tr><th>Th</th><th>Th</th></tr>
+          <tr><th>Row header</th><td>A</td></tr>
+          <tr><th>Th</th><th>Th</th></tr>
+        </tbody>
+      </table>`);
+
+      expect(describeHeaderRows(tbl)).toEqual([true, true, false, false]);
+    });
+
+    it('marks no rows when the first row is not a header row', async () => {
+      const tbl = await convertTable(`<table>
+        <tr><td>A</td><td>B</td></tr>
+        <tr><th>Th</th><th>Th</th></tr>
+      </table>`);
+
+      expect(describeHeaderRows(tbl)).toEqual([false, false]);
+    });
+  });
+
   it('does not merge a cell whose rowspan reaches past the last row', async () => {
     const tbl = await convertTable(`<table>
       <tr><td rowspan="3" style="border: 1px solid #000">A</td><td>B</td></tr>
