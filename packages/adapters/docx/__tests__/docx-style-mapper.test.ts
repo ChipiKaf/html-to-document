@@ -152,8 +152,13 @@ describe('DocxStyleMapper', () => {
       right: lengthToTwips('2px'),
     });
     const p = { type: 'paragraph' } as DocumentElement;
-    const padP = mapper.mapStyles({ padding: '3px' }, p) as any;
-    expect(padP.border).toBeDefined();
+    const padP = mapper.mapStyles(
+      { padding: '3px', borderStyle: 'solid' },
+      p
+    ) as any;
+    expect(padP.border.top.space).toBe(lengthToTwips('3px'));
+    // Without a border there is nothing to space the text from
+    expect(mapper.mapStyles({ padding: '3px' }, p)).toEqual({});
     const marP = mapper.mapStyles({ margin: '5px' }, p) as any;
     expect(marP.spacing).toBeDefined();
     expect(marP.indent).toBeDefined();
@@ -236,10 +241,13 @@ describe('DocxStyleMapper', () => {
     const none = mapper.mapStyles({ border: 'none' }, cell) as any;
     expect(none.borders.top.style).toBe(BorderStyle.NONE);
     const t = { type: 'table' } as DocumentElement;
-    const bw = mapper.mapStyles({ borderWidth: '12pt' } as any, t) as any;
+    const bw = mapper.mapStyles(
+      { borderWidth: '12pt', borderStyle: 'solid' } as any,
+      t
+    ) as any;
     expect(bw.borders.top.size).toBe(96);
     const multiBw = mapper.mapStyles(
-      { borderWidth: '1px 2px 3px 4px' } as any,
+      { borderWidth: '1px 2px 3px 4px', borderStyle: 'solid' } as any,
       t
     ) as any;
     expect(multiBw.borders.top.size).toBe(6);
@@ -247,21 +255,79 @@ describe('DocxStyleMapper', () => {
     expect(multiBw.borders.bottom.size).toBe(18);
     expect(multiBw.borders.left.size).toBe(24);
     const p = { type: 'paragraph' } as DocumentElement;
-    const bwp = mapper.mapStyles({ borderWidth: '1in' } as any, p) as any;
+    const bwp = mapper.mapStyles(
+      { borderWidth: '1in', borderStyle: 'solid' } as any,
+      p
+    ) as any;
     expect(bwp.border.left.size).toBe(576);
   });
 
   it('maps border colors from common CSS color formats', () => {
     const cell = { type: 'table-cell' } as DocumentElement;
-    expect(mapper.mapStyles({ borderTopColor: '#abc' }, cell)).toEqual({
-      borders: { top: { color: 'AABBCC' } },
-      border: { top: { color: 'AABBCC' } },
+    expect(
+      mapper.mapStyles(
+        { borderTopColor: '#abc', borderTopStyle: 'solid' },
+        cell
+      )
+    ).toEqual({
+      borders: { top: { color: 'AABBCC', style: BorderStyle.SINGLE } },
+      border: { top: { color: 'AABBCC', style: BorderStyle.SINGLE } },
     });
     expect(
-      mapper.mapStyles({ borderTopColor: 'rgb(255, 0, 17)' }, cell)
+      mapper.mapStyles(
+        { borderTopColor: 'rgb(255, 0, 17)', borderTopStyle: 'solid' },
+        cell
+      )
     ).toEqual({
-      borders: { top: { color: 'FF0011' } },
-      border: { top: { color: 'FF0011' } },
+      borders: { top: { color: 'FF0011', style: BorderStyle.SINGLE } },
+      border: { top: { color: 'FF0011', style: BorderStyle.SINGLE } },
+    });
+  });
+
+  // A border side without a style must not be written: w:val is required by
+  // ECMA-376, and Word may report the file as damaged. It also matches CSS,
+  // where border-style defaults to none, so a colour or width alone draws no
+  // border.
+  describe('border sides without a style', () => {
+    const cell = { type: 'table-cell' } as DocumentElement;
+    const p = { type: 'paragraph' } as DocumentElement;
+
+    it('drops a side that only has a colour', () => {
+      expect(mapper.mapStyles({ borderColor: '#000' }, cell)).toEqual({});
+      expect(mapper.mapStyles({ borderRightColor: '#000' }, p)).toEqual({});
+    });
+
+    it('drops a side that only has a width', () => {
+      expect(mapper.mapStyles({ borderTopWidth: '1px' }, cell)).toEqual({});
+      expect(mapper.mapStyles({ borderWidth: '1px' } as any, p)).toEqual({});
+    });
+
+    it('keeps only the sides that have a style', () => {
+      expect(
+        mapper.mapStyles(
+          { borderColor: '#000', borderTopStyle: 'solid' } as any,
+          cell
+        )
+      ).toEqual({
+        borders: { top: { color: '000000', style: BorderStyle.SINGLE } },
+        border: { top: { color: '000000', style: BorderStyle.SINGLE } },
+      });
+    });
+
+    it('keeps an explicit border-style: none', () => {
+      expect(
+        mapper.mapStyles(
+          { borderTopStyle: 'none', borderTopColor: '#000' },
+          cell
+        )
+      ).toEqual({
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: '000000' },
+        },
+        border: {
+          top: { style: BorderStyle.NONE, size: 0, color: '000000' },
+        },
+      });
     });
   });
 

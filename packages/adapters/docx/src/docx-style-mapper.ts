@@ -84,6 +84,38 @@ const lengthToBorderSize = (value: string): number | undefined => {
   return typeof twips === 'number' ? twipsToEighthsOfPoint(twips) : undefined;
 };
 
+/**
+ * Removes border sides that have no style, from table borders (`borders`) and
+ * paragraph borders (`border`).
+ *
+ * The border longhands map separately, so `border-color` or `border-width`
+ * without a `border-style` leaves a side with only a colour or a size, and a
+ * paragraph's `padding` without a border leaves one with only a `space`. Such a
+ * side must not be written: `w:val` is required on every border side in
+ * ECMA-376, and Word may report a file with `<w:right w:color="000000"/>` as
+ * damaged. This matches CSS, where `border-style` defaults to `none`, so a
+ * colour or width alone draws no border.
+ */
+const dropStylelessBorderSides = (
+  mapped: Record<string, unknown>
+): Record<string, unknown> => {
+  for (const key of ['borders', 'border'] as const) {
+    const sides = mapped[key] as
+      | Record<string, { style?: unknown } | undefined>
+      | undefined;
+    if (!sides || typeof sides !== 'object') continue;
+    const styled = Object.fromEntries(
+      Object.entries(sides).filter(([, side]) => side?.style !== undefined)
+    );
+    if (Object.keys(styled).length > 0) {
+      mapped[key] = styled;
+    } else {
+      delete mapped[key];
+    }
+  }
+  return mapped;
+};
+
 const splitCssTokens = (value: string): string[] => {
   const tokens: string[] = [];
   let current = '';
@@ -674,7 +706,7 @@ export class DocxStyleMapper {
     el: DocumentElement
   ): Record<string, unknown> {
     const expandedStyles = this.expandShorthands(rawStyles, el);
-    return (Object.keys(expandedStyles) as StyleKey[]).reduce(
+    const mapped = (Object.keys(expandedStyles) as StyleKey[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper && typeof expandedStyles[cssProp] === 'string') {
@@ -686,6 +718,7 @@ export class DocxStyleMapper {
       },
       {}
     );
+    return dropStylelessBorderSides(mapped);
   }
 
   // Method to add or override a mapping
