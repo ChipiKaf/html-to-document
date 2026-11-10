@@ -68,17 +68,39 @@ export const lengthToTwips = (
   }
 };
 
+/**
+ * Converts a CSS length to twips, resolving a percentage against
+ * `percentageBase`, in twips.
+ * @returns a number (never NaN) or undefined
+ */
+export const lengthOrPercentageToTwips = (
+  value: string | number | undefined,
+  /**
+   * The width of the container or the available space, what (100%) should mean in twips
+   */
+  percentageBase: number
+): number | undefined => {
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const percent = parseFloat(value);
+    return Number.isFinite(percent)
+      ? Math.round((percentageBase * percent) / 100)
+      : undefined;
+  }
+  return lengthToTwips(value);
+};
+
+/** A DOCX width of a percentage, such as of a table or of the table a cell is in. */
+export const percentageWidth = (percent: number) => ({
+  size: Math.round(percent),
+  type: WidthType.PERCENTAGE,
+});
+
 export const parseWidth = (value: string) => {
   const raw = value.trim().toLowerCase();
   const token = raw.split(/\s+/)[0] ?? '';
   if (token.endsWith('%')) {
     const percent = parseFloat(token);
-    return Number.isFinite(percent)
-      ? {
-          size: Math.round(percent),
-          type: WidthType.PERCENTAGE,
-        }
-      : undefined;
+    return Number.isFinite(percent) ? percentageWidth(percent) : undefined;
   }
   const twips = lengthToTwips(token);
   return typeof twips === 'number'

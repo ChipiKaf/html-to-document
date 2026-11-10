@@ -27,6 +27,11 @@ import { ImageConverter } from './inline/image';
 import { ImageBlockConverter } from './block/image';
 import { promiseAllFlat } from '../docx.util';
 import { ListItemConverter } from './block/list-item';
+import {
+  getPageContentWidth,
+  type PageOptions,
+  resolvePageOptions,
+} from '../page';
 
 type ElementConverterInitDependencies = {
   styleMapper: DocxStyleMapper;
@@ -42,6 +47,9 @@ export class ElementConverter {
   private readonly styleMapper: DocxStyleMapper;
   private readonly defaultStyles: IConverterDependencies['defaultStyles'];
   private readonly styleMeta: IConverterDependencies['styleMeta'];
+  private readonly defaultPage: PageOptions | undefined;
+  /** The width of the container's content, or `undefined` for the page's. */
+  private readonly containerContentWidth: number | undefined;
 
   constructor(
     {
@@ -80,6 +88,19 @@ export class ElementConverter {
     this.styleMapper = styleMapper;
     this.defaultStyles = defaultStyles;
     this.styleMeta = styleMeta;
+    this.defaultPage = config?.defaultSectionOptions?.properties?.page;
+  }
+
+  /**
+   * Returns a converter for the content of a container, such as a table cell,
+   * that is `width` twips wide. It converts like this converter, and so does
+   * every converter it passes on to nested content, but resolves percentage
+   * widths against the container instead.
+   */
+  public withContainerContentWidth(width: number): ElementConverter {
+    return Object.create(this, {
+      containerContentWidth: { value: width },
+    }) as ElementConverter;
   }
 
   private getDependencies(
@@ -91,6 +112,9 @@ export class ElementConverter {
       defaultStyles: this.defaultStyles,
       stylesheet,
       styleMeta: this.styleMeta,
+      containerContentWidth:
+        this.containerContentWidth ??
+        getPageContentWidth(resolvePageOptions(stylesheet, this.defaultPage)),
     } as const;
   }
 

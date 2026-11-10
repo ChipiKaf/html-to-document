@@ -6,6 +6,7 @@ import {
   type TableElement,
   type TableRowElement,
 } from 'html-to-document-core';
+import { lengthOrPercentageToTwips } from '../../../utils/parse';
 import type { ElementConverterDependencies } from '../../types';
 import type { PlacedCell } from './grid';
 
@@ -60,6 +61,22 @@ export class TableStyles {
         ...((options.borders as Record<string, unknown> | undefined) ?? {}),
       },
     };
+  }
+
+  /**
+   * The table's width in twips, which the widths of its columns resolve their
+   * percentages against. A percentage resolves against the width of its
+   * container's content, as does a table without a width, which can at most be
+   * as wide as that.
+   */
+  public getTableWidth(): number {
+    const { containerContentWidth } = this.dependencies;
+    return (
+      lengthOrPercentageToTwips(
+        this.table.width as string | number | undefined,
+        containerContentWidth
+      ) ?? containerContentWidth
+    );
   }
 
   /** A row's DOCX options. */

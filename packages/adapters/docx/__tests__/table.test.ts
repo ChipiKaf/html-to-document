@@ -62,6 +62,24 @@ const describeBorders = (tbl: any): string[][] =>
     })
   );
 
+/**
+ * Describes the `w:tcW` of each `w:tc`, row by row, as its `w:w` and `w:type`,
+ * or `-` for a cell without a width.
+ */
+const describeWidths = (tbl: any): string[][] =>
+  toArray(tbl['w:tr']).map((tr: any) =>
+    toArray(tr['w:tc']).map((tc: any) => {
+      const width = tc['w:tcPr']?.['w:tcW'];
+      return width ? `${width['@_w:w']} ${width['@_w:type']}` : '-';
+    })
+  );
+
+/** The `w:w` of each `w:gridCol` of a table's grid. */
+const describeGrid = (tbl: any): string[] =>
+  toArray(tbl['w:tblGrid']['w:gridCol']).map((col: any) =>
+    String(col['@_w:w'])
+  );
+
 const convertTable = async (
   html: string,
   adapter = new DocxAdapter({})
@@ -268,6 +286,266 @@ describe('TableConverter', () => {
       </table>`);
 
       expect(body).toEqual(['Above', 'Below']);
+    });
+  });
+
+  describe('column widths', () => {
+    const withPageRule = (descriptors: Record<string, string>) => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addAtRule({ kind: 'at-rule', name: 'page', descriptors });
+      return new DocxAdapter({ stylesheet });
+    };
+
+    it('writes the widths of the <col> elements as the grid', async () => {
+      const tbl = await convertTable(`<table>
+        <colgroup><col style="width: 2cm"><col style="width: 1cm"><col style="width: 3cm"></colgroup>
+        <tr><td colspan="2">A</td><td>B</td></tr>
+      </table>`);
+
+      // 2cm, 1cm and 3cm are 1134, 567 and 1701 twips
+      expect(describeGrid(tbl)).toEqual(['1134', '567', '1701']);
+    });
+
+    it("resolves percentage columns against the table's width", async () => {
+      const tbl = await convertTable(`<table style="width: 10cm">
+        <colgroup><col style="width: 47.5%"><col style="width: 5%"><col style="width: 47.5%"></colgroup>
+        <tr><td>A</td><td>B</td><td>C</td></tr>
+      </table>`);
+
+      // 10cm is 5669 twips
+      expect(describeGrid(tbl)).toEqual(['2693', '283', '2693']);
+    });
+
+    it("resolves a percentage table against the page's width between its @page margins", async () => {
+      const adapter = withPageRule({ margin: '2.5cm 4.5cm 2.5cm 2.5cm' });
+      const tbl = await convertTable(
+        `<table style="width: 100%">
+          <colgroup><col style="width: 47.5%"><col style="width: 5%"><col style="width: 47.5%"></colgroup>
+          <tr><td>A</td><td>B</td><td>C</td></tr>
+        </table>`,
+        adapter
+      );
+
+      // An A4 page is 11906 twips wide, and its margins are 1417 and 2551
+      expect(describeGrid(tbl)).toEqual(['3771', '397', '3771']);
+    });
+
+    it('resolves against the width of a landscape page', async () => {
+      const adapter = withPageRule({ size: 'A4 landscape', margin: '1in' });
+      const tbl = await convertTable(
+        `<table style="width: 50%">
+          <colgroup><col style="width: 100%"></colgroup>
+          <tr><td>A</td></tr>
+        </table>`,
+        adapter
+      );
+
+      // A landscape A4 page is 16838 twips wide, and its margins are 1440
+      expect(describeGrid(tbl)).toEqual(['6979']);
+    });
+
+    it("resolves the columns of a table without a width against the page's width between the section's margins", async () => {
+      const adapter = new DocxAdapter(
+        {},
+        {
+          defaultSectionOptions: {
+            properties: { page: { margin: { left: 1453, right: 1453 } } },
+          },
+        }
+      );
+      const tbl = await convertTable(
+        `<table>
+          <colgroup><col style="width: 25%"><col style="width: 75%"></colgroup>
+          <tr><td>A</td><td>B</td></tr>
+        </table>`,
+        adapter
+      );
+
+      expect(describeGrid(tbl)).toEqual(['2250', '6750']);
+    });
+
+    // As in CSS, where a percentage resolves against the width of its
+    // container's content. A column's width includes the padding of its cells,
+    // as does a cell's percentage width, which sets its column's width, but a
+    // cell's absolute width is the width of its content, unless the cell has
+    // `box-sizing: border-box`. 1px is 15 twips.
+    describe('nested tables', () => {
+      const getNestedGrid = async (cell: string) => {
+        const tbl = await convertTable(`<table style="width: 800px">
+          <colgroup><col style="width: 25%"><col style="width: 75%"></colgroup>
+          <tr><td>A</td>${cell.replace(
+            '><',
+            `><table style="width: 50%">
+              <colgroup><col style="width: 40%"><col style="width: 60%"></colgroup>
+              <tr><td>B</td><td>C</td></tr>
+            </table><`
+          )}</tr>
+        </table>`);
+        const nested = toArray(toArray(tbl['w:tr'])[0]['w:tc'])[1]['w:tbl'];
+        return describeGrid(nested);
+      };
+
+      it('resolves against the columns its cell spans, without the padding', async () => {
+        // 75% of 12000 twips, without 2 × 150 twips of padding, is 8700
+        expect(
+          await getNestedGrid('<td style="padding: 0 10px"></td>')
+        ).toEqual(['1740', '2610']);
+      });
+
+      it("resolves against its column's share of the rest of the table", async () => {
+        const tbl = await convertTable(`<table style="width: 800px">
+          <colgroup><col style="width: 25%"><col></colgroup>
+          <tr><td>A</td><td><table style="width: 50%">
+            <colgroup><col style="width: 40%"><col style="width: 60%"></colgroup>
+            <tr><td>B</td><td>C</td></tr>
+          </table></td></tr>
+        </table>`);
+        const nested = toArray(toArray(tbl['w:tr'])[0]['w:tc'])[1]['w:tbl'];
+
+        // The second column is the other 75% of 12000 twips
+        expect(describeGrid(nested)).toEqual(['1800', '2700']);
+      });
+
+      it("resolves against its cell's percentage width, without the padding", async () => {
+        expect(
+          await getNestedGrid('<td style="width: 75%; padding: 0 10px"></td>')
+        ).toEqual(['1740', '2610']);
+      });
+
+      it("resolves against its cell's absolute width, which doesn't include the padding", async () => {
+        // 400px is 6000 twips
+        expect(
+          await getNestedGrid('<td style="width: 400px; padding: 0 10px"></td>')
+        ).toEqual(['1200', '1800']);
+      });
+
+      it("resolves against its cell's absolute width without the padding, when the cell's box-sizing is border-box", async () => {
+        expect(
+          await getNestedGrid(
+            '<td style="width: 400px; padding: 0 10px; box-sizing: border-box"></td>'
+          )
+        ).toEqual(['1140', '1710']);
+      });
+    });
+
+    // As in CSS's fixed table layout. The automatic layout would size them by
+    // their content, which can't be measured here.
+    it("splits the rest of the table's width among the columns without a width", async () => {
+      const missingWidth = await convertTable(`<table style="width: 800px">
+        <colgroup><col style="width: 200px"><col><col></colgroup>
+        <tr><td>A</td><td>B</td><td>C</td></tr>
+      </table>`);
+      const missingCol = await convertTable(`<table>
+        <colgroup><col style="width: 2cm"></colgroup>
+        <tr><td>A</td><td>B</td></tr>
+      </table>`);
+
+      // 800px is 12000 twips, and 200px 3000
+      expect(describeGrid(missingWidth)).toEqual(['3000', '4500', '4500']);
+      // A table without a width is at most as wide as the page's content, which
+      // is 9026 twips with the default page, and 2cm is 1134
+      expect(describeGrid(missingCol)).toEqual(['1134', '7892']);
+    });
+
+    // Where the placeholders give equal columns
+    it('leaves the grid to docx when no column has a width, or the others leave none for it', async () => {
+      const noWidths = await convertTable(`<table>
+        <colgroup><col><col></colgroup>
+        <tr><td>A</td><td>B</td></tr>
+      </table>`);
+      const noneLeft = await convertTable(`<table style="width: 10cm">
+        <colgroup><col style="width: 100%"><col></colgroup>
+        <tr><td>A</td><td>B</td></tr>
+      </table>`);
+
+      expect(describeGrid(noWidths)).toEqual(['100', '100']);
+      expect(describeGrid(noneLeft)).toEqual(['100', '100']);
+    });
+  });
+
+  // Word lays a table out by its cells' widths, and only uses the grid when they
+  // have none. A percentage of the table keeps a cell resizing with the table,
+  // and the table with the page.
+  describe('cell widths', () => {
+    it('gives a cell the widths of the columns it spans added together, as a percentage when they all are', async () => {
+      const tbl = await convertTable(`<table style="width: 10cm">
+        <colgroup>
+          <col style="width: 40%"><col style="width: 10%"><col style="width: 50%">
+          <col style="width: 2cm"><col style="width: 1cm">
+        </colgroup>
+        <tr><td colspan="2">A</td><td>B</td><td colspan="2">C</td></tr>
+        <tr><td>D</td><td colspan="2">E</td><td>F</td><td>G</td></tr>
+        <tr><td>H</td><td>I</td><td colspan="2">J</td><td>K</td></tr>
+      </table>`);
+
+      // 2cm and 1cm are 1134 and 567 twips, and 3cm is 1701. A percentage and an
+      // absolute width add up in twips: 50% of 10cm is 2835, and 2cm 1134.
+      expect(describeWidths(tbl)).toEqual([
+        ['50% pct', '50% pct', '1701 dxa'],
+        ['40% pct', '60% pct', '1134 dxa', '567 dxa'],
+        ['40% pct', '10% pct', '3969 dxa', '567 dxa'],
+      ]);
+    });
+
+    it('gives a cell spanning rows and columns the widths of the columns it spans in every row', async () => {
+      const tbl = await convertTable(`<table>
+        <colgroup><col style="width: 20%"><col style="width: 30%"><col style="width: 50%"></colgroup>
+        <tr><td colspan="2" rowspan="2">A</td><td>B</td></tr>
+        <tr><td>C</td></tr>
+      </table>`);
+
+      expect(describeWidths(tbl)).toEqual([
+        ['50% pct', '50% pct'],
+        ['50% pct', '50% pct'],
+      ]);
+    });
+
+    // As in CSS's fixed table layout, the columns without a width split the rest
+    // of the table's width evenly
+    it('gives a cell in a column without a width its share of the rest of the table', async () => {
+      const percentages = await convertTable(`<table>
+        <colgroup><col style="width: 40%"><col><col></colgroup>
+        <tr><td>A</td><td>B</td><td>C</td></tr>
+        <tr><td colspan="2">D</td><td>E</td></tr>
+      </table>`);
+      const absolute = await convertTable(`<table style="width: 800px">
+        <colgroup><col style="width: 200px"><col><col></colgroup>
+        <tr><td>A</td><td>B</td><td>C</td></tr>
+      </table>`);
+
+      // The share stays a percentage when the other columns are percentages
+      expect(describeWidths(percentages)).toEqual([
+        ['40% pct', '30% pct', '30% pct'],
+        ['70% pct', '30% pct'],
+      ]);
+      // 800px is 12000 twips, and 200px 3000
+      expect(describeWidths(absolute)).toEqual([
+        ['3000 dxa', '4500 dxa', '4500 dxa'],
+      ]);
+    });
+
+    it('leaves out the width of a cell in a column without a width when no column has one, or the others leave none for it', async () => {
+      const noWidths = await convertTable(`<table>
+        <colgroup><col><col></colgroup>
+        <tr><td>A</td><td>B</td></tr>
+      </table>`);
+      const noneLeft = await convertTable(`<table>
+        <colgroup><col style="width: 100%"><col></colgroup>
+        <tr><td colspan="2">A</td></tr>
+        <tr><td>B</td><td>C</td></tr>
+      </table>`);
+
+      expect(describeWidths(noWidths)).toEqual([['-', '-']]);
+      expect(describeWidths(noneLeft)).toEqual([['-'], ['100% pct', '-']]);
+    });
+
+    it("keeps a cell's own width over the widths of the columns it spans", async () => {
+      const tbl = await convertTable(`<table>
+        <colgroup><col style="width: 40%"><col style="width: 60%"></colgroup>
+        <tr><td colspan="2" style="width: 3cm">A</td></tr>
+      </table>`);
+
+      expect(describeWidths(tbl)).toEqual([['1701 dxa']]);
     });
   });
 

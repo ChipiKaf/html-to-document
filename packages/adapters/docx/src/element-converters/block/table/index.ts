@@ -25,7 +25,8 @@ type DocumentElementType = TableElement;
  *   their DOCX options.
  * - `CollapsedBorders` (`borders.ts`): the edges a cell shares with its
  *   neighbours, following the CSS collapsed border model.
- * - `TableColumns` (`columns.ts`): the column options from `<colgroup>`.
+ * - `TableColumns` (`columns.ts`): the table's grid and the cells' column
+ *   options, from `<colgroup>`.
  * - `TableCellBuilder` (`cells.ts`): the `TableCell` for each slot of a row.
  * - `TableCaptions` (`captions.ts`): the captions above and below the table.
  */
@@ -41,11 +42,17 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
   ): Promise<FileChild[]> {
     const styles = new TableStyles(dependencies, element, cascadedStyles);
     const grid = new TableGrid(element.rows);
+    const columns = new TableColumns(
+      dependencies,
+      element,
+      styles,
+      grid.colCount
+    );
     const cellBuilder = new TableCellBuilder(
       dependencies,
       styles,
       new CollapsedBorders(grid, styles),
-      new TableColumns(dependencies, element, styles)
+      columns
     );
     const captions = await new TableCaptions(
       dependencies,
@@ -76,7 +83,13 @@ export class TableConverter implements IBlockConverter<DocumentElementType> {
 
     return [
       ...captions.top,
-      new Table({ ...styles.getTableOptions(), rows }),
+      new Table({
+        ...styles.getTableOptions(),
+        // Word lays the table out by the cells' widths, but LibreOffice and
+        // Google Docs by the grid. Without one, `docx` writes placeholders.
+        columnWidths: columns.getGridWidths(),
+        rows,
+      }),
       ...captions.bottom,
     ];
   }

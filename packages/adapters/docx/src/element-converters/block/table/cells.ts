@@ -7,6 +7,7 @@ import {
   VerticalAlign,
 } from 'docx';
 import { computeInheritedStyles, filterForScope } from 'html-to-document-core';
+import { lengthOrPercentageToTwips } from '../../../utils/parse';
 import type { ElementConverterDependencies } from '../../types';
 import type { CollapsedBorders } from './borders';
 import type { TableColumns } from './columns';
@@ -27,16 +28,19 @@ export class TableCellBuilder {
   ) {}
 
   public async build(slot: RowSlot, row: number): Promise<TableCell> {
-    const columnOptions = this.columns.getOptions(slot.col);
     if (slot.kind === 'empty') {
       return new TableCell({
         verticalAlign: VerticalAlign.CENTER,
-        ...columnOptions,
+        ...this.columns.getCellOptions(slot.col),
         children: [TableCellBuilder.createEmptyParagraph()],
       });
     }
 
     const { placed } = slot;
+    const columnOptions = this.columns.getCellOptions(
+      placed.col,
+      placed.colSpan
+    );
     const cellOptions = this.styles.getCellOptions(placed);
     const borders = {
       ...(columnOptions.borders as Record<string, unknown> | undefined),
@@ -69,7 +73,10 @@ export class TableCellBuilder {
 
   /** Converts a cell's content, which it writes in the first row it covers. */
   private async convertContent(placed: PlacedCell): Promise<FileChild[]> {
-    const { converter, stylesheet, styleMapper, styleMeta } = this.dependencies;
+    const { stylesheet, styleMapper, styleMeta } = this.dependencies;
+    const converter = this.dependencies.converter.withContainerContentWidth(
+      this.getContentWidth(placed)
+    );
     const cascadedCellStyles = computeInheritedStyles({
       parentStyles: this.styles.getCellStyles(placed),
       parentScope: 'tableCell',
@@ -91,6 +98,36 @@ export class TableCellBuilder {
         }),
       ],
     });
+  }
+
+  /**
+   * The width of a cell's content in twips, which the percentage widths of its
+   * blocks, such as a nested table's, resolve against, as in CSS. A cell's
+   * absolute `width` is the width of its content, unless the cell has
+   * `box-sizing: border-box`. A percentage `width` sets the width of the cell's
+   * column, which, like the widths of the columns it spans or, without either, at
+   * most the table's width, includes the cell's padding.
+   */
+  private getContentWidth(placed: PlacedCell): number {
+    const { width, boxSizing } = this.styles.getCellStyles(placed) as {
+      width?: string | number;
+      boxSizing?: string;
+    };
+    const tableWidth = this.styles.getTableWidth();
+    const ownWidth = lengthOrPercentageToTwips(width, tableWidth);
+    const isPercentage = String(width).trim().endsWith('%');
+    if (ownWidth !== undefined && !isPercentage && boxSizing !== 'border-box') {
+      return ownWidth;
+    }
+
+    const boxWidth =
+      ownWidth ??
+      this.columns.getSpanTwips(placed.col, placed.colSpan) ??
+      tableWidth;
+    const { margins } = this.styles.getCellOptions(placed) as {
+      margins?: { left?: number; right?: number };
+    };
+    return Math.max(0, boxWidth - (margins?.left ?? 0) - (margins?.right ?? 0));
   }
 
   private static createEmptyParagraph(): Paragraph {
