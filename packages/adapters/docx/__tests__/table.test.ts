@@ -12,7 +12,10 @@ import {
   parseDocxDocument,
 } from '../../../core/__tests__/utils/parser.helper';
 import { DocxAdapter } from '../src/docx.adapter';
-import { TableGrid } from '../src/element-converters/block/table/grid';
+import {
+  type Side,
+  TableGrid,
+} from '../src/element-converters/block/table/grid';
 
 const toArray = <T>(value: T | T[] | undefined): T[] => {
   if (value === undefined) {
@@ -216,6 +219,55 @@ describe('TableGrid', () => {
       expect(
         grid.getRowSlots(1).map(({ kind, col }) => `${kind}@${col}`)
       ).toEqual(['continuation@0', 'empty@2']);
+    });
+  });
+
+  describe('getAcross', () => {
+    /** Describes what is across a side of a cell, by the text of the cells across. */
+    const across = (
+      grid: TableGrid,
+      index: number,
+      row: number,
+      side: Side
+    ): string => {
+      const result = grid.getAcross(grid.cells[index]!, row, side);
+      if (result.kind !== 'cells') return result.kind;
+      return result.cells
+        .map(({ cell }) => {
+          const content = cell.content?.[0];
+          return content && 'text' in content ? content.text : '?';
+        })
+        .join(' ');
+    };
+
+    const grid = new TableGrid([
+      row(cell('A', { colspan: 2, rowspan: 2 }), cell('B')),
+      row(cell('C')),
+      row(cell('D'), cell('E')),
+    ]);
+
+    it('finds every cell along a side of a cell spanning columns', () => {
+      expect(across(grid, 0, 1, 'bottom')).toBe('D E');
+    });
+
+    it('finds the cell across a side in the given row of a cell spanning rows', () => {
+      expect(across(grid, 0, 0, 'right')).toBe('B');
+      expect(across(grid, 0, 1, 'right')).toBe('C');
+    });
+
+    it('has nothing across an edge between the rows a cell spans', () => {
+      expect(across(grid, 0, 0, 'bottom')).toBe('inside');
+      expect(across(grid, 0, 1, 'top')).toBe('inside');
+    });
+
+    it("finds the table at the table's edge", () => {
+      expect(across(grid, 0, 0, 'top')).toBe('table');
+      expect(across(grid, 0, 1, 'left')).toBe('table');
+      expect(across(grid, 2, 2, 'right')).toBe('table');
+    });
+
+    it('finds no cells across empty slots', () => {
+      expect(across(grid, 2, 1, 'bottom')).toBe('');
     });
   });
 });

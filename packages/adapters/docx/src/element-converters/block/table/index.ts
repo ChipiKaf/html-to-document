@@ -20,12 +20,13 @@ type DocumentElementType = TableElement;
 
 /**
  * Converts a table by combining:
- * - `TableGrid` (`grid.ts`): the layout, which cell covers each slot, following
- *   the HTML table model.
+ * - `TableGrid` (`grid.ts`): the layout, which cell covers each slot and what is
+ *   across each side of a cell, following the HTML table model.
  * - `TableStyles` (`styles.ts`): the CSS styles of the table, rows and cells, and
  *   their DOCX options.
- * - `CollapsedBorders` (`borders.ts`): the edges a cell shares with its
- *   neighbours, following the CSS collapsed border model.
+ * - `CollapsedBorders` (`borders.ts`): which sides of a cell draw no border,
+ *   from what the grid finds across them, following the CSS collapsed border
+ *   model.
  * - `TableColumns` (`columns.ts`): the table's grid and the cells' column
  *   options, from `<colgroup>`.
  * - `TableCellBuilder` (`cells.ts`): the `TableCell` for each slot of a row.

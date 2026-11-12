@@ -25,6 +25,21 @@ export type RowSlot =
   | { kind: 'continuation'; col: number; placed: PlacedCell }
   | { kind: 'empty'; col: number };
 
+export type Side = 'top' | 'right' | 'bottom' | 'left';
+
+/**
+ * What is across one side of a cell, in one of the rows it covers:
+ * - `inside`: nothing, since the edge is between two of the rows the cell spans,
+ *   which isn't an edge in CSS.
+ * - `table`: the table's edge.
+ * - `cells`: the cells across the edge, one for each that covers part of it. None
+ *   when the slots across are empty.
+ */
+export type Across =
+  | { kind: 'inside' }
+  | { kind: 'table' }
+  | { kind: 'cells'; cells: PlacedCell[] };
+
 const toSpan = (span: number | undefined): number =>
   span && span > 0 ? Math.floor(span) : 1;
 
@@ -78,6 +93,28 @@ export class TableGrid {
     return result;
   }
 
+  /** Returns what is across one side of a cell, in one of the rows it covers. */
+  public getAcross(placed: PlacedCell, row: number, side: Side): Across {
+    const lastRow = placed.row + placed.rowSpan - 1;
+    if (side === 'top' && row > placed.row) return { kind: 'inside' };
+    if (side === 'bottom' && row < lastRow) return { kind: 'inside' };
+
+    const across = TableGrid.getSlotsAcross(placed, row, side);
+    const atTableEdge =
+      across.row < 0 ||
+      across.row >= this.rowCount ||
+      across.fromCol < 0 ||
+      across.fromCol >= this.colCount;
+    if (atTableEdge) return { kind: 'table' };
+
+    const cells = new Set<PlacedCell>();
+    for (let col = across.fromCol; col < across.toCol; col++) {
+      const neighbour = this.at(across.row, col);
+      if (neighbour) cells.add(neighbour);
+    }
+    return { kind: 'cells', cells: [...cells] };
+  }
+
   /** Places the cells of a row in the first free slots, and marks the slots they cover. */
   private placeRow(
     rows: readonly TableRowElement[],
@@ -105,5 +142,24 @@ export class TableGrid {
       col += placed.colSpan;
     }
     return placedCells;
+  }
+
+  /** The slots across one side of a cell, in one of its rows. */
+  private static getSlotsAcross(
+    placed: PlacedCell,
+    row: number,
+    side: Side
+  ): { row: number; fromCol: number; toCol: number } {
+    const endCol = placed.col + placed.colSpan;
+    switch (side) {
+      case 'top':
+        return { row: row - 1, fromCol: placed.col, toCol: endCol };
+      case 'bottom':
+        return { row: row + 1, fromCol: placed.col, toCol: endCol };
+      case 'left':
+        return { row, fromCol: placed.col - 1, toCol: placed.col };
+      case 'right':
+        return { row, fromCol: endCol, toCol: endCol + 1 };
+    }
   }
 }
