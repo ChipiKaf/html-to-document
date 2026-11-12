@@ -741,6 +741,18 @@ describe('TableConverter', () => {
       ]);
     });
 
+    it('suppresses only the side of the cells along the table border that is hidden', async () => {
+      const tbl = await convertTable(`<table style="border-top-style: hidden">
+        <tr><td style="${solid}">A</td></tr>
+        <tr><td style="${solid}">B</td></tr>
+      </table>`);
+
+      expect(describeBorders(tbl).map((cells) => cells[0])).toEqual([
+        'none single single single',
+        'single single single single',
+      ]);
+    });
+
     it("suppresses the cells' sides along a table border that is hidden, but not one that is none", async () => {
       const html = (tableStyle: string) => `<table style="${tableStyle}">
         <tr><td style="${solid}">A</td><td style="${solid}">B</td></tr>

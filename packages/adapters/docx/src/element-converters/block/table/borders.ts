@@ -46,25 +46,26 @@ export class CollapsedBorders {
   /** Returns the sides of a cell, in one of the rows it covers, that must not draw a border. */
   public getSuppressedSides(placed: PlacedCell, row: number): Side[] {
     return SIDES.filter((side) => {
-      const facing = this.getFacingStyles(placed, row, side);
+      const facing = this.getFacingSides(placed, row, side);
       if (facing === undefined) return true;
-      return facing.some((styles) =>
-        CollapsedBorders.isSideHidden(styles, OPPOSITE_SIDE[side])
+      return facing.styles.some((styles) =>
+        CollapsedBorders.isSideHidden(styles, facing.side)
       );
     });
   }
 
   /**
-   * Returns the styles of the boxes on the other side of one side of a cell, in one
-   * of the rows the cell covers: the cells across the edge, or the table at the
-   * table's edge. Returns `undefined` for an edge inside the cell, between two of
-   * the rows it spans, since that isn't an edge in CSS.
+   * Returns the boxes on the other side of one side of a cell, in one of the rows
+   * the cell covers, and their side along it: the cells across the edge and
+   * their opposite side, or the table and its same side at the table's edge.
+   * Returns `undefined` for an edge inside the cell, between two of the rows it
+   * spans, since that isn't an edge in CSS.
    */
-  private getFacingStyles(
+  private getFacingSides(
     placed: PlacedCell,
     row: number,
     side: Side
-  ): Styles[] | undefined {
+  ): { styles: Styles[]; side: Side } | undefined {
     const lastRow = placed.row + placed.rowSpan - 1;
     if (side === 'top' && row > placed.row) return undefined;
     if (side === 'bottom' && row < lastRow) return undefined;
@@ -75,16 +76,19 @@ export class CollapsedBorders {
       across.row >= this.grid.rowCount ||
       across.fromCol < 0 ||
       across.fromCol >= this.grid.colCount;
-    if (atTableEdge) return [this.styles.table];
+    if (atTableEdge) return { styles: [this.styles.table], side };
 
     const neighbours = new Set<PlacedCell>();
     for (let col = across.fromCol; col < across.toCol; col++) {
       const neighbour = this.grid.at(across.row, col);
       if (neighbour) neighbours.add(neighbour);
     }
-    return [...neighbours].map((neighbour) =>
-      this.styles.getCellStyles(neighbour)
-    );
+    return {
+      styles: [...neighbours].map((neighbour) =>
+        this.styles.getCellStyles(neighbour)
+      ),
+      side: OPPOSITE_SIDE[side],
+    };
   }
 
   /** The slots on the other side of one side of a cell, in one of its rows. */
