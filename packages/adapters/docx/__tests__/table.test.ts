@@ -814,6 +814,25 @@ describe('TableConverter', () => {
       ]);
     });
 
+    it("lets a hidden cell suppress the table's border along its own sides only", async () => {
+      const tbl = await convertTable(`<table style="${solid}">
+        <tr><td style="border-style: hidden">A</td><td>B</td></tr>
+      </table>`);
+      const tableBorders = tbl['w:tblPr']['w:tblBorders'];
+
+      // The table keeps its border, which Word draws along B's outer sides
+      expect(
+        ['w:top', 'w:right', 'w:bottom', 'w:left'].map(
+          (side) => tableBorders[side]['@_w:val']
+        )
+      ).toEqual(['single', 'single', 'single', 'single']);
+      // A's none sides override the table's border along A, and B loses the
+      // side it shares with A
+      expect(describeBorders(tbl)).toEqual([
+        ['none none none none', '- - - none'],
+      ]);
+    });
+
     it("suppresses the cells' sides along a table border that is hidden, but not one that is none", async () => {
       const html = (tableStyle: string) => `<table style="${tableStyle}">
         <tr><td style="${solid}">A</td><td style="${solid}">B</td></tr>
