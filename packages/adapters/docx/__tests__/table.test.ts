@@ -306,6 +306,15 @@ describe('TableConverter', () => {
       expect(describeGrid(tbl)).toEqual(['1134', '567', '1701']);
     });
 
+    it('repeats a <col> for each column it spans', async () => {
+      const tbl = await convertTable(`<table>
+        <colgroup><col span="2" style="width: 1cm"><col style="width: 3cm"></colgroup>
+        <tr><td>A</td><td>B</td><td>C</td></tr>
+      </table>`);
+
+      expect(describeGrid(tbl)).toEqual(['567', '567', '1701']);
+    });
+
     it("resolves percentage columns against the table's width", async () => {
       const tbl = await convertTable(`<table style="width: 10cm">
         <colgroup><col style="width: 47.5%"><col style="width: 5%"><col style="width: 47.5%"></colgroup>

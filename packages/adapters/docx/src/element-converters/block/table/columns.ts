@@ -35,9 +35,16 @@ export class TableColumns {
     const [colgroup] = Array.isArray(colgroups)
       ? (colgroups as AttributeElement[])
       : [];
-    const cols =
+    const colElements =
       (colgroup?.metadata as { col?: DocumentElement[] } | undefined)?.col ??
       [];
+    // A <col> with a span stands for that many columns
+    const cols = colElements.flatMap((col) =>
+      Array.from(
+        { length: TableColumns.parseSpan(col.attributes?.span) },
+        () => col
+      )
+    );
     const colStyles = cols.map((col) => ({
       ...defaultStyles?.[col.type],
       ...stylesheet.getComputedStyles(col, styles.cascading),
@@ -153,6 +160,11 @@ export class TableColumns {
     }
     const twips = lengthToTwips(value as string | number | undefined);
     return twips === undefined ? undefined : { twips };
+  }
+
+  private static parseSpan(value: unknown): number {
+    const span = Math.floor(Number(value));
+    return Number.isFinite(span) && span > 0 ? span : 1;
   }
 
   private static hasWidths(
