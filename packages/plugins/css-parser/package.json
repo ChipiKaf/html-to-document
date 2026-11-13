@@ -1,6 +1,6 @@
 {
   "name": "html-to-document-plugin-css-parser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CSS parser plugin for html-to-document-core that harvests <style> tags and appends parsed statements to the per-parse stylesheet.",
   "keywords": [
     "html-to-document",
