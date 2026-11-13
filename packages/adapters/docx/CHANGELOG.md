@@ -1,5 +1,74 @@
 ## <small>0.3.0 (2025-06-08)</small>
 
+## 0.6.0
+
+### Minor Changes
+
+- [#58](https://github.com/ChipiKaf/html-to-document/pull/58) [`61d7ca4`](https://github.com/ChipiKaf/html-to-document/commit/61d7ca433297988e0b9796cf5b709030226dac5b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Added inline converter for images
+
+- [#67](https://github.com/ChipiKaf/html-to-document/pull/67) [`1de72cd`](https://github.com/ChipiKaf/html-to-document/commit/1de72cd9bb3f287865d0e796719fccb15fdff0ad) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Handle more units when converting to docx
+
+- [#59](https://github.com/ChipiKaf/html-to-document/pull/59) [`38da5bc`](https://github.com/ChipiKaf/html-to-document/commit/38da5bca09e9a4e2f3fd26a72f815153cd4922b2) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Added split text node by newlines utility and docx text converter will split them by default
+
+- [#69](https://github.com/ChipiKaf/html-to-document/pull/69) [`a9837bc`](https://github.com/ChipiKaf/html-to-document/commit/a9837bcf5a6b9360927f5c3f9b0cfd693c768331) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Moved current style mapper to docx converter
+
+- [#98](https://github.com/ChipiKaf/html-to-document/pull/98) [`fb4f236`](https://github.com/ChipiKaf/html-to-document/commit/fb4f23689a1a547ffed4b9f42f2e2c432848bd2b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Tables follow the HTML table model and the CSS collapsed border model more closely:
+  - A cell spanning both rows and columns no longer drops the cell after it in the spanned rows, and a row made wider than every other row by a `rowspan` keeps all its cells.
+  - A `rowspan` reaching past the last row is cut off there instead of writing a merge with nothing to merge.
+  - `border-style: hidden` suppresses the shared border along every part of an edge, also for cells spanning rows or columns, and a table's hidden border suppresses the cells' borders along the table's edge. `border-style: none` on a neighbour still leaves the cell's border.
+  - A cell's styles resolve in one order everywhere: default styles, then style sheet rules, then inline styles. Before, default styles overrode style sheet rules for the cell's own properties, such as its background and borders.
+  - A table without rows keeps its captions. Only the table is left out, since Word can't open a table without rows.
+
+- [#76](https://github.com/ChipiKaf/html-to-document/pull/76) [`1f10387`](https://github.com/ChipiKaf/html-to-document/commit/1f1038705e4bba8caa3ab9293063d4f869a7526f) Thanks [@Alexnortung](https://github.com/Alexnortung)! - BREAKING: Added stylesheet class for customizing styles in a more flexible way
+
+- [#73](https://github.com/ChipiKaf/html-to-document/pull/73) [`801f7d6`](https://github.com/ChipiKaf/html-to-document/commit/801f7d6222c935ec1005c2d3f60d5ec8f0907145) Thanks [@lasserb-oak](https://github.com/lasserb-oak)! - Styling is now applied to lists and paragraphs in run and paragraph-level
+
+- [#89](https://github.com/ChipiKaf/html-to-document/pull/89) [`8903621`](https://github.com/ChipiKaf/html-to-document/commit/89036215853dda43f6b9b18bf587e1537f44b950) Thanks [@Alexnortung](https://github.com/Alexnortung)! - DOCX: multiple bookmarks will be created for each parent
+
+- [#77](https://github.com/ChipiKaf/html-to-document/pull/77) [`020097a`](https://github.com/ChipiKaf/html-to-document/commit/020097ae52add313548f110da1fbe2adc487bb49) Thanks [@Alexnortung](https://github.com/Alexnortung)! - DOCX: Add heading styles from stylesheet to document defaults for headings
+
+- [#58](https://github.com/ChipiKaf/html-to-document/pull/58) [`61d7ca4`](https://github.com/ChipiKaf/html-to-document/commit/61d7ca433297988e0b9796cf5b709030226dac5b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Breaking: Fix typo in element convert interface (convertEement -> convertElement)
+
+- [#98](https://github.com/ChipiKaf/html-to-document/pull/98) [`fb4f236`](https://github.com/ChipiKaf/html-to-document/commit/fb4f23689a1a547ffed4b9f42f2e2c432848bd2b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Tables get their column widths from `<colgroup>` in both the cells and the grid:
+  - A cell spanning columns gets the widths of every column it spans added together, instead of the first column's width. When they are all percentages, the width stays a percentage of the table, so the table still resizes with the page in Word. A percentage and an absolute width add up in twips. A cell's own `width` still wins.
+  - As in CSS's fixed table layout, columns without a `<col>` with a width split the rest of the table's width evenly, as a percentage when the other columns are percentages. They are left without a width when no column has one, or the others leave none for them.
+  - The table's grid (`<w:tblGrid>`) gets the widths of its columns in twips instead of placeholders, so LibreOffice and Google Docs, which lay tables out by the grid, show the columns as wide as they are.
+  - A percentage resolves against the table's width, and a percentage table, or a table without a width, against the width of its container's content: the page's width between its left and right margins, from the `@page` rules and the default section options, or for a table nested in a cell, the width of the cell's content, as in CSS: a column's width, and a cell's percentage width, include the cell's padding, while a cell's absolute width doesn't, unless the cell has `box-sizing: border-box`. Converters get that width, in twips, as `containerContentWidth` in their dependencies, and `converter.withContainerContentWidth(width)` converts the content of a container of that width.
+
+- [#98](https://github.com/ChipiKaf/html-to-document/pull/98) [`fb4f236`](https://github.com/ChipiKaf/html-to-document/commit/fb4f23689a1a547ffed4b9f42f2e2c432848bd2b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Header rows that start a table, rows in a `<thead>` or rows of only `<th>` cells, are marked as header rows (`<w:tblHeader/>`), so Word repeats them at the top of every page the table continues on. Word only repeats header rows that start the table, so the first row that isn't one ends them.
+
+- [#98](https://github.com/ChipiKaf/html-to-document/pull/98) [`fb4f236`](https://github.com/ChipiKaf/html-to-document/commit/fb4f23689a1a547ffed4b9f42f2e2c432848bd2b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - A table's `margin-left` indents it (`<w:tblInd>`), as asked for in #71. A percentage resolves against the width of the table's container's content, as in CSS: the page's width between its left and right margins, or a cell's content for a table nested in a cell.
+
+  `DocxStyleMapper.mapStyles` takes an optional `StyleMappingContext` as its third argument, which it passes on to the style mappings. Its `containerContentWidth` is what percentages resolve against, such as a table's `margin-left`.
+
+- [#83](https://github.com/ChipiKaf/html-to-document/pull/83) [`2166691`](https://github.com/ChipiKaf/html-to-document/commit/21666913e0b00a09aabceb1af6470bc5adf28398) Thanks [@Alexnortung](https://github.com/Alexnortung)! - DOCX: stylemapper can convert from more units for border, fontSize and more
+
+- [#78](https://github.com/ChipiKaf/html-to-document/pull/78) [`029d596`](https://github.com/ChipiKaf/html-to-document/commit/029d59654ad090d2dac62782055b5a3a91dde303) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Support @page margins and size
+
+- [#61](https://github.com/ChipiKaf/html-to-document/pull/61) [`3071bba`](https://github.com/ChipiKaf/html-to-document/commit/3071bba5489444d41ace2c6e802db1f174e937d7) Thanks [@Alexnortung](https://github.com/Alexnortung)! - DOCX: Default section options config
+
+### Patch Changes
+
+- [#49](https://github.com/ChipiKaf/html-to-document/pull/49) [`a10ac85`](https://github.com/ChipiKaf/html-to-document/commit/a10ac85f27362ceacd586f31bd715d51e91fadaf) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Fix table row not getting the correct style mapping and vertical align top
+
+- [#88](https://github.com/ChipiKaf/html-to-document/pull/88) [`0bdeb26`](https://github.com/ChipiKaf/html-to-document/commit/0bdeb260f27bd61c27b75d9dd188e1d374a6cd7d) Thanks [@lasserb-oak](https://github.com/lasserb-oak)! - Handles border-style:hidden on tables and table cells
+
+- [#92](https://github.com/ChipiKaf/html-to-document/pull/92) [`35ea15f`](https://github.com/ChipiKaf/html-to-document/commit/35ea15fe7dd8956e952871b7ad637ad9f2fc9b6d) Thanks [@Alexnortung](https://github.com/Alexnortung)! - fix color conversion so that it supports `rgb()`/`rgba()` legacy and modern format + it normalizes hex codes to docx
+
+- [#67](https://github.com/ChipiKaf/html-to-document/pull/67) [`1de72cd`](https://github.com/ChipiKaf/html-to-document/commit/1de72cd9bb3f287865d0e796719fccb15fdff0ad) Thanks [@Alexnortung](https://github.com/Alexnortung)! - fix pixels to twips conversion
+
+- [#60](https://github.com/ChipiKaf/html-to-document/pull/60) [`8fda6b9`](https://github.com/ChipiKaf/html-to-document/commit/8fda6b9eb9c5d651008d3fc27d972f1975b9b49b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Will now merge numbering config, so unordered or ordered default config is not lost
+
+- [#98](https://github.com/ChipiKaf/html-to-document/pull/98) [`fb4f236`](https://github.com/ChipiKaf/html-to-document/commit/fb4f23689a1a547ffed4b9f42f2e2c432848bd2b) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Don't write border sides that have a colour, width or padding but no style. Such a side has no `w:val`, which ECMA-376 requires and Word may report as a damaged file, and as in CSS, where `border-style` defaults to `none`, it draws no border.
+
+- [#88](https://github.com/ChipiKaf/html-to-document/pull/88) [`0bdeb26`](https://github.com/ChipiKaf/html-to-document/commit/0bdeb260f27bd61c27b75d9dd188e1d374a6cd7d) Thanks [@lasserb-oak](https://github.com/lasserb-oak)! - Correctly uses style inheritance to handoff styles - avoids table cell borders being inherited in paragraphs
+
+- [#62](https://github.com/ChipiKaf/html-to-document/pull/62) [`2c249e0`](https://github.com/ChipiKaf/html-to-document/commit/2c249e042f3ba5d8f0d47d0646be3f31ffe43853) Thanks [@Alexnortung](https://github.com/Alexnortung)! - DOCX: fix: empty tables will not break the converted output
+
+- [#54](https://github.com/ChipiKaf/html-to-document/pull/54) [`92474d8`](https://github.com/ChipiKaf/html-to-document/commit/92474d8fdab99efaff9cbfae6e9705d62e345dc8) Thanks [@Alexnortung](https://github.com/Alexnortung)! - Added webpackIgnore: true for node.js imports
+- Updated dependencies [[`1de72cd`](https://github.com/ChipiKaf/html-to-document/commit/1de72cd9bb3f287865d0e796719fccb15fdff0ad), [`38da5bc`](https://github.com/ChipiKaf/html-to-document/commit/38da5bca09e9a4e2f3fd26a72f815153cd4922b2), [`a10ac85`](https://github.com/ChipiKaf/html-to-document/commit/a10ac85f27362ceacd586f31bd715d51e91fadaf), [`a9837bc`](https://github.com/ChipiKaf/html-to-document/commit/a9837bcf5a6b9360927f5c3f9b0cfd693c768331), [`0bdeb26`](https://github.com/ChipiKaf/html-to-document/commit/0bdeb260f27bd61c27b75d9dd188e1d374a6cd7d), [`aca29a7`](https://github.com/ChipiKaf/html-to-document/commit/aca29a7cde255aedc917dc796965753536b36100), [`35ea15f`](https://github.com/ChipiKaf/html-to-document/commit/35ea15fe7dd8956e952871b7ad637ad9f2fc9b6d), [`f36efb1`](https://github.com/ChipiKaf/html-to-document/commit/f36efb1994d6187993a7449dd0e5d8b48ffb0e19), [`1f10387`](https://github.com/ChipiKaf/html-to-document/commit/1f1038705e4bba8caa3ab9293063d4f869a7526f), [`61d7ca4`](https://github.com/ChipiKaf/html-to-document/commit/61d7ca433297988e0b9796cf5b709030226dac5b), [`8903621`](https://github.com/ChipiKaf/html-to-document/commit/89036215853dda43f6b9b18bf587e1537f44b950), [`fb4f236`](https://github.com/ChipiKaf/html-to-document/commit/fb4f23689a1a547ffed4b9f42f2e2c432848bd2b)]:
+  - html-to-document-core@0.5.0
+
 ## 0.5.0
 
 ### Minor Changes
