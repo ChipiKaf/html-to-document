@@ -11,6 +11,7 @@ import {
   TextWrappingType,
   VerticalPositionAlign,
   VerticalPositionRelativeFrom,
+  WidthType,
 } from 'docx';
 import {
   colorConversion,
@@ -18,7 +19,11 @@ import {
   parseImageSizePx,
   type Styles,
 } from 'html-to-document-core';
-import { lengthToTwips, parseWidth } from './utils/parse';
+import {
+  lengthOrPercentageToTwips,
+  lengthToTwips,
+  parseWidth,
+} from './utils/parse';
 import { splitQuadShorthand } from './utils/css-shorthands';
 import {
   twipsToEighthsOfPoint,
@@ -28,8 +33,25 @@ import {
 
 type StyleKey = keyof Styles;
 
+/** What a style mapping may need beyond the element and its styles. */
+export type StyleMappingContext = {
+  /**
+   * The width of the content of the element's container, in twips, which
+   * percentages of widths and margins resolve against. Without it, they can't
+   * be resolved.
+   */
+  containerContentWidth?: number;
+};
+
 export type DocxStyleMapping = Partial<
-  Record<StyleKey, (value: string, el: DocumentElement) => unknown>
+  Record<
+    StyleKey,
+    (
+      value: string,
+      el: DocumentElement,
+      context: StyleMappingContext
+    ) => unknown
+  >
 >;
 
 type DeepPartial<T> = {
@@ -82,6 +104,38 @@ const mapBorderStyle = (style: string): string => {
 const lengthToBorderSize = (value: string): number | undefined => {
   const twips = lengthToTwips(value);
   return typeof twips === 'number' ? twipsToEighthsOfPoint(twips) : undefined;
+};
+
+/**
+ * Removes border sides that have no style, from table borders (`borders`) and
+ * paragraph borders (`border`).
+ *
+ * The border longhands map separately, so `border-color` or `border-width`
+ * without a `border-style` leaves a side with only a colour or a size, and a
+ * paragraph's `padding` without a border leaves one with only a `space`. Such a
+ * side must not be written: `w:val` is required on every border side in
+ * ECMA-376, and Word may report a file with `<w:right w:color="000000"/>` as
+ * damaged. This matches CSS, where `border-style` defaults to `none`, so a
+ * colour or width alone draws no border.
+ */
+const dropStylelessBorderSides = (
+  mapped: Record<string, unknown>
+): Record<string, unknown> => {
+  for (const key of ['borders', 'border'] as const) {
+    const sides = mapped[key] as
+      | Record<string, { style?: unknown } | undefined>
+      | undefined;
+    if (!sides || typeof sides !== 'object') continue;
+    const styled = Object.fromEntries(
+      Object.entries(sides).filter(([, side]) => side?.style !== undefined)
+    );
+    if (Object.keys(styled).length > 0) {
+      mapped[key] = styled;
+    } else {
+      delete mapped[key];
+    }
+  }
+  return mapped;
 };
 
 const splitCssTokens = (value: string): string[] => {
@@ -504,8 +558,31 @@ export class DocxStyleMapper {
 
           return [
             `margin${capDir}` satisfies StyleKey,
-            (v: string, el: DocumentElement) => {
+            (
+              v: string,
+              el: DocumentElement,
+              { containerContentWidth }: StyleMappingContext
+            ) => {
               const token = v.trim().split(/\s+/)[0] ?? '';
+              if (el.type === 'table') {
+                // A table's left margin indents it, while its other margins
+                // have nothing to map to
+                if (dir !== 'left') return {};
+                // The indent is always written in twips (`dxa`), with a
+                // percentage resolved against the container's content here.
+                // A percentage indent (`pct`) has no effect in Word or
+                // LibreOffice, so the indent doesn't follow later changes to
+                // the page's margins, as percentage widths do.
+                const indent = token.endsWith('%')
+                  ? containerContentWidth !== undefined
+                    ? lengthOrPercentageToTwips(token, containerContentWidth)
+                    : undefined
+                  : lengthToTwips(token);
+                return indent === undefined
+                  ? {}
+                  : { indent: { size: indent, type: WidthType.DXA } };
+              }
+
               const twips = lengthToTwips(token);
               if (typeof twips !== 'number') return {};
 
@@ -520,7 +597,6 @@ export class DocxStyleMapper {
                 };
               }
 
-              if (el.type === 'table') return {};
               if (el.type === 'table-cell') {
                 return { margins: { [dir]: twips } };
               }
@@ -671,14 +747,19 @@ export class DocxStyleMapper {
   // Method to map raw styles to a generic style object
   public mapStyles(
     rawStyles: Partial<Record<StyleKey, string | number>>,
-    el: DocumentElement
+    el: DocumentElement,
+    context: StyleMappingContext = {}
   ): Record<string, unknown> {
     const expandedStyles = this.expandShorthands(rawStyles, el);
-    return (Object.keys(expandedStyles) as StyleKey[]).reduce(
+    const mapped = (Object.keys(expandedStyles) as StyleKey[]).reduce(
       (acc, cssProp) => {
         const mapper = this.mappings[cssProp];
         if (mapper && typeof expandedStyles[cssProp] === 'string') {
-          const newStyle = mapper(expandedStyles[cssProp], el) as object;
+          const newStyle = mapper(
+            expandedStyles[cssProp],
+            el,
+            context
+          ) as object;
           // Deep merge the new style into the accumulator
           return deepMerge(acc, newStyle);
         }
@@ -686,6 +767,7 @@ export class DocxStyleMapper {
       },
       {}
     );
+    return dropStylelessBorderSides(mapped);
   }
 
   // Method to add or override a mapping

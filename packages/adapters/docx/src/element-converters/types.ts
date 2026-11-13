@@ -27,6 +27,13 @@ export type ElementConverterDependencies = {
   defaultStyles: IConverterDependencies['defaultStyles'];
   stylesheet: ElementStylesheet;
   styleMeta: IConverterDependencies['styleMeta'];
+  /**
+   * The width of the content of the element's container, in twips, which
+   * percentage widths of blocks, such as a table's, resolve against: the page's
+   * width between its margins, from the `@page` rules and the default section
+   * options, or the width of a table cell's content for the blocks in the cell.
+   */
+  containerContentWidth: number;
 };
 
 interface IIsMatch<T extends DocumentElement> {

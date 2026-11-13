@@ -895,6 +895,24 @@ describe('Docx.adapter.convert', () => {
       expect(paragraphs[1]['w:r']['w:rPr']).toHaveProperty('w:i');
       expect(paragraphs[1]['w:r']['w:t']['#text']).toBe('Hello here');
     });
+    // A border side without w:val is invalid in ECMA-376 and Word may report
+    // the file as damaged. As in CSS, where border-style defaults to none, a
+    // colour, width or padding alone must not produce a border.
+    it('should not write paragraph border sides that have no style', async () => {
+      const html = `
+        <p style="border-color: #ff0000; border-width: 2px; padding: 4px">No border style</p>
+        <p style="border-color: #ff0000; border-bottom-style: solid">Bottom border only</p>`;
+      const buffer = await adapter.convert(parser.parse(html));
+      const jsonDocument = await parseDocxDocument(buffer);
+      const paragraphs = jsonDocument['w:document']['w:body']['w:p'];
+
+      expect(paragraphs[0]['w:pPr']?.['w:pBdr']).toBeUndefined();
+
+      const pBdr = paragraphs[1]['w:pPr']['w:pBdr'];
+      expect(Object.keys(pBdr)).toEqual(['w:bottom']);
+      expect(pBdr['w:bottom']['@_w:val']).toBe('single');
+      expect(pBdr['w:bottom']['@_w:color']).toBe('FF0000');
+    });
     it('should not pass paragraph borders down to nested paragraphs', async () => {
       const elements: DocumentElement[] = [
         {
@@ -2095,6 +2113,50 @@ describe('Docx.adapter.convert', () => {
       expect(cellBorders['w:left']?.['@_w:sz']).toBe('0');
     });
 
+    // A border side without w:val is invalid in ECMA-376 and Word may report
+    // the file as damaged. As in CSS, where border-style defaults to none, a
+    // colour alone must not produce a border.
+    it('does not write border sides that have a colour but no style', async () => {
+      const stylesheet = createBaseStylesheet();
+      stylesheet.addRule('.colour-only', { borderColor: '#000000' });
+
+      const html = `<table class="colour-only"><tr>
+        <td style="border: 1px solid #000">Bordered</td>
+        <td class="colour-only">A colour, but no border style</td>
+        <td class="colour-only" style="border-top-style: solid">Only the top is styled</td>
+      </tr></table>`;
+      const elements = new Parser([], new JSDOMParser()).parse(html);
+      const styledAdapter = new DocxAdapter({ stylesheet });
+
+      const buffer = await styledAdapter.convert(elements);
+      const jsonDocument = await parseDocxDocument(buffer);
+      const tbl = getTableFromDocx(jsonDocument);
+      const sides = ['w:top', 'w:left', 'w:bottom', 'w:right'];
+
+      // The table keeps its default none borders instead of colour-only ones
+      const tblBorders = tbl['w:tblPr']['w:tblBorders'];
+      for (const side of sides) {
+        expect(tblBorders[side]['@_w:val']).toBe('none');
+      }
+
+      const [bordered, colourOnly, topOnly] = toArray(
+        toArray(tbl['w:tr'])[0]?.['w:tc']
+      );
+      for (const side of sides) {
+        expect(bordered['w:tcPr']['w:tcBorders'][side]['@_w:val']).toBe(
+          'single'
+        );
+      }
+      expect(colourOnly['w:tcPr']?.['w:tcBorders']).toBeUndefined();
+
+      const topOnlyBorders = topOnly['w:tcPr']['w:tcBorders'];
+      expect(topOnlyBorders['w:top']['@_w:val']).toBe('single');
+      expect(topOnlyBorders['w:top']['@_w:color']).toBe('000000');
+      expect(topOnlyBorders['w:left']).toBeUndefined();
+      expect(topOnlyBorders['w:bottom']).toBeUndefined();
+      expect(topOnlyBorders['w:right']).toBeUndefined();
+    });
+
     it('does not serialize table-cell borders onto wrapped paragraphs inside the cell', async () => {
       const elements: DocumentElement[] = [
         {
@@ -2353,13 +2415,15 @@ describe('Docx.adapter.convert', () => {
       const middleBorders = middleCell?.['w:tcPr']?.['w:tcBorders'];
       const rightBorders = rightCell?.['w:tcPr']?.['w:tcBorders'];
 
-      expect(middleBorders['w:top']?.['@_w:val']).toBe('single');
-      expect(middleBorders['w:bottom']?.['@_w:val']).toBe('single');
+      // The table's hidden border suppresses the cells' borders along the
+      // table's edge, as hidden wins over every other border in CSS
+      expect(middleBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(middleBorders['w:bottom']?.['@_w:val']).toBe('none');
       expect(middleBorders['w:right']?.['@_w:val']).toBe('single');
       expect(middleBorders['w:left']?.['@_w:val']).toBe('none');
-      expect(rightBorders['w:top']?.['@_w:val']).toBe('single');
-      expect(rightBorders['w:right']?.['@_w:val']).toBe('single');
-      expect(rightBorders['w:bottom']?.['@_w:val']).toBe('single');
+      expect(rightBorders['w:top']?.['@_w:val']).toBe('none');
+      expect(rightBorders['w:right']?.['@_w:val']).toBe('none');
+      expect(rightBorders['w:bottom']?.['@_w:val']).toBe('none');
       expect(rightBorders['w:left']?.['@_w:val']).toBe('single');
     });
 
